@@ -1,0 +1,37 @@
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.map-status {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-width: 360px;
+}
+
+.map-status p {
+  margin: 0;
+  font-size: 14px;
+}
