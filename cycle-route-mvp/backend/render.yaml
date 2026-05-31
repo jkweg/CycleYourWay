@@ -1,0 +1,18 @@
+# Opcjonalnie: Render odczyta to przy tworzeniu serwisu z repozytorium.
+# Root Directory w panelu ustaw na: cycle-route-mvp/backend
+
+services:
+  - type: web
+    name: cycleyourway-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ORS_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

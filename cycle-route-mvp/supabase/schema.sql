@@ -1,0 +1,40 @@
+-- Cycle Your Way — schema for Supabase (PostgreSQL)
+-- Run in: Supabase Dashboard → SQL Editor → New query
+
+create table if not exists public.saved_routes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null check (char_length(trim(name)) > 0),
+  mode text not null check (mode in ('AtoB', 'Loop')),
+  geojson jsonb not null,
+  distance_km numeric(10, 2),
+  duration_seconds integer,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists saved_routes_user_id_created_at_idx
+  on public.saved_routes (user_id, created_at desc);
+
+alter table public.saved_routes enable row level security;
+
+create policy "Users can read own routes"
+  on public.saved_routes
+  for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own routes"
+  on public.saved_routes
+  for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own routes"
+  on public.saved_routes
+  for delete
+  using (auth.uid() = user_id);
+
+-- Optional: allow update name later
+-- create policy "Users can update own routes"
+--   on public.saved_routes
+--   for update
+--   using (auth.uid() = user_id)
+--   with check (auth.uid() = user_id);

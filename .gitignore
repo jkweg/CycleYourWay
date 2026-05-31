@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Local SQLite (legacy dev)
+cycle-route-mvp/backend/data/*.db
+cycle-route-mvp/backend/data/*.db-wal
+cycle-route-mvp/backend/data/*.db-shm
+
+# Editor
+.vscode/
+.idea/
