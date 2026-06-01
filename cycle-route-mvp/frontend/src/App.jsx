@@ -11,6 +11,11 @@ import { openRouteInGoogleMaps } from './exportToGoogleMaps'
 import SaveRouteModal from './SaveRouteModal'
 import SavedRoutes from './SavedRoutes'
 import { supabase } from './supabaseClient'
+import Footer from './components/Footer'
+import LandingPage from './components/LandingPage'
+import Navbar from './components/Navbar'
+import AddressAutocomplete from './components/AddressAutocomplete'
+import PlannerSidebar from './components/PlannerSidebar'
 
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
@@ -127,6 +132,7 @@ const pointFromCoordinate = (coordinate) => {
 function App() {
   const { user, isAuthenticated, logout } = useAuth()
   const plannerSectionRef = useRef(null)
+  const savedRoutesRef = useRef(null)
   const [routeMode, setRouteMode] = useState('AtoB')
   const [startPoint, setStartPoint] = useState(null)
   const [endPoint, setEndPoint] = useState(null)
@@ -153,6 +159,8 @@ function App() {
   const [savedRoutesRefreshKey, setSavedRoutesRefreshKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
+  const [view, setView] = useState('landing')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem('loopDistanceKm', String(loopDistanceKm))
@@ -292,6 +300,22 @@ function App() {
     setError('')
   }
 
+  const applyGeocodeResult = (type, result) => {
+    const selectedPoint = { lat: result.lat, lng: result.lon }
+    if (type === 'start') {
+      setStartPoint(selectedPoint)
+      setStartInput(result.name)
+      setLockedPoint(selectedPoint)
+    } else {
+      setEndPoint(selectedPoint)
+      setEndInput(result.name)
+      setLockedPoint(selectedPoint)
+    }
+    setRouteGeoJson(null)
+    setSelectedRouteIndex(0)
+    setError('')
+  }
+
   const geocodeAddress = async (type) => {
     const rawAddress = type === 'start' ? startInput : endInput
     const address = rawAddress.trim()
@@ -307,7 +331,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/geocode?address=${encodeURIComponent(address)}`,
+        `${API_BASE}/api/geocode?address=${encodeURIComponent(address)}&limit=1`,
       )
       const data = await response.json()
 
@@ -320,18 +344,7 @@ function App() {
         throw new Error('Nie znaleziono wyników dla podanego adresu.')
       }
 
-      const selectedPoint = { lat: firstResult.lat, lng: firstResult.lon }
-      if (type === 'start') {
-        setStartPoint(selectedPoint)
-        setStartInput(firstResult.name)
-        setLockedPoint(selectedPoint)
-      } else {
-        setEndPoint(selectedPoint)
-        setEndInput(firstResult.name)
-        setLockedPoint(selectedPoint)
-      }
-      setRouteGeoJson(null)
-      setSelectedRouteIndex(0)
+      applyGeocodeResult(type, firstResult)
     } catch (requestError) {
       setError(requestError.message || 'Unexpected geocoding error.')
     } finally {
@@ -556,8 +569,14 @@ function App() {
     setError('')
   }
 
-  const scrollToPlanner = () => {
-    plannerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const goToPlanner = () => {
+    setView('planner')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goToHome = () => {
+    setView('landing')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const accountBar = (
@@ -593,7 +612,7 @@ function App() {
   )
 
   return (
-    <div className="relative w-full overflow-x-hidden bg-transparent text-stone-800">
+    <div className="relative min-h-full w-full overflow-x-hidden bg-transparent text-stone-800">
       <div className="pointer-events-none fixed inset-0 z-0">
         <FloatingLines
           enabledWaves={['top', 'middle', 'bottom']}
@@ -610,85 +629,47 @@ function App() {
         />
       </div>
 
-      <header className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4 md:px-10">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[#2e5f43]">
-          Cycle Your Way
-        </p>
-        <div className="max-w-xs flex-1">{accountBar}</div>
-      </header>
+      <Navbar
+        view={view}
+        onGoHome={goToHome}
+        onStartPlanning={goToPlanner}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onLogout={logout}
+        isAuthenticated={isAuthenticated}
+        userEmail={user?.email}
+      />
 
-      <section className="relative z-10 mx-auto min-h-[88vh] w-full max-w-6xl px-6 py-10 md:px-10 md:py-12">
-        <div className="soft-panel relative flex min-h-[620px] items-center justify-center overflow-hidden rounded-3xl border border-[#e6dccb] bg-[rgba(247,242,233,0.74)] p-8 text-center shadow-[0_18px_45px_rgba(95,74,53,0.14)] backdrop-blur-[2px]">
-          <div className="relative mx-auto max-w-3xl">
-            <p className="mb-4 inline-block rounded-full border border-emerald-200/70 bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 backdrop-blur-sm">
-              Cycle Your Way
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight text-[#2e5f43] md:text-5xl">
-              Zaplanuj trasę rowerową, która naprawdę płynie.
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-stone-700 md:text-lg">
-              Twórz klasyczne trasy A-B lub treningowe pętle, analizuj elewację i nawierzchnię,
-              a potem eksportuj wszystko do Google Maps lub GPX.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={scrollToPlanner}
-                className="soft-button rounded-xl bg-[#3f7b57] px-6 py-3 text-sm font-semibold text-white hover:bg-[#356b4b]"
-              >
-                Rozpocznij planowanie
-              </button>
-              <button
-                type="button"
-                onClick={scrollToPlanner}
-                className="soft-button rounded-xl border border-[#d8cbb7] bg-white/90 px-6 py-3 text-sm font-semibold text-stone-700 hover:bg-[#f3ede2]"
-              >
-                Utwórz trasę
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {view === 'landing' ? (
+        <>
+          <LandingPage onStartPlanning={goToPlanner} />
+          <Footer onStartPlanning={goToPlanner} onGoHome={goToHome} />
+        </>
+      ) : (
+        <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
+          <div className="mx-auto flex h-[calc(100vh-4.5rem)] min-h-[680px] max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#e8e2d6] bg-[#f7f5ef] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:flex-row">
+            <PlannerSidebar
+              open={sidebarOpen}
+              setOpen={setSidebarOpen}
+              onGoHome={goToHome}
+              onOpenAuth={() => setShowAuthModal(true)}
+              onLogout={logout}
+              isAuthenticated={isAuthenticated}
+              userEmail={user?.email}
+              routeMode={routeMode}
+              onRouteModeChange={handleRouteModeChange}
+              onScrollToSaved={() =>
+                savedRoutesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            />
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-12 md:px-10">
-        <div className="soft-panel rounded-2xl border border-[#e3d9c8] bg-white/80 p-6 text-center md:p-8">
-          <h2 className="text-2xl font-semibold text-[#2e5f43]">Jak utworzyć trasę? (krok po kroku)</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-[#ece3d4] bg-[#fcfaf5] p-4 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Krok 1</p>
-              <p className="mt-2 text-sm text-stone-700">
-                Wybierz tryb: <strong>A do B</strong> albo <strong>Pętla treningowa</strong>.
-              </p>
-            </div>
-            <div className="rounded-xl border border-[#ece3d4] bg-[#fcfaf5] p-4 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Krok 2</p>
-              <p className="mt-2 text-sm text-stone-700">
-                Ustaw punkty na mapie lub wpisz adresy, a potem kliknij przycisk wyznaczania.
-              </p>
-            </div>
-            <div className="rounded-xl border border-[#ece3d4] bg-[#fcfaf5] p-4 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Krok 3</p>
-              <p className="mt-2 text-sm text-stone-700">
-                Sprawdź statystyki, elewację i nawierzchnię, a na końcu eksportuj trasę.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={scrollToPlanner}
-            className="soft-button mt-6 rounded-xl bg-[#7a6248] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#6c563f]"
-          >
-            Przejdź do tworzenia trasy
-          </button>
-        </div>
-      </section>
-
-      <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
-        <div className="flex h-[calc(100vh-1.5rem)] min-h-[680px] w-full flex-col overflow-hidden rounded-2xl bg-[#f7f5ef] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:flex-row">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
       <aside className="flex h-full min-h-0 w-full flex-col border-r border-[#e9e1d2] bg-white/95 shadow-[0_12px_44px_rgba(95,74,53,0.12)] backdrop-blur-sm md:w-[26rem] md:shrink-0">
         <div className="shrink-0 space-y-4 border-b border-[#ebe3d6] p-6 pb-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#2e5f43]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              {routeMode === 'AtoB' ? 'Tryb: Trasa A → B' : 'Tryb: Pętla treningowa'}
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#2e5f43]">
               Planer tras
             </h1>
             <p className="mt-2 text-sm leading-6 text-stone-600">
@@ -696,7 +677,7 @@ function App() {
             </p>
           </div>
 
-          {accountBar}
+          <div className="md:hidden">{accountBar}</div>
 
           {saveSuccessMessage && (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
@@ -704,38 +685,15 @@ function App() {
             </p>
           )}
 
-          <SavedRoutes
-            onLoadRoute={handleLoadSavedRoute}
-            refreshKey={savedRoutesRefreshKey}
-          />
+          <div ref={savedRoutesRef}>
+            <SavedRoutes
+              onLoadRoute={handleLoadSavedRoute}
+              refreshKey={savedRoutesRefreshKey}
+            />
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6 pt-4">
-          <div className="soft-panel mb-4 grid grid-cols-2 rounded-xl border border-[#eadfcf] bg-[#f4efe6] p-1">
-            <button
-              type="button"
-              onClick={() => handleRouteModeChange('AtoB')}
-              className={`soft-button rounded-lg px-3 py-2 text-sm font-medium transition ${
-                routeMode === 'AtoB'
-                  ? 'bg-white text-[#2e5f43] shadow-sm'
-                  : 'text-stone-600 hover:text-[#6f553b]'
-              }`}
-            >
-              Trasa z A do B
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRouteModeChange('Loop')}
-              className={`soft-button rounded-lg px-3 py-2 text-sm font-medium transition ${
-                routeMode === 'Loop'
-                  ? 'bg-white text-[#2e5f43] shadow-sm'
-                  : 'text-stone-600 hover:text-[#6f553b]'
-              }`}
-            >
-              Pętla treningowa
-            </button>
-          </div>
-
           <div className="soft-panel space-y-4 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4">
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm text-stone-700">
               <input
@@ -768,18 +726,13 @@ function App() {
                     )}
                   </label>
                   <div className="flex gap-2">
-                    <input
+                    <AddressAutocomplete
                       id="start-point-input"
-                      type="text"
                       value={startInput}
-                      onChange={(event) =>
-                        handlePointInputChange('start', event.target.value)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') geocodeAddress('start')
-                      }}
-                      placeholder="Wpisz adres lub kliknij mapę"
-                      className="w-full rounded-lg border border-[#dbcdb8] bg-white px-3 py-2 text-sm outline-none ring-[#83a58b] transition focus:ring-2"
+                      onChange={(nextValue) => handlePointInputChange('start', nextValue)}
+                      onSelect={(result) => applyGeocodeResult('start', result)}
+                      onSubmit={() => geocodeAddress('start')}
+                      placeholder="Wpisz miejscowość lub adres"
                     />
                     <button
                       type="button"
@@ -805,16 +758,13 @@ function App() {
                     )}
                   </label>
                   <div className="flex gap-2">
-                    <input
+                    <AddressAutocomplete
                       id="end-point-input"
-                      type="text"
                       value={endInput}
-                      onChange={(event) => handlePointInputChange('end', event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') geocodeAddress('end')
-                      }}
-                      placeholder="Wpisz adres lub kliknij mapę"
-                      className="w-full rounded-lg border border-[#dbcdb8] bg-white px-3 py-2 text-sm outline-none ring-[#83a58b] transition focus:ring-2"
+                      onChange={(nextValue) => handlePointInputChange('end', nextValue)}
+                      onSelect={(result) => applyGeocodeResult('end', result)}
+                      onSubmit={() => geocodeAddress('end')}
+                      placeholder="Wpisz miejscowość lub adres"
                     />
                     <button
                       type="button"
@@ -858,18 +808,13 @@ function App() {
                     )}
                   </label>
                   <div className="flex gap-2">
-                    <input
+                    <AddressAutocomplete
                       id="loop-start-point-input"
-                      type="text"
                       value={startInput}
-                      onChange={(event) =>
-                        handlePointInputChange('start', event.target.value)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') geocodeAddress('start')
-                      }}
-                      placeholder="Wpisz adres lub kliknij mapę"
-                      className="w-full rounded-lg border border-[#dbcdb8] bg-white px-3 py-2 text-sm outline-none ring-[#83a58b] transition focus:ring-2"
+                      onChange={(nextValue) => handlePointInputChange('start', nextValue)}
+                      onSelect={(result) => applyGeocodeResult('start', result)}
+                      onSubmit={() => geocodeAddress('start')}
+                      placeholder="Wpisz miejscowość lub adres"
                     />
                     <button
                       type="button"
@@ -1075,8 +1020,10 @@ function App() {
           ))}
         </MapContainer>
       </div>
-        </div>
-      </section>
+            </div>
+          </div>
+        </section>
+      )}
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <SaveRouteModal

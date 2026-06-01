@@ -118,6 +118,23 @@ const getRouteFromOsrm = async (start, end) => {
   };
 };
 
+const mapGeocodeFeatures = (features) =>
+  features
+    .map((feature) => {
+      const coords = feature?.geometry?.coordinates;
+      const lon = Array.isArray(coords) ? coords[0] : null;
+      const lat = Array.isArray(coords) ? coords[1] : null;
+      const name =
+        feature?.properties?.label ||
+        feature?.properties?.name ||
+        feature?.properties?.locality ||
+        "";
+
+      if (!Number.isFinite(lon) || !Number.isFinite(lat) || !name) return null;
+      return { name, lon, lat };
+    })
+    .filter(Boolean);
+
 app.get("/api/geocode", async (req, res) => {
   try {
     if (!ORS_API_KEY) {
@@ -134,10 +151,18 @@ app.get("/api/geocode", async (req, res) => {
         .json({ error: "Missing required query param: address" });
     }
 
+    const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 10);
+    const useAutocomplete = req.query.autocomplete === "true";
+
     const url = "https://api.openrouteservice.org/geocode/search";
     const orsResponse = await axios.get(url, {
       headers: { Authorization: ORS_API_KEY },
-      params: { text: address },
+      params: {
+        text: address,
+        size: limit,
+        ...(useAutocomplete ? { autocomplete: true } : {}),
+        "boundary.country": "POL",
+      },
       timeout: 15000,
     });
 
@@ -145,21 +170,7 @@ app.get("/api/geocode", async (req, res) => {
       ? orsResponse.data.features
       : [];
 
-    const results = features
-      .map((feature) => {
-        const coords = feature?.geometry?.coordinates;
-        const lon = Array.isArray(coords) ? coords[0] : null;
-        const lat = Array.isArray(coords) ? coords[1] : null;
-        const name =
-          feature?.properties?.label ||
-          feature?.properties?.name ||
-          feature?.properties?.locality ||
-          "";
-
-        if (!Number.isFinite(lon) || !Number.isFinite(lat) || !name) return null;
-        return { name, lon, lat };
-      })
-      .filter(Boolean);
+    const results = mapGeocodeFeatures(features);
 
     return res.status(200).json({ results });
   } catch (error) {
