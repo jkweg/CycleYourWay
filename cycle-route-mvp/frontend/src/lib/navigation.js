@@ -14,6 +14,23 @@ export const haversineMeters = (a, b) => {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
+const toDeg = (value) => (value * 180) / Math.PI
+
+// Azymut (0-360°, 0 = północ, rośnie zgodnie z ruchem wskazówek zegara)
+// z punktu a do punktu b.
+export const bearingDegrees = (a, b) => {
+  if (!a || !b) return null
+  const lat1 = toRad(a.lat)
+  const lat2 = toRad(b.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const y = Math.sin(dLng) * Math.cos(lat2)
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng)
+  const bearing = toDeg(Math.atan2(y, x))
+  return (bearing + 360) % 360
+}
+
 // ORS step.type -> ikona + krótki opis kierunku
 const MANEUVER_TYPES = {
   0: { icon: '↰', label: 'W lewo' },

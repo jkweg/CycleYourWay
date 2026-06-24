@@ -15,7 +15,13 @@ const formatDate = (value) => {
   })
 }
 
-function SavedRoutes({ onLoadRoute, refreshKey = 0, activeRouteId = null }) {
+function SavedRoutes({
+  onLoadRoute,
+  onRideRoute,
+  onOpenOnPhone,
+  refreshKey = 0,
+  activeRouteId = null,
+}) {
   const { isAuthenticated } = useAuth()
   const [routes, setRoutes] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -144,25 +150,47 @@ function SavedRoutes({ onLoadRoute, refreshKey = 0, activeRouteId = null }) {
               {route.distanceKm != null && ` · ${route.distanceKm.toFixed(1)} km`}
               {route.createdAt && ` · ${formatDate(route.createdAt)}`}
             </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => onLoadRoute(route)}
-                className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  activeRouteId === route.id
-                    ? 'bg-[#2e5f43] text-white hover:bg-[#264f38]'
-                    : 'bg-[#3f7b57] text-white hover:bg-[#356b4b]'
-                }`}
-              >
-                {activeRouteId === route.id ? 'Wczytana' : 'Wczytaj'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(route.id)}
-                className="soft-button rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-              >
-                Usuń
-              </button>
+            <div className="mt-2 space-y-2">
+              <div className="flex gap-2">
+                {onRideRoute && (
+                  <button
+                    type="button"
+                    onClick={() => onRideRoute(route)}
+                    className="soft-button flex-1 rounded-lg bg-[#2e5f43] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#264f38]"
+                  >
+                    Jedź
+                  </button>
+                )}
+                {onOpenOnPhone && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenOnPhone(route)}
+                    className="soft-button flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#2e5f43] hover:bg-emerald-50"
+                  >
+                    Na telefonie
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onLoadRoute(route)}
+                  className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                    activeRouteId === route.id
+                      ? 'bg-emerald-100 text-[#2e5f43] ring-1 ring-emerald-300'
+                      : 'border border-[#dfd4c2] bg-white text-stone-700 hover:bg-stone-50'
+                  }`}
+                >
+                  {activeRouteId === route.id ? 'Wczytana ✓' : 'Wczytaj na mapę'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(route.id)}
+                  className="soft-button rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                >
+                  Usuń
+                </button>
+              </div>
             </div>
           </li>
         ))}

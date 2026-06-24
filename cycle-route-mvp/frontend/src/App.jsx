@@ -174,6 +174,7 @@ function App() {
   const [loadedSavedRouteId, setLoadedSavedRouteId] = useState(null)
   const [loadedSavedRouteName, setLoadedSavedRouteName] = useState('')
   const [showOpenOnPhone, setShowOpenOnPhone] = useState(false)
+  const [openOnPhoneTarget, setOpenOnPhoneTarget] = useState(null)
   const [rideRoute, setRideRoute] = useState(null)
   const [pendingRideId, setPendingRideId] = useState(() => {
     if (typeof window === 'undefined') return null
@@ -695,6 +696,37 @@ function App() {
       setError('Najpierw zapisz trasę („Zapisz trasę”), aby otworzyć ją na telefonie.')
       return
     }
+    setOpenOnPhoneTarget({ rideUrl, routeName: currentRouteName })
+    setShowOpenOnPhone(true)
+  }
+
+  // Akcje "Jedź" / "Otwórz na telefonie" bezpośrednio z listy zapisanych tras.
+  const handleRideSavedRoute = (savedRoute) => {
+    const feature = savedRoute?.geojson?.features?.[0]
+    if (!feature) {
+      setError('Zapisana trasa nie zawiera danych do nawigacji.')
+      return
+    }
+    setRideRoute({
+      feature,
+      name: savedRoute.name || (savedRoute.mode === 'Loop' ? 'Pętla treningowa' : 'Trasa A → B'),
+      mode: savedRoute.mode,
+    })
+  }
+
+  const handleOpenSavedRouteOnPhone = (savedRoute) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true)
+      return
+    }
+    if (!savedRoute?.id) {
+      setError('Nie udało się przygotować linku do tej trasy.')
+      return
+    }
+    setOpenOnPhoneTarget({
+      rideUrl: `${window.location.origin}/?ride=${savedRoute.id}`,
+      routeName: savedRoute.name || 'Trasa',
+    })
     setShowOpenOnPhone(true)
   }
 
@@ -913,6 +945,8 @@ function App() {
           <div ref={savedRoutesRef}>
             <SavedRoutes
               onLoadRoute={handleLoadSavedRoute}
+              onRideRoute={handleRideSavedRoute}
+              onOpenOnPhone={handleOpenSavedRouteOnPhone}
               refreshKey={savedRoutesRefreshKey}
               activeRouteId={loadedSavedRouteId}
             />
@@ -1308,8 +1342,8 @@ function App() {
       <OpenOnPhoneModal
         isOpen={showOpenOnPhone}
         onClose={() => setShowOpenOnPhone(false)}
-        rideUrl={rideUrl}
-        routeName={currentRouteName}
+        rideUrl={openOnPhoneTarget?.rideUrl ?? rideUrl}
+        routeName={openOnPhoneTarget?.routeName ?? currentRouteName}
       />
     </div>
   )

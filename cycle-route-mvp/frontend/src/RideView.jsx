@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import L from 'leaflet'
 import {
   CircleMarker,
   GeoJSON,
   MapContainer,
+  Marker,
   TileLayer,
   useMap,
   useMapEvents,
 } from 'react-leaflet'
 import {
+  bearingDegrees,
   buildCumulativeDistances,
   computeNavState,
   extractManeuvers,
@@ -15,8 +18,32 @@ import {
   formatDuration,
   getFeatureCoordinates,
   getManeuverVisual,
+  haversineMeters,
   toLatLng,
 } from './lib/navigation'
+
+// Marker pozycji użytkownika: strzałka kierunku (gdy znamy heading) lub kropka.
+const buildUserIcon = (heading) => {
+  const hasHeading = heading != null && Number.isFinite(heading)
+  const html = hasHeading
+    ? `<div style="width:32px;height:32px;transform:rotate(${heading}deg);transition:transform 0.3s ease-out;">
+         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+           <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
+           <path d="M16 6 L22 22 L16 18 L10 22 Z" fill="#ffffff"/>
+         </svg>
+       </div>`
+    : `<div style="width:32px;height:32px;">
+         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+           <circle cx="16" cy="16" r="9" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
+         </svg>
+       </div>`
+  return L.divIcon({
+    className: 'cyw-user-marker',
+    html,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  })
+}
 
 const geoErrorMessage = (error) => {
   if (!error) return 'Nie udało się ustalić lokalizacji.'
@@ -47,7 +74,11 @@ function FollowController({ center, follow, onUserDrag }) {
 
   useEffect(() => {
     if (follow && center) {
-      map.panTo([center.lat, center.lng], { animate: true, duration: 0.6 })
+      map.panTo([center.lat, center.lng], {
+        animate: true,
+        duration: 0.9,
+        easeLinearity: 0.25,
+      })
     }
   }, [center, follow, map])
 
@@ -80,6 +111,7 @@ function RideView({ feature, routeName, mode, onExit }) {
   const destination = coordinates.length ? toLatLng(coordinates[coordinates.length - 1]) : null
 
   const [userPos, setUserPos] = useState(null)
+  const [heading, setHeading] = useState(null)
   const [gpsSpeed, setGpsSpeed] = useState(null)
   const [accuracy, setAccuracy] = useState(null)
   const [geoError, setGeoError] = useState(() =>
@@ -93,6 +125,7 @@ function RideView({ feature, routeName, mode, onExit }) {
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
+  const prevPosRef = useRef(null)
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -101,8 +134,23 @@ function RideView({ feature, routeName, mode, onExit }) {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude, speed, accuracy: acc } = position.coords
-        setUserPos({ lat: latitude, lng: longitude })
+        const { latitude, longitude, speed, accuracy: acc, heading: gpsHeading } =
+          position.coords
+        const point = { lat: latitude, lng: longitude }
+
+        // Kierunek: najpierw z GPS (gdy jedziemy), w innym wypadku liczymy
+        // azymut z przesunięcia względem poprzedniej pozycji.
+        let nextHeading = null
+        if (Number.isFinite(gpsHeading) && (!Number.isFinite(speed) || speed > 0.5)) {
+          nextHeading = gpsHeading
+        } else if (prevPosRef.current) {
+          const moved = haversineMeters(prevPosRef.current, point)
+          if (moved > 4) nextHeading = bearingDegrees(prevPosRef.current, point)
+        }
+        if (nextHeading != null) setHeading(nextHeading)
+        prevPosRef.current = point
+
+        setUserPos(point)
         setGpsSpeed(Number.isFinite(speed) ? speed : null)
         setAccuracy(Number.isFinite(acc) ? acc : null)
         setGeoError('')
@@ -154,11 +202,36 @@ function RideView({ feature, routeName, mode, onExit }) {
   useEffect(() => {
     if (!voiceOn || !navState?.nextManeuver) return
     const { nextManeuver, distanceToManeuver } = navState
-    if (distanceToManeuver != null && distanceToManeuver < 70) {
-      if (spokenRef.current !== nextManeuver.coordIndex) {
-        spokenRef.current = nextManeuver.coordIndex
-        speak(nextManeuver.instruction)
+    if (distanceToManeuver == null) return
+
+    const instruction = nextManeuver.instruction || getManeuverVisual(nextManeuver.type).label
+
+    // Reset progów dla nowego manewru.
+    if (!spokenRef.current || spokenRef.current.key !== nextManeuver.coordIndex) {
+      spokenRef.current = { key: nextManeuver.coordIndex, tiers: new Set() }
+    }
+    const spoken = spokenRef.current.tiers
+
+    const tier =
+      distanceToManeuver <= 50
+        ? { id: 'now', phrase: instruction }
+        : distanceToManeuver <= 170
+          ? { id: 'near', phrase: `Za 100 metrów ${instruction}` }
+          : distanceToManeuver <= 350
+            ? { id: 'far', phrase: `Za 300 metrów ${instruction}` }
+            : null
+
+    if (tier && !spoken.has(tier.id)) {
+      // Pomiń wcześniejsze progi, jeśli wjechaliśmy od razu w bliższy
+      // (np. przy dużej prędkości), aby nie zapowiadać ich z opóźnieniem.
+      if (tier.id === 'now') {
+        spoken.add('far').add('near').add('now')
+      } else if (tier.id === 'near') {
+        spoken.add('far').add('near')
+      } else {
+        spoken.add('far')
       }
+      speak(tier.phrase)
     }
   }, [navState, voiceOn])
 
@@ -174,6 +247,8 @@ function RideView({ feature, routeName, mode, onExit }) {
     if (!feature) return null
     return { type: 'FeatureCollection', features: [feature] }
   }, [feature])
+
+  const userIcon = useMemo(() => buildUserIcon(heading), [heading])
 
   const nextManeuver = navState?.nextManeuver || null
   const followingManeuver = navState?.followingManeuver || null
@@ -222,10 +297,11 @@ function RideView({ feature, routeName, mode, onExit }) {
                   }}
                 />
               )}
-              <CircleMarker
-                center={[userPos.lat, userPos.lng]}
-                radius={9}
-                pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
+              <Marker
+                position={[userPos.lat, userPos.lng]}
+                icon={userIcon}
+                zIndexOffset={1000}
+                keyboard={false}
               />
             </>
           )}
