@@ -71,6 +71,35 @@ const isValidPoint = (point) => {
   );
 };
 
+const haversineMeters = (a, b) => {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const earthRadius = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+// ORS: alternatywne trasy są dozwolone tylko do 100 km. Powyżej liczymy
+// pojedynczą trasę, żeby długie przejazdy nadal działały.
+const ALTERNATIVE_ROUTES_MAX_METERS = 95000;
+
+const friendlyOrsError = (apiData) => {
+  const code = apiData?.error?.code;
+  const message = apiData?.error?.message || "";
+  if (code === 2004 || /must not be greater/i.test(message)) {
+    return "Trasa jest zbyt długa dla tego trybu. Wybierz bliższe punkty.";
+  }
+  if (code === 2010 || /Could not find routable/i.test(message)) {
+    return "Nie znaleziono drogi w pobliżu wybranego punktu. Przesuń punkt bliżej drogi.";
+  }
+  return "Nie udało się wyznaczyć trasy. Spróbuj ponownie lub zmień punkty.";
+};
+
 // ORS waytype: 1 = state_road, 2 = road (traktujemy jako drogi główne)
 const MAIN_ROAD_WAYTYPES = new Set([1, 2]);
 
@@ -234,6 +263,9 @@ app.post("/api/route", async (req, res) => {
         ? ["cycling-mountain", "cycling-regular"]
         : [requestedProfile];
 
+    const straightLineMeters = haversineMeters(start, end);
+    const useAlternatives = straightLineMeters <= ALTERNATIVE_ROUTES_MAX_METERS;
+
     const routePayload = {
       coordinates: [
         [start.lng, start.lat],
@@ -244,12 +276,15 @@ app.post("/api/route", async (req, res) => {
       instructions_format: "text",
       language: "pl",
       extra_info: getExtraInfo(Boolean(avoidMainRoads)),
-      alternative_routes: {
+    };
+
+    if (useAlternatives) {
+      routePayload.alternative_routes = {
         target_count: 3,
         weight_factor: 1.6,
         share_factor: 0.6,
-      },
-    };
+      };
+    }
 
     let orsResponse;
     let lastError;
@@ -323,7 +358,7 @@ app.post("/api/route", async (req, res) => {
     }
 
     return res.status(status).json({
-      error: "Failed to fetch route from routing provider.",
+      error: friendlyOrsError(apiData),
       details: apiData || error.message,
     });
   }
