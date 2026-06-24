@@ -1,7 +1,7 @@
 // Minimalny service worker - umożliwia instalację PWA i offline app-shell.
 // Pełne cache'owanie kafelków mapy offline planujemy w kolejnym etapie.
-const CACHE = 'cyw-shell-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg']
+const CACHE = 'cyw-shell-v2'
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
