@@ -10,13 +10,19 @@ const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
 const ALLOWED_PROFILES = new Set(["cycling-mountain", "cycling-regular"]);
 
+// Originy zawsze dozwolone (lokalny dev + dowolny deploy Vercela, w tym preview).
+// Dzięki temu nie trzeba ręcznie aktualizować listy po każdym deployu.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://*.vercel.app",
+];
+
 // Dozwolone originy. Wpisy mogą zawierać wildcard "*", np. https://*.vercel.app
-// (przydatne dla zmieniających się preview-URL-i Vercela).
-const allowedOriginPatterns = (
-  process.env.ALLOWED_ORIGINS ||
-  "http://localhost:5173,http://127.0.0.1:5173"
-)
-  .split(",")
+const allowedOriginPatterns = [
+  ...DEFAULT_ALLOWED_ORIGINS,
+  ...(process.env.ALLOWED_ORIGINS || "").split(","),
+]
   .map((origin) => origin.trim())
   .filter(Boolean)
   .map((pattern) => {
