@@ -7,8 +7,11 @@ import { API_BASE } from './api'
 import AuthModal from './AuthModal'
 import { useAuth } from './useAuth'
 import { downloadRouteAsGpx } from './exportToGpx'
-import { openRouteInGoogleMaps } from './exportToGoogleMaps'
+import { buildGoogleMapsDirectionsUrl, openRouteInGoogleMaps } from './exportToGoogleMaps'
 import SaveRouteModal from './SaveRouteModal'
+import GoogleMapsExportNoticeModal from './GoogleMapsExportNoticeModal'
+import OpenOnPhoneModal from './OpenOnPhoneModal'
+import RideView from './RideView'
 import SavedRoutes from './SavedRoutes'
 import { supabase } from './supabaseClient'
 import Footer from './components/Footer'
@@ -130,7 +133,7 @@ const pointFromCoordinate = (coordinate) => {
 }
 
 function App() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
   const plannerSectionRef = useRef(null)
   const savedRoutesRef = useRef(null)
   const [routeMode, setRouteMode] = useState('AtoB')
@@ -156,7 +159,17 @@ function App() {
   const [error, setError] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showSaveRouteModal, setShowSaveRouteModal] = useState(false)
+  const [showGoogleMapsExportNotice, setShowGoogleMapsExportNotice] = useState(false)
   const [savedRoutesRefreshKey, setSavedRoutesRefreshKey] = useState(0)
+  const [loadedSavedRouteId, setLoadedSavedRouteId] = useState(null)
+  const [loadedSavedRouteName, setLoadedSavedRouteName] = useState('')
+  const [showOpenOnPhone, setShowOpenOnPhone] = useState(false)
+  const [rideRoute, setRideRoute] = useState(null)
+  const [pendingRideId, setPendingRideId] = useState(() => {
+    if (typeof window === 'undefined') return null
+    return new URLSearchParams(window.location.search).get('ride')
+  })
+  const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
   const [view, setView] = useState('landing')
@@ -250,11 +263,15 @@ function App() {
         throw new Error(data?.error || 'Route request failed.')
       }
 
+      setLoadedSavedRouteId(null)
       setRouteGeoJson(data)
       setSelectedRouteIndex(0)
+      bumpRouteDisplay()
     } catch (requestError) {
       setRouteGeoJson(null)
       setSelectedRouteIndex(0)
+      setLoadedSavedRouteId(null)
+      bumpRouteDisplay()
       setError(requestError.message || 'Unexpected route error.')
     } finally {
       setIsLoadingRoute(false)
@@ -263,6 +280,18 @@ function App() {
 
   const mapSelectionLabel = (point) =>
     `Wybrano punkt na mapie [${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}]`
+
+  const bumpRouteDisplay = () => {
+    setRouteDisplayKey((current) => current + 1)
+  }
+
+  const cloneGeoJson = (geojson) => {
+    try {
+      return structuredClone(geojson)
+    } catch {
+      return JSON.parse(JSON.stringify(geojson))
+    }
+  }
 
   const handleRouteModeChange = (nextMode) => {
     setRouteMode(nextMode)
@@ -273,6 +302,8 @@ function App() {
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
     setLockedPoint(null)
+    setLoadedSavedRouteId(null)
+    bumpRouteDisplay()
     setError('')
   }
 
@@ -281,8 +312,13 @@ function App() {
     setEndPoint(null)
     setStartInput('')
     setEndInput('')
+    setLockedPoint(null)
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
+    setLoadedSavedRouteId(null)
+    setLoadedSavedRouteName('')
+    bumpRouteDisplay()
+    setSaveSuccessMessage('')
     setError('')
   }
 
@@ -386,11 +422,15 @@ function App() {
         throw new Error(data?.error || 'Loop generation request failed.')
       }
 
+      setLoadedSavedRouteId(null)
       setRouteGeoJson(data)
       setSelectedRouteIndex(0)
+      bumpRouteDisplay()
     } catch (requestError) {
       setRouteGeoJson(null)
       setSelectedRouteIndex(0)
+      setLoadedSavedRouteId(null)
+      bumpRouteDisplay()
       setError(requestError.message || 'Unexpected loop generation error.')
     } finally {
       setIsLoadingRoute(false)
@@ -402,6 +442,19 @@ function App() {
       setError('Najpierw wyznacz trasę, aby wyeksportować ją do Google Maps.')
       return
     }
+
+    const coordinates = selectedFeature?.geometry?.coordinates
+    const url = buildGoogleMapsDirectionsUrl(coordinates)
+    if (!url) {
+      setError('Nie udało się przygotować linku do Google Maps.')
+      return
+    }
+
+    setShowGoogleMapsExportNotice(true)
+  }
+
+  const handleConfirmGoogleMapsExport = () => {
+    if (!selectedFeature) return
 
     try {
       openRouteInGoogleMaps(selectedFeature)
@@ -492,26 +545,55 @@ function App() {
     const start = pointFromCoordinate(coordinates[0])
     const end = pointFromCoordinate(coordinates[coordinates.length - 1])
 
-    setRouteMode(savedRoute.mode)
-    setRouteGeoJson(geojson)
+    setRouteGeoJson(null)
     setSelectedRouteIndex(0)
-    setLockedPoint(null)
+    setLoadedSavedRouteId(null)
+    bumpRouteDisplay()
+
+    setRouteMode(savedRoute.mode)
+    setSaveSuccessMessage('')
     setError('')
+    setIsLoadingRoute(false)
 
-    if (start) {
-      setStartPoint(start)
-      setStartInput(
-        `Wczytana trasa [${start.lat.toFixed(5)}, ${start.lng.toFixed(5)}]`,
-      )
-    }
-
-    if (savedRoute.mode === 'AtoB' && end) {
-      setEndPoint(end)
-      setEndInput(`Koniec trasy [${end.lat.toFixed(5)}, ${end.lng.toFixed(5)}]`)
-    } else {
+    if (savedRoute.mode === 'Loop') {
       setEndPoint(null)
       setEndInput('')
+      if (savedRoute.distanceKm != null) {
+        const roundedDistance = Math.round(savedRoute.distanceKm)
+        setLoopDistanceKm(Math.min(100, Math.max(5, roundedDistance)))
+      }
+      if (start) {
+        setStartPoint(start)
+        setStartInput(savedRoute.name || mapSelectionLabel(start))
+        setLockedPoint(start)
+      } else {
+        setStartPoint(null)
+        setStartInput('')
+        setLockedPoint(null)
+      }
+    } else {
+      if (start) {
+        setStartPoint(start)
+        setStartInput(mapSelectionLabel(start))
+      } else {
+        setStartPoint(null)
+        setStartInput('')
+      }
+
+      if (end) {
+        setEndPoint(end)
+        setEndInput(mapSelectionLabel(end))
+      } else {
+        setEndPoint(null)
+        setEndInput('')
+      }
+      setLockedPoint(null)
     }
+
+    setLoadedSavedRouteId(savedRoute.id)
+    setLoadedSavedRouteName(savedRoute.name || '')
+    setRouteGeoJson(cloneGeoJson(geojson))
+    bumpRouteDisplay()
   }
 
   const handleExportToGpx = () => {
@@ -532,6 +614,83 @@ function App() {
       setError(exportError.message || 'Nie udało się wyeksportować trasy do GPX.')
     }
   }
+
+  const currentRouteName =
+    loadedSavedRouteName ||
+    (routeMode === 'Loop' ? 'Pętla treningowa' : 'Trasa A → B')
+
+  const rideUrl = loadedSavedRouteId
+    ? `${window.location.origin}/?ride=${loadedSavedRouteId}`
+    : ''
+
+  const handleStartRide = () => {
+    if (!selectedFeature) {
+      setError('Najpierw wyznacz trasę, aby rozpocząć nawigację.')
+      return
+    }
+    setRideRoute({ feature: selectedFeature, name: currentRouteName, mode: routeMode })
+  }
+
+  const handleOpenOnPhone = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true)
+      return
+    }
+    if (!loadedSavedRouteId) {
+      setError('Najpierw zapisz trasę („Zapisz trasę”), aby otworzyć ją na telefonie.')
+      return
+    }
+    setShowOpenOnPhone(true)
+  }
+
+  useEffect(() => {
+    if (!pendingRideId || isAuthLoading) return undefined
+
+    let cancelled = false
+
+    const loadRideRoute = async () => {
+      if (!isAuthenticated) {
+        setView('planner')
+        setShowAuthModal(true)
+        return
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from('saved_routes')
+        .select('id, name, mode, geojson')
+        .eq('id', pendingRideId)
+        .single()
+
+      if (cancelled) return
+
+      if (fetchError || !data) {
+        setView('planner')
+        setError(
+          'Nie udało się wczytać trasy do nawigacji. Sprawdź, czy jesteś zalogowany właściwym kontem.',
+        )
+        setPendingRideId(null)
+        return
+      }
+
+      const feature = data.geojson?.features?.[0]
+      if (!feature) {
+        setView('planner')
+        setError('Zapisana trasa nie zawiera danych do nawigacji.')
+        setPendingRideId(null)
+        return
+      }
+
+      setRideRoute({ feature, name: data.name, mode: data.mode })
+      setPendingRideId(null)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    loadRideRoute()
+
+    return () => {
+      cancelled = true
+    }
+  }, [pendingRideId, isAuthLoading, isAuthenticated])
 
   const handleMapClick = (latlng) => {
     if (routeGeoJson && routeMode === 'AtoB') {
@@ -611,6 +770,17 @@ function App() {
     </div>
   )
 
+  if (rideRoute) {
+    return (
+      <RideView
+        feature={rideRoute.feature}
+        routeName={rideRoute.name}
+        mode={rideRoute.mode}
+        onExit={() => setRideRoute(null)}
+      />
+    )
+  }
+
   return (
     <div className="relative min-h-full w-full overflow-x-hidden bg-transparent text-stone-800">
       <div className="pointer-events-none fixed inset-0 z-0">
@@ -689,6 +859,7 @@ function App() {
             <SavedRoutes
               onLoadRoute={handleLoadSavedRoute}
               refreshKey={savedRoutesRefreshKey}
+              activeRouteId={loadedSavedRouteId}
             />
           </div>
         </div>
@@ -906,23 +1077,32 @@ function App() {
                 <div className="mt-4 grid gap-2">
                   <button
                     type="button"
-                    onClick={handleExportToGoogleMaps}
-                    className="soft-button w-full rounded-xl border border-[#d8cbb7] bg-white px-4 py-2.5 text-sm font-semibold text-[#2e5f43] transition hover:bg-[#f3ede2]"
+                    onClick={handleStartRide}
+                    className="soft-button w-full rounded-xl bg-[#2e5f43] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#264f38]"
                   >
-                    Otwórz w Google Maps
+                    Nawiguj (tryb jazdy)
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleExportToGpx}
-                    className="soft-button w-full rounded-xl bg-[#7a6248] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6c563f]"
-                  >
-                    Pobierz GPX
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenOnPhone}
+                      className="soft-button rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                    >
+                      Otwórz na telefonie
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportToGpx}
+                      className="soft-button rounded-xl bg-[#7a6248] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6c563f]"
+                    >
+                      Pobierz GPX
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={handleSaveRouteClick}
                     disabled={isSavingRoute}
-                    className="soft-button w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60"
+                    className="soft-button w-full rounded-xl border border-[#dfd4c2] bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2] disabled:opacity-60"
                   >
                     {isSavingRoute
                       ? 'Zapisywanie...'
@@ -931,14 +1111,28 @@ function App() {
                         : 'Zapisz trasę (wymaga konta)'}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-stone-500">
-                  Google: do ok. 10 punktów (przybliżenie). GPX: pełna trasa 1:1 do nawigacji
-                  (Komoot, Garmin, Strava itd.).
-                </p>
+                <div className="mt-3 border-t border-emerald-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleExportToGoogleMaps}
+                    className="text-xs font-medium text-stone-500 underline-offset-2 transition hover:text-[#2e5f43] hover:underline"
+                  >
+                    Otwórz w Google Maps (przybliżone)
+                  </button>
+                  <p className="mt-1 text-xs leading-5 text-stone-500">
+                    Najdokładniejsza nawigacja: tryb jazdy lub GPX (Komoot, Garmin, OsmAnd). Google
+                    Maps pokazuje tylko przybliżony przebieg.
+                  </p>
+                </div>
               </div>
             )}
 
-            {selectedRouteGeoJson && <ElevationChart routeData={selectedRouteGeoJson} />}
+            {selectedRouteGeoJson && (
+              <ElevationChart
+                key={`elevation-${routeDisplayKey}`}
+                routeData={selectedRouteGeoJson}
+              />
+            )}
 
             {selectedRouteSurfaces.length > 0 && (
               <div className="soft-panel rounded-xl border border-[#e7dbc9] bg-[#faf7f1] p-4 text-sm">
@@ -1004,7 +1198,7 @@ function App() {
           {routeMode === 'AtoB' && endPoint && <Marker position={[endPoint.lat, endPoint.lng]} />}
           {routeGeoJson?.features?.map((feature, index) => (
             <GeoJSON
-              key={`route-${index}`}
+              key={`route-${routeDisplayKey}-${index}`}
               data={feature}
               style={{
                 color:
@@ -1033,6 +1227,18 @@ function App() {
         isSaving={isSavingRoute}
         onClose={() => setShowSaveRouteModal(false)}
         onSave={handleSaveRouteConfirm}
+      />
+      <GoogleMapsExportNoticeModal
+        isOpen={showGoogleMapsExportNotice}
+        onClose={() => setShowGoogleMapsExportNotice(false)}
+        onConfirm={handleConfirmGoogleMapsExport}
+        onDownloadGpx={handleExportToGpx}
+      />
+      <OpenOnPhoneModal
+        isOpen={showOpenOnPhone}
+        onClose={() => setShowOpenOnPhone(false)}
+        rideUrl={rideUrl}
+        routeName={currentRouteName}
       />
     </div>
   )

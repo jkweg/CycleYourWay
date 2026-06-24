@@ -15,7 +15,7 @@ const formatDate = (value) => {
   })
 }
 
-function SavedRoutes({ onLoadRoute, refreshKey = 0 }) {
+function SavedRoutes({ onLoadRoute, refreshKey = 0, activeRouteId = null }) {
   const { isAuthenticated } = useAuth()
   const [routes, setRoutes] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -132,7 +132,11 @@ function SavedRoutes({ onLoadRoute, refreshKey = 0 }) {
         {routes.map((route) => (
           <li
             key={route.id}
-            className="rounded-lg border border-emerald-100 bg-white p-3 text-stone-800"
+            className={`rounded-lg border p-3 text-stone-800 ${
+              activeRouteId === route.id
+                ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
+                : 'border-emerald-100 bg-white'
+            }`}
           >
             <p className="font-semibold text-[#2e5f43]">{route.name}</p>
             <p className="mt-1 text-xs text-stone-500">
@@ -144,9 +148,13 @@ function SavedRoutes({ onLoadRoute, refreshKey = 0 }) {
               <button
                 type="button"
                 onClick={() => onLoadRoute(route)}
-                className="soft-button flex-1 rounded-lg bg-[#3f7b57] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#356b4b]"
+                className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                  activeRouteId === route.id
+                    ? 'bg-[#2e5f43] text-white hover:bg-[#264f38]'
+                    : 'bg-[#3f7b57] text-white hover:bg-[#356b4b]'
+                }`}
               >
-                Wczytaj
+                {activeRouteId === route.id ? 'Wczytana' : 'Wczytaj'}
               </button>
               <button
                 type="button"

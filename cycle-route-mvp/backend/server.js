@@ -220,6 +220,9 @@ app.post("/api/route", async (req, res) => {
         [end.lng, end.lat],
       ],
       elevation: true,
+      instructions: true,
+      instructions_format: "text",
+      language: "pl",
       extra_info: getExtraInfo(Boolean(avoidMainRoads)),
       alternative_routes: {
         target_count: 3,
@@ -341,6 +344,9 @@ app.post("/api/loop", async (req, res) => {
           },
         },
         elevation: true,
+        instructions: true,
+        instructions_format: "text",
+        language: "pl",
         extra_info: extraInfo,
       };
 

@@ -1,0 +1,20 @@
+{
+  "name": "Cycle Your Way",
+  "short_name": "CycleYourWay",
+  "description": "Planuj trasy rowerowe i nawiguj nimi na telefonie.",
+  "lang": "pl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f5ef",
+  "theme_color": "#2e5f43",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
