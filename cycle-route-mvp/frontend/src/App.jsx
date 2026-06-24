@@ -160,6 +160,7 @@ function App() {
   })
   const [isSearchingStart, setIsSearchingStart] = useState(false)
   const [isSearchingEnd, setIsSearchingEnd] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
   const [avoidMainRoads, setAvoidMainRoads] = useState(false)
   const [routeGeoJson, setRouteGeoJson] = useState(null)
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
@@ -359,6 +360,51 @@ function App() {
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
     setError('')
+  }
+
+  const handleUseMyLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setError('Twoja przeglądarka nie udostępnia lokalizacji.')
+      return
+    }
+
+    setIsLocating(true)
+    setError('')
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        setStartPoint(point)
+        setStartInput('Moja lokalizacja')
+        setLockedPoint(point)
+        if (routeMode === 'AtoB') {
+          setEndPoint(null)
+          setEndInput('')
+        }
+        setRouteGeoJson(null)
+        setSelectedRouteIndex(0)
+        setLoadedSavedRouteId(null)
+        setLoadedSavedRouteName('')
+        bumpRouteDisplay()
+        setIsLocating(false)
+      },
+      (geoError) => {
+        const message =
+          geoError?.code === 1
+            ? 'Brak zgody na lokalizację. Zezwól na dostęp do GPS w przeglądarce.'
+            : geoError?.code === 2
+              ? 'Nie udało się ustalić pozycji. Sprawdź sygnał GPS.'
+              : geoError?.code === 3
+                ? 'Przekroczono czas oczekiwania na GPS.'
+                : 'Nie udało się pobrać lokalizacji.'
+        setError(message)
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    )
   }
 
   const geocodeAddress = async (type) => {
@@ -923,6 +969,14 @@ function App() {
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleUseMyLocation}
+                    disabled={isLocating}
+                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-medium text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:opacity-60"
+                  >
+                    {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji'}
+                  </button>
                 </div>
 
                 <div>
@@ -1005,6 +1059,14 @@ function App() {
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleUseMyLocation}
+                    disabled={isLocating}
+                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-medium text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:opacity-60"
+                  >
+                    {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji (start pętli)'}
+                  </button>
                 </div>
 
                 <div>
