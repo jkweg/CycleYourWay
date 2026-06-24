@@ -10,18 +10,32 @@ const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
 const ALLOWED_PROFILES = new Set(["cycling-mountain", "cycling-regular"]);
 
-const allowedOrigins = (
+// Dozwolone originy. Wpisy mogą zawierać wildcard "*", np. https://*.vercel.app
+// (przydatne dla zmieniających się preview-URL-i Vercela).
+const allowedOriginPatterns = (
   process.env.ALLOWED_ORIGINS ||
   "http://localhost:5173,http://127.0.0.1:5173"
 )
   .split(",")
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .map((pattern) => {
+    if (!pattern.includes("*")) return pattern;
+    const escaped = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*/g, ".*");
+    return new RegExp(`^${escaped}$`);
+  });
+
+const isOriginAllowed = (origin) =>
+  allowedOriginPatterns.some((pattern) =>
+    pattern instanceof RegExp ? pattern.test(origin) : pattern === origin,
+  );
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS blocked for origin: ${origin}`));
