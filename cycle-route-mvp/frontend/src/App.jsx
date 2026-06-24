@@ -871,7 +871,7 @@ function App() {
         </>
       ) : (
         <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
-          <div className="mx-auto flex h-[calc(100vh-4.5rem)] min-h-[680px] max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#e8e2d6] bg-[#f7f5ef] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:flex-row">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#e8e2d6] bg-[#f7f5ef] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}
@@ -888,7 +888,7 @@ function App() {
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-      <aside className="flex h-full min-h-0 w-full flex-col border-r border-[#e9e1d2] bg-white/95 shadow-[0_12px_44px_rgba(95,74,53,0.12)] backdrop-blur-sm md:w-[26rem] md:shrink-0">
+      <aside className="flex w-full flex-col border-r border-[#e9e1d2] bg-white/95 shadow-[0_12px_44px_rgba(95,74,53,0.12)] backdrop-blur-sm md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
         <div className="shrink-0 space-y-4 border-b border-[#ebe3d6] p-6 pb-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
@@ -919,7 +919,7 @@ function App() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6 pt-4">
+        <div className="p-6 pt-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
           <div className="soft-panel space-y-4 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4">
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm text-stone-700">
               <input
@@ -1251,7 +1251,7 @@ function App() {
         </div>
       </aside>
 
-      <div className="relative min-h-[320px] flex-1 md:min-h-0">
+      <div className="relative h-[60vh] min-h-[320px] w-full shrink-0 md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
         <MapContainer
           center={[52.0, 19.2]}
           zoom={6}
