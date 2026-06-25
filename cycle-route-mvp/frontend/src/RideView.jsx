@@ -22,15 +22,19 @@ import {
   toLatLng,
 } from './lib/navigation'
 
-// Marker pozycji użytkownika: strzałka kierunku (gdy znamy heading) lub kropka.
-const buildUserIcon = (heading) => {
-  const hasHeading = heading != null && Number.isFinite(heading)
+// Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
+// czy znamy kierunek). Obrót strzałki ustawiamy potem bezpośrednio na
+// wewnętrznym elemencie (.cyw-arrow-inner), żeby nie odtwarzać DOM-u i mieć
+// płynną animację CSS.
+const buildUserIcon = (hasHeading) => {
   const html = hasHeading
-    ? `<div style="width:32px;height:32px;transform:rotate(${heading}deg);transition:transform 0.3s ease-out;">
-         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-           <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
-           <path d="M16 6 L22 22 L16 18 L10 22 Z" fill="#ffffff"/>
-         </svg>
+    ? `<div style="width:32px;height:32px;">
+         <div class="cyw-arrow-inner" style="width:32px;height:32px;transition:transform 0.25s linear;will-change:transform;">
+           <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+             <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
+             <path d="M16 6 L22 22 L16 18 L10 22 Z" fill="#ffffff"/>
+           </svg>
+         </div>
        </div>`
     : `<div style="width:32px;height:32px;">
          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -76,8 +80,8 @@ function FollowController({ center, follow, onUserDrag }) {
     if (follow && center) {
       map.panTo([center.lat, center.lng], {
         animate: true,
-        duration: 0.9,
-        easeLinearity: 0.25,
+        duration: 0.5,
+        easeLinearity: 0.5,
       })
     }
   }, [center, follow, map])
@@ -125,7 +129,9 @@ function RideView({ feature, routeName, mode, onExit }) {
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
-  const prevPosRef = useRef(null)
+  // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
+  // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
+  const headingAnchorRef = useRef(null)
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -138,17 +144,22 @@ function RideView({ feature, routeName, mode, onExit }) {
           position.coords
         const point = { lat: latitude, lng: longitude }
 
-        // Kierunek: najpierw z GPS (gdy jedziemy), w innym wypadku liczymy
-        // azymut z przesunięcia względem poprzedniej pozycji.
+        // Kierunek: jeśli GPS podaje wiarygodny heading w ruchu, używamy go.
+        // W przeciwnym razie liczymy azymut względem kotwicy oddalonej o >=6 m.
         let nextHeading = null
-        if (Number.isFinite(gpsHeading) && (!Number.isFinite(speed) || speed > 0.5)) {
+        if (Number.isFinite(gpsHeading) && Number.isFinite(speed) && speed > 1) {
           nextHeading = gpsHeading
-        } else if (prevPosRef.current) {
-          const moved = haversineMeters(prevPosRef.current, point)
-          if (moved > 4) nextHeading = bearingDegrees(prevPosRef.current, point)
+          headingAnchorRef.current = point
+        } else {
+          const anchor = headingAnchorRef.current
+          if (!anchor) {
+            headingAnchorRef.current = point
+          } else if (haversineMeters(anchor, point) > 6) {
+            nextHeading = bearingDegrees(anchor, point)
+            headingAnchorRef.current = point
+          }
         }
         if (nextHeading != null) setHeading(nextHeading)
-        prevPosRef.current = point
 
         setUserPos(point)
         setGpsSpeed(Number.isFinite(speed) ? speed : null)
@@ -248,7 +259,24 @@ function RideView({ feature, routeName, mode, onExit }) {
     return { type: 'FeatureCollection', features: [feature] }
   }, [feature])
 
-  const userIcon = useMemo(() => buildUserIcon(heading), [heading])
+  const hasHeading = heading != null
+  const userIcon = useMemo(() => buildUserIcon(hasHeading), [hasHeading])
+  const markerRef = useRef(null)
+  const rotationRef = useRef(0)
+
+  // Obracamy istniejący element strzałki (bez odtwarzania ikony), wybierając
+  // najkrótszą drogę kątową, aby uniknąć obrotu o 350° przy przejściu 359→1.
+  useEffect(() => {
+    if (heading == null) return
+    const el = markerRef.current?.getElement?.()
+    const inner = el?.querySelector?.('.cyw-arrow-inner')
+    if (!inner) return
+    const current = rotationRef.current
+    const delta = (((heading - (current % 360)) % 360) + 540) % 360 - 180
+    const next = current + delta
+    rotationRef.current = next
+    inner.style.transform = `rotate(${next}deg)`
+  }, [heading, hasHeading])
 
   const nextManeuver = navState?.nextManeuver || null
   const followingManeuver = navState?.followingManeuver || null
@@ -298,6 +326,7 @@ function RideView({ feature, routeName, mode, onExit }) {
                 />
               )}
               <Marker
+                ref={markerRef}
                 position={[userPos.lat, userPos.lng]}
                 icon={userIcon}
                 zIndexOffset={1000}
