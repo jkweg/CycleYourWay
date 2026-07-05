@@ -869,7 +869,7 @@ function App() {
   }
 
   return (
-    <div className="relative min-h-full w-full overflow-x-hidden bg-transparent text-stone-800">
+    <div className="relative min-h-full w-full overflow-x-clip bg-transparent text-stone-800">
       <div className="pointer-events-none fixed inset-0 z-0">
         <FloatingLines
           enabledWaves={['top', 'middle', 'bottom']}
