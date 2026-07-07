@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
   GeoJSON,
@@ -21,6 +22,11 @@ import {
   haversineMeters,
   toLatLng,
 } from './lib/navigation'
+import { getRouteDestination, rerouteFromPosition } from './lib/offRouteRecalc'
+
+const OFF_ROUTE_TRIGGER_MS = 10_000
+const OFF_ROUTE_MIN_DISTANCE_M = 50
+const RECALC_COOLDOWN_MS = 45_000
 
 // Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
 // czy znamy kierunek). Obrót strzałki ustawiamy potem bezpośrednio na
@@ -107,9 +113,13 @@ function speak(text) {
 }
 
 function RideView({ feature, routeName, mode, onExit }) {
-  const coordinates = useMemo(() => getFeatureCoordinates(feature), [feature])
+  const [routeFeature, setRouteFeature] = useState(feature)
+  const [isRecalculating, setIsRecalculating] = useState(false)
+  const [recalcError, setRecalcError] = useState('')
+
+  const coordinates = useMemo(() => getFeatureCoordinates(routeFeature), [routeFeature])
   const cumulative = useMemo(() => buildCumulativeDistances(coordinates), [coordinates])
-  const maneuvers = useMemo(() => extractManeuvers(feature), [feature])
+  const maneuvers = useMemo(() => extractManeuvers(routeFeature), [routeFeature])
 
   const totalDistance = cumulative[cumulative.length - 1] || 0
   const destination = coordinates.length ? toLatLng(coordinates[coordinates.length - 1]) : null
@@ -129,9 +139,83 @@ function RideView({ feature, routeName, mode, onExit }) {
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
+  const offRouteSinceRef = useRef(null)
+  const lastRecalcAtRef = useRef(0)
+  const recalcInFlightRef = useRef(false)
   // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
+
+  useEffect(() => {
+    setRouteFeature(feature)
+    hintRef.current = 0
+    spokenRef.current = null
+    offRouteSinceRef.current = null
+    setRecalcError('')
+  }, [feature])
+
+  const handleRecalculateRoute = useCallback(async () => {
+    if (!userPos || recalcInFlightRef.current) return
+
+    const routeDestination = getRouteDestination(routeFeature)
+    if (!routeDestination) {
+      setRecalcError('Nie udało się ustalić celu trasy do przeliczenia.')
+      return
+    }
+
+    recalcInFlightRef.current = true
+    setIsRecalculating(true)
+    setRecalcError('')
+
+    try {
+      const refreshed = await rerouteFromPosition({
+        user: userPos,
+        destination: routeDestination,
+      })
+
+      setRouteFeature(refreshed)
+      hintRef.current = 0
+      spokenRef.current = null
+      offRouteSinceRef.current = null
+      lastRecalcAtRef.current = Date.now()
+
+      if (voiceOn) {
+        speak('Trasa została przeliczona. Jedź dalej.')
+      }
+    } catch (recalcErr) {
+      setRecalcError(recalcErr.message || 'Nie udało się przeliczyć trasy.')
+    } finally {
+      recalcInFlightRef.current = false
+      setIsRecalculating(false)
+    }
+  }, [userPos, routeFeature, voiceOn])
+
+  useEffect(() => {
+    if (!navState?.isOffRoute || !userPos || isRecalculating) {
+      if (!navState?.isOffRoute) {
+        offRouteSinceRef.current = null
+      }
+      return
+    }
+
+    if (navState.offRouteDistance < OFF_ROUTE_MIN_DISTANCE_M) {
+      offRouteSinceRef.current = null
+      return
+    }
+
+    const now = Date.now()
+    if (!offRouteSinceRef.current) {
+      offRouteSinceRef.current = now
+      return
+    }
+
+    const offRouteDuration = now - offRouteSinceRef.current
+    const sinceLastRecalc = now - lastRecalcAtRef.current
+
+    if (offRouteDuration >= OFF_ROUTE_TRIGGER_MS && sinceLastRecalc >= RECALC_COOLDOWN_MS) {
+      handleRecalculateRoute()
+    }
+  }, [navState, userPos, isRecalculating, handleRecalculateRoute])
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -255,9 +339,9 @@ function RideView({ feature, routeName, mode, onExit }) {
   }, [])
 
   const routeLine = useMemo(() => {
-    if (!feature) return null
-    return { type: 'FeatureCollection', features: [feature] }
-  }, [feature])
+    if (!routeFeature) return null
+    return { type: 'FeatureCollection', features: [routeFeature] }
+  }, [routeFeature])
 
   const hasHeading = heading != null
   const userIcon = useMemo(() => buildUserIcon(hasHeading), [hasHeading])
@@ -378,14 +462,34 @@ function RideView({ feature, routeName, mode, onExit }) {
           ) : !userPos ? (
             <p className="mt-3 text-sm text-emerald-100/80">Ustalanie pozycji GPS…</p>
           ) : navState?.isOffRoute ? (
-            <div className="mt-3 flex items-center gap-3">
-              <span className="text-3xl">⚠️</span>
-              <div>
-                <p className="text-base font-semibold text-amber-200">Poza trasą</p>
-                <p className="text-sm text-emerald-100/80">
-                  Wróć na wyznaczoną drogę ({formatDistance(navState.offRouteDistance)} od trasy).
-                </p>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">⚠️</span>
+                <div>
+                  <p className="text-base font-semibold text-amber-200">
+                    {isRecalculating ? 'Przeliczanie trasy…' : 'Poza trasą'}
+                  </p>
+                  <p className="text-sm text-emerald-100/80">
+                    {isRecalculating
+                      ? 'Szukamy nowej drogi do celu z Twojej pozycji.'
+                      : `Jesteś ${formatDistance(navState.offRouteDistance)} od trasy. Możesz wrócić lub przeliczyć trasę.`}
+                  </p>
+                </div>
               </div>
+              {!isRecalculating && (
+                <button
+                  type="button"
+                  onClick={handleRecalculateRoute}
+                  className="w-full rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-[#2a1f05] transition hover:bg-amber-300"
+                >
+                  Przelicz trasę do celu
+                </button>
+              )}
+              {recalcError && (
+                <p className="rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
+                  {recalcError}
+                </p>
+              )}
             </div>
           ) : navState?.isArriving ? (
             <div className="mt-3 flex items-center gap-3">

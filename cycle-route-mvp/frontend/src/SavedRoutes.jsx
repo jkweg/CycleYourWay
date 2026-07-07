@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { routeHasTurnByTurnInstructions } from './lib/navigation'
 import { mapSavedRouteRow, supabase } from './supabaseClient'
 import { useAuth } from './useAuth'
 
@@ -21,6 +22,7 @@ function SavedRoutes({
   onOpenOnPhone,
   refreshKey = 0,
   activeRouteId = null,
+  isPreparingRide = false,
 }) {
   const { isAuthenticated } = useAuth()
   const [routes, setRoutes] = useState([])
@@ -135,7 +137,11 @@ function SavedRoutes({
       )}
 
       <ul className="mt-3 space-y-2">
-        {routes.map((route) => (
+        {routes.map((route) => {
+          const feature = route.geojson?.features?.[0]
+          const needsNavRefresh = feature && !routeHasTurnByTurnInstructions(feature)
+
+          return (
           <li
             key={route.id}
             className={`rounded-lg border p-3 text-stone-800 ${
@@ -150,15 +156,21 @@ function SavedRoutes({
               {route.distanceKm != null && ` · ${route.distanceKm.toFixed(1)} km`}
               {route.createdAt && ` · ${formatDate(route.createdAt)}`}
             </p>
+            {needsNavRefresh && (
+              <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-5 text-amber-800">
+                Stara trasa — przy „Jedź” odświeżymy instrukcje nawigacji automatycznie.
+              </p>
+            )}
             <div className="mt-2 space-y-2">
               <div className="flex gap-2">
                 {onRideRoute && (
                   <button
                     type="button"
                     onClick={() => onRideRoute(route)}
-                    className="soft-button flex-1 rounded-lg bg-[#2e5f43] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#264f38]"
+                    disabled={isPreparingRide}
+                    className="soft-button flex-1 rounded-lg bg-[#2e5f43] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#264f38] disabled:opacity-60"
                   >
-                    Jedź
+                    {isPreparingRide ? 'Przygotowanie…' : 'Jedź'}
                   </button>
                 )}
                 {onOpenOnPhone && (
@@ -193,7 +205,8 @@ function SavedRoutes({
               </div>
             </div>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )

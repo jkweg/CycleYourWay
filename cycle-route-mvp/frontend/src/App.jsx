@@ -1,10 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import L from 'leaflet'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-import { GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import ElevationChart from './ElevationChart'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import FloatingLines from './FloatingLines'
 import { API_BASE } from './api'
 import AuthModal from './AuthModal'
@@ -14,60 +8,19 @@ import { buildGoogleMapsDirectionsUrl, openRouteInGoogleMaps } from './exportToG
 import SaveRouteModal from './SaveRouteModal'
 import GoogleMapsExportNoticeModal from './GoogleMapsExportNoticeModal'
 import OpenOnPhoneModal from './OpenOnPhoneModal'
-import RideView from './RideView'
 import SavedRoutes from './SavedRoutes'
 import { supabase } from './supabaseClient'
 import Footer from './components/Footer'
-import LandingPage from './components/LandingPage'
 import Navbar from './components/Navbar'
 import AddressAutocomplete from './components/AddressAutocomplete'
 import PlannerSidebar from './components/PlannerSidebar'
+import ChunkFallback from './components/ChunkFallback'
+import { ensureNavigableFeature } from './lib/routeRefresh'
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-})
-
-function MapClickHandler({ onMapClick }) {
-  useMapEvents({
-    click: (event) => {
-      onMapClick(event.latlng)
-    },
-  })
-
-  return null
-}
-
-function RouteFitBounds({ routeGeoJson }) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (!routeGeoJson) return
-
-    const routeLayer = L.geoJSON(routeGeoJson)
-    const bounds = routeLayer.getBounds()
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [36, 36] })
-    }
-  }, [map, routeGeoJson])
-
-  return null
-}
-
-function FocusOnLockedPoint({ lockedPoint, disabled }) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (disabled || !lockedPoint) return
-    map.flyTo([lockedPoint.lat, lockedPoint.lng], 9, {
-      animate: true,
-      duration: 0.8,
-    })
-  }, [disabled, lockedPoint, map])
-
-  return null
-}
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const RideView = lazy(() => import('./RideView'))
+const PlannerMap = lazy(() => import('./PlannerMap'))
+const ElevationChart = lazy(() => import('./ElevationChart'))
 
 const getRouteSummary = (feature) => {
   const summary = feature?.properties?.summary
@@ -166,6 +119,7 @@ function App() {
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [lockedPoint, setLockedPoint] = useState(null)
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
+  const [isPreparingRide, setIsPreparingRide] = useState(false)
   const [error, setError] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showSaveRouteModal, setShowSaveRouteModal] = useState(false)
@@ -679,12 +633,47 @@ function App() {
     ? `${window.location.origin}/?ride=${loadedSavedRouteId}`
     : ''
 
-  const handleStartRide = () => {
+  const startRideWithFeature = async ({ feature, name, mode, distanceKm }) => {
+    setIsPreparingRide(true)
+    setError('')
+    setSaveSuccessMessage('')
+
+    try {
+      const { feature: navigableFeature, refreshed } = await ensureNavigableFeature({
+        feature,
+        mode,
+        distanceKm,
+        avoidMainRoads,
+      })
+
+      if (refreshed) {
+        setSaveSuccessMessage(
+          'Stara trasa została odświeżona instrukcjami nawigacji przed startem jazdy.',
+        )
+      }
+
+      setRideRoute({ feature: navigableFeature, name, mode })
+    } catch (prepareError) {
+      setError(
+        prepareError.message ||
+          'Nie udało się przygotować nawigacji. Spróbuj ponownie wyznaczyć trasę w planerze.',
+      )
+    } finally {
+      setIsPreparingRide(false)
+    }
+  }
+
+  const handleStartRide = async () => {
     if (!selectedFeature) {
       setError('Najpierw wyznacz trasę, aby rozpocząć nawigację.')
       return
     }
-    setRideRoute({ feature: selectedFeature, name: currentRouteName, mode: routeMode })
+    await startRideWithFeature({
+      feature: selectedFeature,
+      name: currentRouteName,
+      mode: routeMode,
+      distanceKm: routeMode === 'Loop' ? loopDistanceKm : undefined,
+    })
   }
 
   const handleOpenOnPhone = () => {
@@ -701,16 +690,17 @@ function App() {
   }
 
   // Akcje "Jedź" / "Otwórz na telefonie" bezpośrednio z listy zapisanych tras.
-  const handleRideSavedRoute = (savedRoute) => {
+  const handleRideSavedRoute = async (savedRoute) => {
     const feature = savedRoute?.geojson?.features?.[0]
     if (!feature) {
       setError('Zapisana trasa nie zawiera danych do nawigacji.')
       return
     }
-    setRideRoute({
+    await startRideWithFeature({
       feature,
       name: savedRoute.name || (savedRoute.mode === 'Loop' ? 'Pętla treningowa' : 'Trasa A → B'),
       mode: savedRoute.mode,
+      distanceKm: savedRoute.distanceKm,
     })
   }
 
@@ -742,9 +732,11 @@ function App() {
         return
       }
 
+      setView('planner')
+
       const { data, error: fetchError } = await supabase
         .from('saved_routes')
-        .select('id, name, mode, geojson')
+        .select('id, name, mode, geojson, distance_km')
         .eq('id', pendingRideId)
         .single()
 
@@ -767,7 +759,12 @@ function App() {
         return
       }
 
-      setRideRoute({ feature, name: data.name, mode: data.mode })
+      await startRideWithFeature({
+        feature,
+        name: data.name,
+        mode: data.mode,
+        distanceKm: data.distance_km,
+      })
       setPendingRideId(null)
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -859,12 +856,14 @@ function App() {
 
   if (rideRoute) {
     return (
-      <RideView
-        feature={rideRoute.feature}
-        routeName={rideRoute.name}
-        mode={rideRoute.mode}
-        onExit={() => setRideRoute(null)}
-      />
+      <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#0f1a14] text-emerald-100" />}>
+        <RideView
+          feature={rideRoute.feature}
+          routeName={rideRoute.name}
+          mode={rideRoute.mode}
+          onExit={() => setRideRoute(null)}
+        />
+      </Suspense>
     )
   }
 
@@ -898,7 +897,9 @@ function App() {
 
       {view === 'landing' ? (
         <>
-          <LandingPage onStartPlanning={goToPlanner} />
+          <Suspense fallback={<ChunkFallback label="Ładowanie strony..." className="min-h-[50vh]" />}>
+            <LandingPage onStartPlanning={goToPlanner} />
+          </Suspense>
           <Footer onStartPlanning={goToPlanner} onGoHome={goToHome} />
         </>
       ) : (
@@ -949,6 +950,7 @@ function App() {
               onOpenOnPhone={handleOpenSavedRouteOnPhone}
               refreshKey={savedRoutesRefreshKey}
               activeRouteId={loadedSavedRouteId}
+              isPreparingRide={isPreparingRide}
             />
           </div>
         </div>
@@ -1183,9 +1185,10 @@ function App() {
                   <button
                     type="button"
                     onClick={handleStartRide}
-                    className="soft-button w-full rounded-xl bg-[#2e5f43] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#264f38]"
+                    disabled={isPreparingRide}
+                    className="soft-button w-full rounded-xl bg-[#2e5f43] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#264f38] disabled:opacity-60"
                   >
-                    Nawiguj (tryb jazdy)
+                    {isPreparingRide ? 'Przygotowywanie nawigacji…' : 'Nawiguj (tryb jazdy)'}
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -1233,10 +1236,12 @@ function App() {
             )}
 
             {selectedRouteGeoJson && (
-              <ElevationChart
-                key={`elevation-${routeDisplayKey}`}
-                routeData={selectedRouteGeoJson}
-              />
+              <Suspense fallback={<ChunkFallback label="Ładowanie wykresu..." className="min-h-[180px] rounded-xl border border-[#e7dbc9] bg-[#faf7f1]" />}>
+                <ElevationChart
+                  key={`elevation-${routeDisplayKey}`}
+                  routeData={selectedRouteGeoJson}
+                />
+              </Suspense>
             )}
 
             {selectedRouteSurfaces.length > 0 && (
@@ -1286,38 +1291,23 @@ function App() {
       </aside>
 
       <div className="relative h-[60vh] min-h-[320px] w-full shrink-0 md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
-        <MapContainer
-          center={[52.0, 19.2]}
-          zoom={6}
-          scrollWheelZoom
-          className="h-full w-full"
+        <Suspense
+          fallback={
+            <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[320px] bg-[#eef3ea]" />
+          }
         >
-          <MapClickHandler onMapClick={handleMapClick} />
-          <FocusOnLockedPoint lockedPoint={lockedPoint} disabled={Boolean(selectedRouteGeoJson)} />
-          <RouteFitBounds routeGeoJson={selectedRouteGeoJson} />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          <PlannerMap
+            onMapClick={handleMapClick}
+            lockedPoint={lockedPoint}
+            selectedRouteGeoJson={selectedRouteGeoJson}
+            startPoint={startPoint}
+            endPoint={endPoint}
+            routeMode={routeMode}
+            routeGeoJson={routeGeoJson}
+            routeDisplayKey={routeDisplayKey}
+            selectedRouteIndex={selectedRouteIndex}
           />
-          {startPoint && <Marker position={[startPoint.lat, startPoint.lng]} />}
-          {routeMode === 'AtoB' && endPoint && <Marker position={[endPoint.lat, endPoint.lng]} />}
-          {routeGeoJson?.features?.map((feature, index) => (
-            <GeoJSON
-              key={`route-${routeDisplayKey}-${index}`}
-              data={feature}
-              style={{
-                color:
-                  selectedRouteIndex === index
-                    ? routeMode === 'Loop'
-                      ? '#7a6248'
-                      : '#3f7b57'
-                    : '#94a3b8',
-                weight: selectedRouteIndex === index ? 6 : 4,
-                opacity: selectedRouteIndex === index ? 0.95 : 0.7,
-              }}
-            />
-          ))}
-        </MapContainer>
+        </Suspense>
       </div>
             </div>
           </div>
@@ -1345,6 +1335,14 @@ function App() {
         rideUrl={openOnPhoneTarget?.rideUrl ?? rideUrl}
         routeName={openOnPhoneTarget?.routeName ?? currentRouteName}
       />
+
+      {isPreparingRide && (
+        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/25 backdrop-blur-[2px]">
+          <div className="rounded-2xl bg-white px-6 py-4 text-sm font-medium text-stone-700 shadow-xl">
+            Przygotowywanie nawigacji…
+          </div>
+        </div>
+      )}
     </div>
   )
 }

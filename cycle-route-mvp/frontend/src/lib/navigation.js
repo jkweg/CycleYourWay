@@ -107,6 +107,44 @@ export const extractManeuvers = (feature) => {
   return maneuvers
 }
 
+export const routeHasTurnByTurnInstructions = (feature) => {
+  const segments = feature?.properties?.segments
+  if (!Array.isArray(segments) || segments.length === 0) return false
+
+  return segments.some(
+    (segment) =>
+      Array.isArray(segment?.steps) &&
+      segment.steps.some(
+        (step) => typeof step?.instruction === 'string' && step.instruction.trim().length > 0,
+      ),
+  )
+}
+
+export const getRouteEndpointsFromFeature = (feature) => {
+  const coordinates = getFeatureCoordinates(feature)
+  if (coordinates.length < 2) return null
+
+  const start = toLatLng(coordinates[0])
+  const end = toLatLng(coordinates[coordinates.length - 1])
+  if (!start || !end) return null
+
+  return { start, end }
+}
+
+export const getFeatureDistanceKm = (feature) => {
+  const summaryDistance = feature?.properties?.summary?.distance
+  if (typeof summaryDistance === 'number') {
+    return Math.max(1, Math.round(summaryDistance / 100) / 10)
+  }
+
+  const coordinates = getFeatureCoordinates(feature)
+  if (coordinates.length < 2) return null
+
+  const cumulative = buildCumulativeDistances(coordinates)
+  const meters = cumulative[cumulative.length - 1] || 0
+  return Math.max(1, Math.round(meters / 100) / 10)
+}
+
 // Najbliższy punkt geometrii względem pozycji użytkownika.
 export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
   let bestIndex = 0
