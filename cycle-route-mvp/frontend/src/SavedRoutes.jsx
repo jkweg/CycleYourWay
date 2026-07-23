@@ -26,6 +26,9 @@ function SavedRoutes({
   refreshKey = 0,
   activeRouteId = null,
   isPreparingRide = false,
+  detailMode = false,
+  onBackToList,
+  onRouteRemoved,
 }) {
   const { isAuthenticated } = useAuth()
   const [routes, setRoutes] = useState([])
@@ -43,10 +46,16 @@ function SavedRoutes({
     setIsLoading(true)
     setError('')
     try {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('saved_routes')
         .select(SELECT_FIELDS)
         .order('created_at', { ascending: false })
+
+      if (detailMode && activeRouteId) {
+        query = query.eq('id', activeRouteId)
+      }
+
+      const { data, error: fetchError } = await query
 
       if (fetchError) throw new Error(fetchError.message)
       applyRoutes(data)
@@ -56,7 +65,7 @@ function SavedRoutes({
     } finally {
       setIsLoading(false)
     }
-  }, [applyRoutes])
+  }, [applyRoutes, detailMode, activeRouteId])
 
   useEffect(() => {
     if (!isAuthenticated) return undefined
@@ -67,10 +76,16 @@ function SavedRoutes({
       setIsLoading(true)
       setError('')
       try {
-        const { data, error: fetchError } = await supabase
+        let query = supabase
           .from('saved_routes')
           .select(SELECT_FIELDS)
           .order('created_at', { ascending: false })
+
+        if (detailMode && activeRouteId) {
+          query = query.eq('id', activeRouteId)
+        }
+
+        const { data, error: fetchError } = await query
 
         if (fetchError) throw new Error(fetchError.message)
         if (!cancelled) applyRoutes(data)
@@ -88,7 +103,7 @@ function SavedRoutes({
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, refreshKey, applyRoutes])
+  }, [isAuthenticated, refreshKey, applyRoutes, detailMode, activeRouteId])
 
   const handleDelete = async (routeId) => {
     if (!window.confirm('Usunąć zapisaną trasę?')) return
@@ -101,6 +116,7 @@ function SavedRoutes({
 
       if (deleteError) throw new Error(deleteError.message)
       setRoutes((current) => current.filter((route) => route.id !== routeId))
+      onRouteRemoved?.(routeId)
     } catch (deleteError) {
       setError(deleteError.message || 'Nie udało się usunąć trasy.')
     }
@@ -184,33 +200,52 @@ function SavedRoutes({
     )
   }
 
+  const visibleRoutes = detailMode
+    ? routes.filter((route) => route.id === activeRouteId)
+    : routes
+
   return (
     <div className="soft-panel rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4 text-sm">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-          Zapisane trasy
+          {detailMode ? 'Wczytana trasa' : 'Zapisane trasy'}
         </p>
-        <button
-          type="button"
-          onClick={loadRoutes}
-          className="text-xs font-medium text-[#3f7b57] hover:underline"
-        >
-          Odśwież
-        </button>
+        <div className="flex items-center gap-2">
+          {detailMode && onBackToList && (
+            <button
+              type="button"
+              onClick={onBackToList}
+              className="text-xs font-medium text-[#3f7b57] hover:underline"
+            >
+              ← Lista
+            </button>
+          )}
+          {!detailMode && (
+            <button
+              type="button"
+              onClick={loadRoutes}
+              className="text-xs font-medium text-[#3f7b57] hover:underline"
+            >
+              Odśwież
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading && <p className="mt-3 text-stone-600">Ładowanie...</p>}
       {error && <p className="mt-3 font-medium text-rose-700">{error}</p>}
       {shareInfo && <p className="mt-3 font-medium text-emerald-700">{shareInfo}</p>}
 
-      {!isLoading && routes.length === 0 && !error && (
+      {!isLoading && visibleRoutes.length === 0 && !error && (
         <p className="mt-3 text-stone-600">
-          Brak zapisanych tras. Wyznacz trasę i kliknij „Zapisz trasę”.
+          {detailMode
+            ? 'Nie znaleziono tej trasy.'
+            : 'Brak zapisanych tras. Wyznacz trasę i kliknij „Zapisz trasę”.'}
         </p>
       )}
 
       <ul className="mt-3 space-y-2">
-        {routes.map((route) => {
+        {visibleRoutes.map((route) => {
           const feature = route.geojson?.features?.[0]
           const needsNavRefresh = feature && !routeHasTurnByTurnInstructions(feature)
 
@@ -218,7 +253,7 @@ function SavedRoutes({
             <li
               key={route.id}
               className={`rounded-lg border p-3 text-stone-800 ${
-                activeRouteId === route.id
+                activeRouteId === route.id || detailMode
                   ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
                   : 'border-emerald-100 bg-white'
               }`}
@@ -293,17 +328,19 @@ function SavedRoutes({
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onLoadRoute(route)}
-                    className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                      activeRouteId === route.id
-                        ? 'bg-emerald-100 text-[#2e5f43] ring-1 ring-emerald-300'
-                        : 'border border-[#dfd4c2] bg-white text-stone-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    {activeRouteId === route.id ? 'Wczytana ✓' : 'Wczytaj'}
-                  </button>
+                  {!detailMode && (
+                    <button
+                      type="button"
+                      onClick={() => onLoadRoute(route)}
+                      className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        activeRouteId === route.id
+                          ? 'bg-emerald-100 text-[#2e5f43] ring-1 ring-emerald-300'
+                          : 'border border-[#dfd4c2] bg-white text-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      {activeRouteId === route.id ? 'Wczytana ✓' : 'Wczytaj'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

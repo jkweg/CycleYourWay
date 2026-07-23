@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const {
   rankFeaturesByMainRoadShare,
 } = require("./lib/routeRanking");
+const { geocodePolishAddress } = require("./lib/geocode");
 
 dotenv.config();
 
@@ -158,32 +159,8 @@ const getRouteFromOsrm = async (start, end) => {
   };
 };
 
-const mapGeocodeFeatures = (features) =>
-  features
-    .map((feature) => {
-      const coords = feature?.geometry?.coordinates;
-      const lon = Array.isArray(coords) ? coords[0] : null;
-      const lat = Array.isArray(coords) ? coords[1] : null;
-      const name =
-        feature?.properties?.label ||
-        feature?.properties?.name ||
-        feature?.properties?.locality ||
-        "";
-
-      if (!Number.isFinite(lon) || !Number.isFinite(lat) || !name) return null;
-      return { name, lon, lat };
-    })
-    .filter(Boolean);
-
 app.get("/api/geocode", async (req, res) => {
   try {
-    if (!ORS_API_KEY) {
-      console.error("ORS_API_KEY is missing in environment variables.");
-      return res.status(500).json({
-        error: "Server misconfiguration: missing ORS API key.",
-      });
-    }
-
     const address = String(req.query.address || "").trim();
     if (!address) {
       return res
@@ -194,29 +171,18 @@ app.get("/api/geocode", async (req, res) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 10);
     const useAutocomplete = req.query.autocomplete === "true";
 
-    const url = "https://api.openrouteservice.org/geocode/search";
-    const orsResponse = await axios.get(url, {
-      headers: { Authorization: ORS_API_KEY },
-      params: {
-        text: address,
-        size: limit,
-        ...(useAutocomplete ? { autocomplete: true } : {}),
-        "boundary.country": "POL",
-      },
-      timeout: 15000,
+    const results = await geocodePolishAddress({
+      address,
+      limit,
+      autocomplete: useAutocomplete,
+      orsApiKey: ORS_API_KEY,
     });
-
-    const features = Array.isArray(orsResponse.data?.features)
-      ? orsResponse.data.features
-      : [];
-
-    const results = mapGeocodeFeatures(features);
 
     return res.status(200).json({ results });
   } catch (error) {
     const status = error.response?.status || 500;
     const apiData = error.response?.data || null;
-    console.error("Error while geocoding via OpenRouteService:", {
+    console.error("Error while geocoding address:", {
       message: error.message,
       status,
       details: apiData,

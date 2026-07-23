@@ -28,7 +28,8 @@ function MobilePlannerNav({
   onOpenAuth,
   routeMode,
   onRouteModeChange,
-  onScrollToSaved,
+  onOpenSaved,
+  plannerPanel,
 }) {
   const items = [
     { id: 'home', label: 'Start', onClick: onGoHome, icon: IconHome, active: false },
@@ -37,21 +38,21 @@ function MobilePlannerNav({
       label: 'A → B',
       onClick: () => onRouteModeChange('AtoB'),
       icon: IconRoute,
-      active: routeMode === 'AtoB',
+      active: plannerPanel === 'plan' && routeMode === 'AtoB',
     },
     {
       id: 'loop',
       label: 'Pętla',
       onClick: () => onRouteModeChange('Loop'),
       icon: IconMapRoute,
-      active: routeMode === 'Loop',
+      active: plannerPanel === 'plan' && routeMode === 'Loop',
     },
     {
       id: 'saved',
       label: 'Zapisane',
-      onClick: onScrollToSaved,
+      onClick: onOpenSaved,
       icon: IconBookmark,
-      active: false,
+      active: plannerPanel === 'saved' || plannerPanel === 'savedDetail',
     },
     { id: 'auth', label: 'Konto', onClick: onOpenAuth, icon: IconUser, active: false },
   ]
@@ -90,8 +91,11 @@ function PlannerSidebar({
   userEmail,
   routeMode,
   onRouteModeChange,
-  onScrollToSaved,
+  onOpenSaved,
+  plannerPanel = 'plan',
 }) {
+  const savedActive = plannerPanel === 'saved' || plannerPanel === 'savedDetail'
+
   const navLinks = [
     {
       label: 'Strona główna',
@@ -102,10 +106,14 @@ function PlannerSidebar({
     {
       label: 'Trasa A → B',
       onClick: () => onRouteModeChange('AtoB'),
-      active: routeMode === 'AtoB',
+      active: plannerPanel === 'plan' && routeMode === 'AtoB',
       icon: (
         <IconRoute
-          className={`h-5 w-5 shrink-0 ${routeMode === 'AtoB' ? 'text-[#2e5f43]' : 'text-stone-500'}`}
+          className={`h-5 w-5 shrink-0 ${
+            plannerPanel === 'plan' && routeMode === 'AtoB'
+              ? 'text-[#2e5f43]'
+              : 'text-stone-500'
+          }`}
           stroke={1.75}
         />
       ),
@@ -113,19 +121,28 @@ function PlannerSidebar({
     {
       label: 'Pętla treningowa',
       onClick: () => onRouteModeChange('Loop'),
-      active: routeMode === 'Loop',
+      active: plannerPanel === 'plan' && routeMode === 'Loop',
       icon: (
         <IconMapRoute
-          className={`h-5 w-5 shrink-0 ${routeMode === 'Loop' ? 'text-[#2e5f43]' : 'text-stone-500'}`}
+          className={`h-5 w-5 shrink-0 ${
+            plannerPanel === 'plan' && routeMode === 'Loop'
+              ? 'text-[#2e5f43]'
+              : 'text-stone-500'
+          }`}
           stroke={1.75}
         />
       ),
     },
     {
       label: 'Zapisane trasy',
-      onClick: onScrollToSaved,
-      active: false,
-      icon: <IconBookmark className="h-5 w-5 shrink-0 text-[#7a6248]" stroke={1.75} />,
+      onClick: onOpenSaved,
+      active: savedActive,
+      icon: (
+        <IconBookmark
+          className={`h-5 w-5 shrink-0 ${savedActive ? 'text-[#2e5f43]' : 'text-[#7a6248]'}`}
+          stroke={1.75}
+        />
+      ),
     },
   ]
 
@@ -136,7 +153,8 @@ function PlannerSidebar({
         onOpenAuth={onOpenAuth}
         routeMode={routeMode}
         onRouteModeChange={onRouteModeChange}
-        onScrollToSaved={onScrollToSaved}
+        onOpenSaved={onOpenSaved}
+        plannerPanel={plannerPanel}
       />
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody>

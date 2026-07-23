@@ -16,24 +16,23 @@ import AddressAutocomplete from './components/AddressAutocomplete'
 import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
 import RouteAlternativesCompare from './components/RouteAlternativesCompare'
+import MapRouteDetailsBar from './components/MapRouteDetailsBar'
 import PlannerOnboarding from './components/PlannerOnboarding'
 import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
 import ProfileModal from './components/ProfileModal'
 import LegalPage from './components/LegalPage'
 import { ensureNavigableFeature } from './lib/routeRefresh'
 import {
-  SURFACE_COLORS,
-  SURFACE_LABELS,
   buildRouteAlternatives,
   getLineCoordinates,
   getRouteSummary,
   pointFromCoordinate,
+  summarizeRouteSurfaces,
 } from './lib/routeStats'
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
 const PlannerMap = lazy(() => import('./PlannerMap'))
-const ElevationChart = lazy(() => import('./ElevationChart'))
 
 function App() {
   const {
@@ -44,8 +43,8 @@ function App() {
     passwordRecovery,
   } = useAuth()
   const plannerSectionRef = useRef(null)
-  const savedRoutesRef = useRef(null)
   const [routeMode, setRouteMode] = useState('AtoB')
+  const [plannerPanel, setPlannerPanel] = useState('plan')
   const [startPoint, setStartPoint] = useState(null)
   const [endPoint, setEndPoint] = useState(null)
   const [startInput, setStartInput] = useState('')
@@ -158,28 +157,10 @@ function App() {
     return { distanceKm, hours, minutes }
   }, [selectedFeature])
 
-  const selectedRouteSurfaces = useMemo(() => {
-    const summary = selectedFeature?.properties?.extras?.surface?.summary
-    if (!Array.isArray(summary) || summary.length === 0) return []
-
-    return summary
-      .map((item, index) => {
-        const code = item?.value
-        const amount = typeof item?.amount === 'number' ? item.amount : null
-        const distanceMeters = typeof item?.distance === 'number' ? item.distance : null
-        if (amount === null || distanceMeters === null) return null
-
-        return {
-          code,
-          label: SURFACE_LABELS[code] || `Typ ${code}`,
-          percentage: Number(amount.toFixed(1)),
-          distanceKm: (distanceMeters / 1000).toFixed(2),
-          colorClass: SURFACE_COLORS[index % SURFACE_COLORS.length],
-        }
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.percentage - a.percentage)
-  }, [selectedFeature])
+  const selectedRouteSurfaces = useMemo(
+    () => summarizeRouteSurfaces(selectedFeature),
+    [selectedFeature],
+  )
 
   const requestRoute = async (start, end) => {
     setIsLoadingRoute(true)
@@ -234,6 +215,7 @@ function App() {
   }
 
   const handleRouteModeChange = (nextMode) => {
+    setPlannerPanel('plan')
     setRouteMode(nextMode)
     if (nextMode === 'Loop') {
       setEndPoint(null)
@@ -243,6 +225,7 @@ function App() {
     setSelectedRouteIndex(0)
     setLockedPoint(null)
     setLoadedSavedRouteId(null)
+    setLoadedSavedRouteName('')
     bumpRouteDisplay()
     setError('')
   }
@@ -260,6 +243,11 @@ function App() {
     bumpRouteDisplay()
     setSaveSuccessMessage('')
     setError('')
+    setPlannerPanel('plan')
+  }
+
+  const openSavedPanel = () => {
+    setPlannerPanel('saved')
   }
 
   const handlePointInputChange = (type, value) => {
@@ -579,6 +567,7 @@ function App() {
     setLoadedSavedRouteName(savedRoute.name || '')
     setRouteGeoJson(cloneGeoJson(geojson))
     bumpRouteDisplay()
+    setPlannerPanel('savedDetail')
   }
 
   const handleExportToGpx = () => {
@@ -956,9 +945,8 @@ function App() {
               userEmail={user?.email}
               routeMode={routeMode}
               onRouteModeChange={handleRouteModeChange}
-              onScrollToSaved={() =>
-                savedRoutesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
+              onOpenSaved={openSavedPanel}
+              plannerPanel={plannerPanel}
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
@@ -966,13 +954,25 @@ function App() {
         <div className="shrink-0 space-y-4 border-b border-[#ebe3d6] p-6 pb-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              {routeMode === 'AtoB' ? 'Tryb: Trasa A → B' : 'Tryb: Pętla treningowa'}
+              {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
+                ? 'Biblioteka tras'
+                : routeMode === 'AtoB'
+                  ? 'Tryb: Trasa A → B'
+                  : 'Tryb: Pętla treningowa'}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#2e5f43]">
-              Planer tras
+              {plannerPanel === 'saved'
+                ? 'Zapisane trasy'
+                : plannerPanel === 'savedDetail'
+                  ? 'Szczegóły trasy'
+                  : 'Planer tras'}
             </h1>
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Ustaw punkty, wyznacz trasę i zapisz ją na koncie.
+              {plannerPanel === 'saved'
+                ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
+                : plannerPanel === 'savedDetail'
+                  ? 'Jedź, udostępnij albo wróć do listy. Szczegóły trasy są pod mapą.'
+                  : 'Ustaw punkty, wyznacz trasę i zapisz ją na koncie.'}
             </p>
           </div>
 
@@ -983,8 +983,10 @@ function App() {
               {saveSuccessMessage}
             </p>
           )}
+        </div>
 
-          <div ref={savedRoutesRef}>
+        <div className="p-6 pt-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
+          {(plannerPanel === 'saved' || (plannerPanel === 'savedDetail' && isAuthenticated)) && (
             <SavedRoutes
               onLoadRoute={handleLoadSavedRoute}
               onRideRoute={handleRideSavedRoute}
@@ -992,11 +994,39 @@ function App() {
               refreshKey={savedRoutesRefreshKey}
               activeRouteId={loadedSavedRouteId}
               isPreparingRide={isPreparingRide}
+              detailMode={plannerPanel === 'savedDetail'}
+              onBackToList={() => setPlannerPanel('saved')}
+              onRouteRemoved={(routeId) => {
+                if (loadedSavedRouteId === routeId) {
+                  clearCurrentPlan()
+                  setPlannerPanel('saved')
+                }
+              }}
             />
-          </div>
-        </div>
+          )}
 
-        <div className="p-6 pt-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
+          {plannerPanel === 'savedDetail' && !isAuthenticated && (
+            <div className="soft-panel rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-stone-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Udostępniona trasa
+              </p>
+              <p className="mt-2 text-lg font-semibold text-[#2e5f43]">
+                {loadedSavedRouteName || 'Trasa'}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-stone-600">
+                Szczegóły (dystans, czas, profil) są pod mapą. Zaloguj się, aby zapisywać własne trasy.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(true)}
+                className="soft-button mt-3 w-full rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                Zaloguj się
+              </button>
+            </div>
+          )}
+
+          {plannerPanel === 'plan' && (
           <div className="soft-panel space-y-4 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4">
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm text-stone-700">
               <input
@@ -1035,7 +1065,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('start', nextValue)}
                       onSelect={(result) => applyGeocodeResult('start', result)}
                       onSubmit={() => geocodeAddress('start')}
-                      placeholder="Wpisz miejscowość lub adres"
+                      placeholder="np. Widokowa 8, Jasło"
                     />
                     <button
                       type="button"
@@ -1075,7 +1105,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('end', nextValue)}
                       onSelect={(result) => applyGeocodeResult('end', result)}
                       onSubmit={() => geocodeAddress('end')}
-                      placeholder="Wpisz miejscowość lub adres"
+                      placeholder="np. Rynek 1, Kraków"
                     />
                     <button
                       type="button"
@@ -1125,7 +1155,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('start', nextValue)}
                       onSelect={(result) => applyGeocodeResult('start', result)}
                       onSubmit={() => geocodeAddress('start')}
-                      placeholder="Wpisz miejscowość lub adres"
+                      placeholder="np. Widokowa 8, Jasło"
                     />
                     <button
                       type="button"
@@ -1198,13 +1228,10 @@ function App() {
             {routeStats && (
               <div className="soft-panel rounded-xl border border-emerald-100 bg-[#f5fbf6] p-4 text-sm text-stone-800">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                  Statystyki trasy
+                  Akcje
                 </p>
-                <p className="mt-2">
-                  Dystans: <span className="font-semibold">{routeStats.distanceKm} km</span>
-                </p>
-                <p className="mt-1">
-                  Czas: <span className="font-semibold">{routeStats.hours} h {routeStats.minutes} min</span>
+                <p className="mt-1 text-xs text-stone-500">
+                  Szczegóły trasy (dystans, czas, profil) są pod mapą.
                 </p>
                 <div className="mt-4 grid gap-2">
                   <button
@@ -1252,49 +1279,14 @@ function App() {
                   >
                     Otwórz w Google Maps (przybliżone)
                   </button>
-                  <p className="mt-1 text-xs leading-5 text-stone-500">
-                    Najdokładniejsza nawigacja: tryb jazdy lub GPX (Komoot, Garmin, OsmAnd). Google
-                    Maps pokazuje tylko przybliżony przebieg.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {selectedRouteGeoJson && (
-              <Suspense fallback={<ChunkFallback label="Ładowanie wykresu..." className="min-h-[180px] rounded-xl border border-[#e7dbc9] bg-[#faf7f1]" />}>
-                <ElevationChart
-                  key={`elevation-${routeDisplayKey}`}
-                  routeData={selectedRouteGeoJson}
-                />
-              </Suspense>
-            )}
-
-            {selectedRouteSurfaces.length > 0 && (
-              <div className="soft-panel rounded-xl border border-[#e7dbc9] bg-[#faf7f1] p-4 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6248]">
-                  Nawierzchnia trasy
-                </p>
-                <div className="mt-3 space-y-3">
-                  {selectedRouteSurfaces.map((surface) => (
-                    <div key={`${surface.code}-${surface.label}`}>
-                      <div className="mb-1 flex items-center justify-between gap-3 text-xs text-stone-700">
-                        <span className="font-medium">{surface.label}</span>
-                        <span>{surface.percentage}% ({surface.distanceKm} km)</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-[#efe6d8]">
-                        <div
-                          className={`h-2.5 rounded-full ${surface.colorClass}`}
-                          style={{ width: `${surface.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
           </div>
+          )}
         </div>
 
+        {plannerPanel === 'plan' && (
         <div className="shrink-0 p-6 pt-0">
           <div className="soft-panel rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4 text-sm text-stone-700">
             {isLoadingRoute && <p className="font-medium">Wyznaczanie trasy...</p>}
@@ -1313,26 +1305,43 @@ function App() {
             {error && <p className="mt-2 font-medium text-rose-700">{error}</p>}
           </div>
         </div>
+        )}
+        {(plannerPanel === 'saved' || plannerPanel === 'savedDetail') && error && (
+          <div className="shrink-0 p-6 pt-0">
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+              {error}
+            </p>
+          </div>
+        )}
       </aside>
 
-      <div className="relative h-[60vh] min-h-[320px] w-full shrink-0 md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
-        <Suspense
-          fallback={
-            <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[320px] bg-[#eef3ea]" />
-          }
-        >
-          <PlannerMap
-            onMapClick={handleMapClick}
-            lockedPoint={lockedPoint}
-            selectedRouteGeoJson={selectedRouteGeoJson}
-            startPoint={startPoint}
-            endPoint={endPoint}
-            routeMode={routeMode}
-            routeGeoJson={routeGeoJson}
-            routeDisplayKey={routeDisplayKey}
-            selectedRouteIndex={selectedRouteIndex}
-          />
-        </Suspense>
+      <div className="relative flex h-[60vh] min-h-[320px] w-full shrink-0 flex-col md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
+        <div className="relative min-h-0 flex-1">
+          <Suspense
+            fallback={
+              <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#eef3ea]" />
+            }
+          >
+            <PlannerMap
+              onMapClick={handleMapClick}
+              lockedPoint={lockedPoint}
+              selectedRouteGeoJson={selectedRouteGeoJson}
+              startPoint={startPoint}
+              endPoint={endPoint}
+              routeMode={routeMode}
+              routeGeoJson={routeGeoJson}
+              routeDisplayKey={routeDisplayKey}
+              selectedRouteIndex={selectedRouteIndex}
+            />
+          </Suspense>
+        </div>
+        <MapRouteDetailsBar
+          routeStats={routeStats}
+          selectedFeature={selectedFeature}
+          selectedRouteGeoJson={selectedRouteGeoJson}
+          routeDisplayKey={routeDisplayKey}
+          surfaces={selectedRouteSurfaces}
+        />
       </div>
             </div>
           </div>

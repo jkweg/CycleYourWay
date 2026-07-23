@@ -8,68 +8,55 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { buildElevationProfile } from './lib/routeStats'
 
-const EARTH_RADIUS_METERS = 6371000
-
-const toRadians = (degrees) => (degrees * Math.PI) / 180
-
-const distanceBetweenPointsMeters = (pointA, pointB) => {
-  const [lonA, latA] = pointA
-  const [lonB, latB] = pointB
-  const dLat = toRadians(latB - latA)
-  const dLon = toRadians(lonB - lonA)
-  const latARad = toRadians(latA)
-  const latBRad = toRadians(latB)
-
-  const haversineValue =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(latARad) *
-      Math.cos(latBRad) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
-
-  const arc = 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue))
-  return EARTH_RADIUS_METERS * arc
-}
-
-function ElevationChart({ routeData }) {
+function ElevationChart({ routeData, compact = false }) {
   const chartData = useMemo(() => {
     const coordinates = routeData?.features?.[0]?.geometry?.coordinates
-    if (!Array.isArray(coordinates) || coordinates.length < 2) return []
-
-    let cumulativeDistanceMeters = 0
-
-    return coordinates
-      .map((point, index) => {
-        if (!Array.isArray(point) || point.length < 3) return null
-
-        if (index > 0 && Array.isArray(coordinates[index - 1])) {
-          cumulativeDistanceMeters += distanceBetweenPointsMeters(
-            coordinates[index - 1],
-            point
-          )
-        }
-
-        return {
-          distance: Number((cumulativeDistanceMeters / 1000).toFixed(2)),
-          elevation: Number(point[2].toFixed(1)),
-        }
-      })
-      .filter(Boolean)
+    return buildElevationProfile(coordinates)
   }, [routeData])
 
   if (!chartData.length) return null
 
+  const elevations = chartData.map((item) => item.elevation)
+  const minElev = Math.min(...elevations)
+  const maxElev = Math.max(...elevations)
+  const padding = Math.max(5, (maxElev - minElev) * 0.08)
+  const yDomain = [
+    Math.max(0, Math.floor(minElev - padding)),
+    Math.ceil(maxElev + padding),
+  ]
+
+  const chartHeight = compact ? 'h-full min-h-[120px]' : 'h-48'
+  const gradientId = compact ? 'elevationGradientCompact' : 'elevationGradient'
+
   return (
-    <div className="soft-panel rounded-xl border border-emerald-100 bg-[#f8fbf6] p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+    <div
+      className={
+        compact
+          ? 'flex h-full flex-col p-3'
+          : 'soft-panel rounded-xl border border-emerald-100 bg-[#f8fbf6] p-4'
+      }
+    >
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide text-emerald-700 ${
+          compact ? 'mb-1' : ''
+        }`}
+      >
         Profil wysokościowy
       </p>
-      <div className="mt-3 h-48 w-full">
+      <div className={`mt-1 w-full ${chartHeight} ${compact ? 'flex-1' : 'mt-3'}`}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+          <AreaChart
+            data={chartData}
+            margin={
+              compact
+                ? { top: 4, right: 4, bottom: 0, left: 0 }
+                : { top: 8, right: 8, bottom: 8, left: 0 }
+            }
+          >
             <defs>
-              <linearGradient id="elevationGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b7c54" stopOpacity={0.42} />
                 <stop offset="95%" stopColor="#3b7c54" stopOpacity={0.08} />
               </linearGradient>
@@ -77,13 +64,15 @@ function ElevationChart({ routeData }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ddcf" />
             <XAxis
               dataKey="distance"
-              tick={{ fontSize: 12, fill: '#4c4338' }}
+              tick={{ fontSize: compact ? 10 : 12, fill: '#4c4338' }}
               tickFormatter={(value) => `${value} km`}
+              height={compact ? 24 : undefined}
             />
             <YAxis
-              tick={{ fontSize: 12, fill: '#4c4338' }}
+              domain={yDomain}
+              tick={{ fontSize: compact ? 10 : 12, fill: '#4c4338' }}
               tickFormatter={(value) => `${value} m`}
-              width={52}
+              width={compact ? 40 : 52}
             />
             <Tooltip
               formatter={(value, name) =>
@@ -96,7 +85,11 @@ function ElevationChart({ routeData }) {
               dataKey="elevation"
               stroke="#7a6248"
               strokeWidth={2}
-              fill="url(#elevationGradient)"
+              fill={`url(#${gradientId})`}
+              connectNulls
+              isAnimationActive={false}
+              dot={false}
+              activeDot={{ r: 3 }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -106,4 +99,3 @@ function ElevationChart({ routeData }) {
 }
 
 export default ElevationChart
-
