@@ -8,19 +8,16 @@ const FEATURES = [
     title: 'Trasy A → B i pętle',
     description:
       'Wyznaczaj klasyczne trasy między dwoma punktami albo generuj pętle treningowe o wybranym dystansie.',
-    icon: '🧭',
   },
   {
     title: 'Profil i nawierzchnia',
     description:
       'Analizuj wysokość i rozkład nawierzchni jeszcze przed wyjazdem — bez zgadywania po drodze.',
-    icon: '⛰️',
   },
   {
-    title: 'Eksport i zapis',
+    title: 'Nawigacja i zapis',
     description:
-      'Pobierz GPX, otwórz na telefonie z kodem QR lub zapisz trasę na koncie i wróć do niej później.',
-    icon: '💾',
+      'Porównaj warianty, pobierz GPX, otwórz trasę na telefonie z QR albo udostępnij publiczny link.',
   },
 ]
 
@@ -40,7 +37,7 @@ function LandingPage({ onStartPlanning }) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6248]">
                 Funkcje
               </p>
-              <h2 className="mt-3 text-3xl font-semibold text-[#2e5f43] md:text-4xl">
+              <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight text-[#2e5f43] md:text-4xl">
                 Wszystko, czego potrzebujesz przed startem.
               </h2>
             </div>
@@ -53,20 +50,20 @@ function LandingPage({ onStartPlanning }) {
             </button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3 md:gap-10">
             {FEATURES.map((feature, index) => (
               <motion.article
                 key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-10% 0px' }}
-                transition={{ duration: 0.6, delay: index * 0.1, ease: 'easeOut' }}
-                className="soft-panel rounded-2xl border border-[#ece3d4] bg-[#fcfaf5] p-6"
+                transition={{ duration: 0.55, delay: index * 0.08, ease: 'easeOut' }}
+                className="border-t border-[#dccfb8] pt-6"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef3ea] text-2xl">
-                  {feature.icon}
-                </span>
-                <h3 className="mt-5 text-lg font-semibold text-[#2e5f43]">{feature.title}</h3>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a6248]">
+                  0{index + 1}
+                </p>
+                <h3 className="mt-3 text-lg font-semibold text-[#2e5f43]">{feature.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-stone-700">{feature.description}</p>
               </motion.article>
             ))}
@@ -80,7 +77,7 @@ function LandingPage({ onStartPlanning }) {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6248]">
               O aplikacji
             </p>
-            <h2 className="mt-4 text-3xl font-semibold leading-tight text-[#2e5f43] md:text-4xl">
+            <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight text-[#2e5f43] md:text-4xl">
               Od pomysłu na wyjazd do gotowej trasy — bez przełączania narzędzi.
             </h2>
             <p className="mt-6 text-base leading-8 text-stone-700">
@@ -94,11 +91,11 @@ function LandingPage({ onStartPlanning }) {
 
       <section id="how-it-works" className="py-20 md:py-28">
         <div className="mx-auto max-w-4xl px-6 text-center md:px-10">
-          <h2 className="text-3xl font-semibold leading-tight text-[#2e5f43] md:text-5xl">
+          <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight text-[#2e5f43] md:text-5xl">
             Gotowy na pierwszą trasę?
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-stone-700">
-            Wyznacz trasę w kilka sekund, sprawdź profil i zabierz nawigację ze sobą.
+            Wyznacz trasę w kilka sekund, porównaj warianty i zabierz nawigację ze sobą.
           </p>
           <button
             type="button"

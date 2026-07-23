@@ -1,4 +1,4 @@
-function Footer({ onStartPlanning, onGoHome }) {
+function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
   return (
     <footer className="relative z-10 border-t border-[#e3d9c8] bg-[#2a241d] text-stone-300">
       <div className="mx-auto max-w-7xl px-6 py-14 md:px-10">
@@ -41,19 +41,33 @@ function Footer({ onStartPlanning, onGoHome }) {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Planowanie
+              Informacje
             </p>
-            <ul className="mt-4 space-y-2 text-sm text-stone-400">
-              <li>Trasy A → B</li>
-              <li>Pętle treningowe</li>
-              <li>Eksport GPX</li>
-              <li>Zapisane trasy</li>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenPrivacy}
+                  className="transition hover:text-white"
+                >
+                  Polityka prywatności
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenTerms}
+                  className="transition hover:text-white"
+                >
+                  Regulamin
+                </button>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-stone-700 pt-8 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Cycle Your Way. Wszelkie prawa zastrzeżone.</p>
+          <p>© {new Date().getFullYear()} Cycle Your Way. Projekt portfolio / edukacyjny.</p>
           <p>Dane map: OpenStreetMap · Routing: OpenRouteService</p>
         </div>
       </div>

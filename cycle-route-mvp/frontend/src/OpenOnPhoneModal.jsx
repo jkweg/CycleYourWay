@@ -3,16 +3,19 @@ import { QRCodeSVG } from 'qrcode.react'
 
 function OpenOnPhoneModal({ isOpen, onClose, rideUrl, routeName }) {
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
 
   if (!isOpen) return null
 
   const handleCopy = async () => {
+    setCopyError('')
     try {
       await navigator.clipboard.writeText(rideUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopied(false)
+      setCopyError('Nie udało się skopiować — zaznacz link powyżej ręcznie.')
     }
   }
 
@@ -64,9 +67,18 @@ function OpenOnPhoneModal({ isOpen, onClose, rideUrl, routeName }) {
             {copied ? 'Skopiowano link' : 'Kopiuj link'}
           </button>
 
-          <p className="text-center text-xs leading-5 text-stone-500">
-            Trasa jest prywatna — na telefonie zaloguj się tym samym kontem, aby ją otworzyć.
-          </p>
+          {copyError && (
+            <p className="text-center text-xs font-medium text-rose-700">{copyError}</p>
+          )}
+
+          <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-left text-xs leading-5 text-amber-900">
+            <p className="font-semibold">Na telefonie</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>Zaloguj się tym samym kontem (trasa jest prywatna, chyba że ją udostępnisz).</li>
+              <li>Zezwól na lokalizację GPS — bez niej nawigacja nie ruszy.</li>
+              <li>Jeśli GPS jest niedokładny, wyjdź na otwartą przestrzeń i odczekaj chwilę.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

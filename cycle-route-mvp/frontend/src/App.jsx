@@ -15,87 +15,34 @@ import Navbar from './components/Navbar'
 import AddressAutocomplete from './components/AddressAutocomplete'
 import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
+import RouteAlternativesCompare from './components/RouteAlternativesCompare'
+import PlannerOnboarding from './components/PlannerOnboarding'
+import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
+import ProfileModal from './components/ProfileModal'
+import LegalPage from './components/LegalPage'
 import { ensureNavigableFeature } from './lib/routeRefresh'
+import {
+  SURFACE_COLORS,
+  SURFACE_LABELS,
+  buildRouteAlternatives,
+  getLineCoordinates,
+  getRouteSummary,
+  pointFromCoordinate,
+} from './lib/routeStats'
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 const ElevationChart = lazy(() => import('./ElevationChart'))
 
-const getRouteSummary = (feature) => {
-  const summary = feature?.properties?.summary
-  const distanceMeters =
-    typeof summary?.distance === 'number'
-      ? summary.distance
-      : typeof feature?.properties?.distance === 'number'
-        ? feature.properties.distance
-        : null
-  const durationSeconds =
-    typeof summary?.duration === 'number'
-      ? summary.duration
-      : typeof feature?.properties?.duration === 'number'
-        ? feature.properties.duration
-        : null
-
-  if (distanceMeters === null || durationSeconds === null) return null
-
-  return { distanceMeters, durationSeconds }
-}
-
-const formatDurationShort = (durationSeconds) => {
-  const totalMinutes = Math.round(durationSeconds / 60)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  if (hours === 0) return `${minutes} min`
-  return `${hours} h ${minutes} min`
-}
-
-const SURFACE_LABELS = {
-  0: 'Nieznana',
-  1: 'Asfalt / utwardzona',
-  2: 'Nieutwardzona',
-  3: 'Asfalt',
-  4: 'Beton',
-  5: 'Kostka brukowa',
-  6: 'Metal',
-  7: 'Drewno',
-  8: 'Ubity szuter',
-  9: 'Drobny szuter',
-  10: 'Szuter',
-  11: 'Ziemia',
-  12: 'Grunt',
-  13: 'Lód',
-  14: 'Kostka / płyty',
-  15: 'Piasek',
-  16: 'Wióry drzewne',
-  17: 'Trawa',
-  18: 'Płyty trawnikowe',
-}
-
-const SURFACE_COLORS = [
-  'bg-emerald-500',
-  'bg-lime-500',
-  'bg-amber-600',
-  'bg-stone-500',
-  'bg-green-700',
-  'bg-yellow-700',
-]
-
-const getLineCoordinates = (feature) => {
-  const geometry = feature?.geometry
-  if (!geometry) return []
-  if (geometry.type === 'LineString') return geometry.coordinates
-  if (geometry.type === 'MultiLineString') return geometry.coordinates.flat()
-  return []
-}
-
-const pointFromCoordinate = (coordinate) => {
-  if (!Array.isArray(coordinate) || coordinate.length < 2) return null
-  return { lat: coordinate[1], lng: coordinate[0] }
-}
-
 function App() {
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    logout,
+    passwordRecovery,
+  } = useAuth()
   const plannerSectionRef = useRef(null)
   const savedRoutesRef = useRef(null)
   const [routeMode, setRouteMode] = useState('AtoB')
@@ -134,31 +81,59 @@ function App() {
     if (typeof window === 'undefined') return null
     return new URLSearchParams(window.location.search).get('ride')
   })
+  const [pendingShareId, setPendingShareId] = useState(() => {
+    if (typeof window === 'undefined') return null
+    return new URLSearchParams(window.location.search).get('share')
+  })
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
   const [view, setView] = useState('landing')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [legalDoc, setLegalDoc] = useState(null)
 
   useEffect(() => {
     window.localStorage.setItem('loopDistanceKm', String(loopDistanceKm))
   }, [loopDistanceKm])
 
-  const routeAlternatives = useMemo(() => {
-    const features = Array.isArray(routeGeoJson?.features) ? routeGeoJson.features : []
-    return features
-      .map((feature, index) => {
-        const summary = getRouteSummary(feature)
-        if (!summary) return null
-        return {
-          index,
-          distanceKm: (summary.distanceMeters / 1000).toFixed(1),
-          durationLabel: formatDurationShort(summary.durationSeconds),
-          durationSeconds: summary.durationSeconds,
-        }
-      })
-      .filter(Boolean)
-  }, [routeGeoJson])
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return undefined
+
+    let cancelled = false
+
+    const loadProfilePreferences = async () => {
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('prefer_avoid_main_roads, default_loop_distance_km')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (cancelled || profileError || !data) return
+
+      if (typeof data.prefer_avoid_main_roads === 'boolean') {
+        setAvoidMainRoads(data.prefer_avoid_main_roads)
+      }
+      if (
+        Number.isFinite(data.default_loop_distance_km) &&
+        data.default_loop_distance_km >= 5 &&
+        data.default_loop_distance_km <= 100
+      ) {
+        setLoopDistanceKm(data.default_loop_distance_km)
+      }
+    }
+
+    loadProfilePreferences()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id])
+
+  const routeAlternatives = useMemo(
+    () => buildRouteAlternatives(routeGeoJson),
+    [routeGeoJson],
+  )
 
   const selectedFeature = useMemo(() => {
     const features = Array.isArray(routeGeoJson?.features) ? routeGeoJson.features : []
@@ -721,6 +696,52 @@ function App() {
   }
 
   useEffect(() => {
+    if (!pendingShareId) return undefined
+
+    let cancelled = false
+
+    const loadSharedRoute = async () => {
+      setView('planner')
+      setError('')
+
+      const { data, error: fetchError } = await supabase
+        .from('saved_routes')
+        .select('id, name, mode, geojson, distance_km, is_public')
+        .eq('id', pendingShareId)
+        .maybeSingle()
+
+      if (cancelled) return
+
+      if (fetchError || !data) {
+        setError(
+          'Nie udało się wczytać udostępnionej trasy. Link może być nieaktualny albo trasa nie jest publiczna.',
+        )
+        setPendingShareId(null)
+        window.history.replaceState({}, '', window.location.pathname)
+        return
+      }
+
+      handleLoadSavedRoute({
+        id: data.id,
+        name: data.name,
+        mode: data.mode,
+        geojson: data.geojson,
+        distanceKm: data.distance_km != null ? Number(data.distance_km) : null,
+      })
+      setSaveSuccessMessage(`Wczytano udostępnioną trasę „${data.name}”.`)
+      setPendingShareId(null)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    loadSharedRoute()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingShareId])
+
+  useEffect(() => {
     if (!pendingRideId || isAuthLoading) return undefined
 
     let cancelled = false
@@ -774,6 +795,8 @@ function App() {
     return () => {
       cancelled = true
     }
+    // startRideWithFeature is recreated each render; deep-link bootstrap runs once per pendingRideId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingRideId, isAuthLoading, isAuthenticated])
 
   const handleMapClick = (latlng) => {
@@ -814,6 +837,9 @@ function App() {
 
   const goToPlanner = () => {
     setView('planner')
+    if (shouldShowPlannerOnboarding()) {
+      setShowOnboarding(true)
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -829,13 +855,22 @@ function App() {
           <p className="min-w-0 truncate text-stone-700" title={user?.email}>
             <span className="font-medium text-[#2e5f43]">Konto:</span> {user?.email}
           </p>
-          <button
-            type="button"
-            onClick={logout}
-            className="shrink-0 rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
-          >
-            Wyloguj
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setShowProfileModal(true)}
+              className="rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+            >
+              Profil
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+            >
+              Wyloguj
+            </button>
+          </div>
         </>
       ) : (
         <>
@@ -858,6 +893,7 @@ function App() {
     return (
       <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#0f1a14] text-emerald-100" />}>
         <RideView
+          key={rideRoute.name || 'ride'}
           feature={rideRoute.feature}
           routeName={rideRoute.name}
           mode={rideRoute.mode}
@@ -900,7 +936,12 @@ function App() {
           <Suspense fallback={<ChunkFallback label="Ładowanie strony..." className="min-h-[50vh]" />}>
             <LandingPage onStartPlanning={goToPlanner} />
           </Suspense>
-          <Footer onStartPlanning={goToPlanner} onGoHome={goToHome} />
+          <Footer
+            onStartPlanning={goToPlanner}
+            onGoHome={goToHome}
+            onOpenPrivacy={() => setLegalDoc('privacy')}
+            onOpenTerms={() => setLegalDoc('terms')}
+          />
         </>
       ) : (
         <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
@@ -1147,27 +1188,11 @@ function App() {
             )}
 
             {routeAlternatives.length > 1 && (
-              <div className="soft-panel rounded-xl border border-emerald-100 bg-[#f4faf4] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                  Dostępne trasy
-                </p>
-                <div className="mt-2 space-y-2">
-                  {routeAlternatives.map((routeOption) => (
-                    <button
-                      key={routeOption.index}
-                      type="button"
-                      onClick={() => setSelectedRouteIndex(routeOption.index)}
-                      className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
-                        selectedRouteIndex === routeOption.index
-                          ? 'border-emerald-500 bg-white text-emerald-800'
-                          : 'border-emerald-200 bg-[#f4faf4] text-stone-700 hover:bg-white'
-                      }`}
-                    >
-                      Trasa {routeOption.index + 1}: {routeOption.durationLabel} ({routeOption.distanceKm} km)
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <RouteAlternativesCompare
+                alternatives={routeAlternatives}
+                selectedIndex={selectedRouteIndex}
+                onSelect={setSelectedRouteIndex}
+              />
             )}
 
             {routeStats && (
@@ -1314,7 +1339,30 @@ function App() {
         </section>
       )}
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <AuthModal
+        isOpen={showAuthModal || passwordRecovery}
+        onClose={() => setShowAuthModal(false)}
+      />
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onApplied={(profile) => {
+          if (typeof profile.prefer_avoid_main_roads === 'boolean') {
+            setAvoidMainRoads(profile.prefer_avoid_main_roads)
+          }
+          if (Number.isFinite(profile.default_loop_distance_km)) {
+            setLoopDistanceKm(profile.default_loop_distance_km)
+          }
+        }}
+      />
+      <PlannerOnboarding
+        key={showOnboarding ? 'onboarding-open' : 'onboarding-closed'}
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
+      {legalDoc && (
+        <LegalPage type={legalDoc} onClose={() => setLegalDoc(null)} />
+      )}
       <SaveRouteModal
         key={showSaveRouteModal ? 'save-open' : 'save-closed'}
         isOpen={showSaveRouteModal}

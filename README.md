@@ -1,45 +1,62 @@
 # Cycle Your Way
 
-Aplikacja webowa do planowania tras rowerowych. Umożliwia wyznaczanie tras punkt po punkcie, generowanie pętli treningowych, analizę profilu wysokościowego i nawierzchni oraz zapis tras na koncie użytkownika.
+Aplikacja webowa do planowania tras rowerowych: A→B i pętle, porównanie wariantów, profil wysokościowy, nawierzchnia, nawigacja GPS, eksport GPX oraz zapis / udostępnianie tras.
+
+**Live demo:** https://cycle-your-way-pi.vercel.app  
+**API:** _(wstaw URL backendu Render/Railway po deployu)_
 
 ## Funkcje
 
-- **Trasa A → B** — dwa punkty na mapie lub geokodowanie adresów, do trzech wariantów trasy
-- **Pętla treningowa** — jeden punkt startowy i docelowy dystans (5–100 km)
-- **Unikanie dróg głównych** — wybór trasy z mniejszym udziałem dróg o wyższej kategorii
-- **Profil wysokościowy** — wykres elewacji na podstawie danych OpenRouteService
-- **Nawierzchnia** — podział trasy według typu nawierzchni
-- **Eksport** — Google Maps (przybliżenie) oraz plik GPX (pełna geometria)
-- **Konta użytkowników** — rejestracja i logowanie przez Supabase Auth
-- **Zapisane trasy** — lista, wczytywanie i usuwanie tras powiązanych z kontem
+- **Trasa A → B** — do trzech wariantów z porównaniem (dystans, czas, drogi główne, wznios)
+- **Pętla treningowa** — dystans 5–100 km
+- **Unikanie dróg głównych** — ranking wariantów / pętli
+- **Profil wysokościowy i nawierzchnia**
+- **Tryb jazdy** — GPS, turn-by-turn, QR na telefon
+- **Konta** — Supabase Auth (logowanie, rejestracja, reset hasła)
+- **Zapisane trasy** — wczytywanie, rename, usuwanie, publiczny share link
+- **Profil** — preferencje (unikanie dróg głównych, domyślny dystans pętli)
+- **Eksport** — GPX + przybliżony Google Maps
 
 ## Architektura
 
+```mermaid
+flowchart LR
+  Browser[React SPA]
+  Supa[Supabase Auth + DB]
+  API[Express ORS proxy]
+  ORS[OpenRouteService]
+
+  Browser --> Supa
+  Browser --> API
+  API --> ORS
+```
+
 | Warstwa | Technologia | Rola |
 |---------|-------------|------|
-| Frontend | React, Vite, Tailwind, Leaflet, Recharts | Interfejs, mapa, wykresy |
-| Auth i baza tras | Supabase (Auth + PostgreSQL) | Użytkownicy i tabela `saved_routes` |
-| API tras | Node.js, Express | Proxy do OpenRouteService (geocode, route, loop) |
+| Frontend | React, Vite, Tailwind, Leaflet, Recharts | UI, mapa, nawigacja |
+| Auth i trasy | Supabase Auth + PostgreSQL + RLS | konta, `saved_routes`, profile |
+| API | Node.js, Express | proxy ORS (geocode, route, loop) |
 
-Klucz API OpenRouteService jest przechowywany wyłącznie po stronie backendu.
+Klucz `ORS_API_KEY` zostaje wyłącznie na backendzie.
 
-## Struktura repozytorium
+## Struktura
 
 ```
 CycleYourWay/
-├── cycle-route-mvp/
-│   ├── frontend/          # Aplikacja React
-│   ├── backend/           # Serwer Express (ORS)
-│   ├── supabase/          # Schemat SQL i opcjonalne rozszerzenia
-│   └── docs/              # Instrukcje deployu (Supabase, Vercel, Render)
-└── README.md
+├── .github/workflows/ci.yml
+├── README.md
+└── cycle-route-mvp/
+    ├── frontend/          # React (Vercel)
+    ├── backend/           # Express (Render / Railway)
+    ├── supabase/          # schema.sql + profiles.optional.sql
+    └── docs/              # deploy
 ```
 
 ## Wymagania
 
-- Node.js 20 lub nowszy
-- Konto [OpenRouteService](https://openrouteservice.org/dev/#/signup) (klucz API)
-- Projekt [Supabase](https://supabase.com) (URL projektu i Publishable key)
+- Node.js 20+
+- [OpenRouteService](https://openrouteservice.org/dev/#/signup) API key
+- Projekt [Supabase](https://supabase.com)
 
 ## Uruchomienie lokalne
 
@@ -48,22 +65,20 @@ CycleYourWay/
 ```bash
 cd cycle-route-mvp/backend
 cp .env.example .env
-# Uzupełnij ORS_API_KEY w pliku .env
+# ORS_API_KEY=...
 
 npm install
 npm run dev
 ```
 
-Serwer nasłuchuje domyślnie na `http://localhost:5000`.
-
-Na Windows, jeśli występują problemy z TLS przy połączeniu z ORS, skrypt `dev` używa `node --use-system-ca`.
+API: `http://localhost:5000`
 
 ### 2. Supabase
 
-1. Utwórz projekt w Supabase.
-2. W **SQL Editor** uruchom plik `cycle-route-mvp/supabase/schema.sql`.
-3. W **Authentication → Providers** włącz logowanie e-mail.
-4. Skopiuj **Project URL** i **Publishable key** z ustawień API.
+1. Nowy projekt → **SQL Editor** → uruchom `cycle-route-mvp/supabase/schema.sql`
+2. (Opcjonalnie, pod profil) `profiles.optional.sql`
+3. Authentication → Email włączony
+4. **Connect** / API Keys → Project URL + publishable/anon key
 
 ### 3. Frontend
 
@@ -72,15 +87,11 @@ cd cycle-route-mvp/frontend
 cp .env.example .env.local
 ```
 
-Uzupełnij `.env.local`:
-
 ```env
 VITE_SUPABASE_URL=https://twoj-projekt.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_...
 VITE_API_URL=http://localhost:5000
 ```
-
-**Project URL** musi być samym adresem projektu — bez `/rest/v1/` na końcu.
 
 ```bash
 npm install
@@ -89,42 +100,36 @@ npm run dev
 
 Aplikacja: `http://localhost:5173`
 
-## Endpointy API (backend)
+Na Windows, jeśli PowerShell blokuje `npm`, użyj `npm.cmd`.
+
+## Deploy (checklist CV)
+
+Szczegóły: [`docs/DEPLOY_BACKEND.md`](cycle-route-mvp/docs/DEPLOY_BACKEND.md), [`docs/SUPABASE_VERCEL.md`](cycle-route-mvp/docs/SUPABASE_VERCEL.md)
+
+1. **Backend (Render):** root `cycle-route-mvp/backend`, env `ORS_API_KEY`, `ALLOWED_ORIGINS`
+2. **Frontend (Vercel):** root `cycle-route-mvp/frontend`, env `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`
+3. Wklej live URL powyżej w tym README
+
+`frontend/vercel.json` i `backend/render.yaml` są przygotowane pod szybki deploy.
+
+## Testy i CI
+
+```bash
+cd cycle-route-mvp/frontend && npm test && npm run lint
+cd cycle-route-mvp/backend && npm test
+```
+
+GitHub Actions: `.github/workflows/ci.yml` (lint, test, build).
+
+## Endpointy API
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| GET | `/api/health` | Status serwisu |
-| GET | `/api/geocode?address=` | Geokodowanie adresu |
-| POST | `/api/route` | Trasa między dwoma punktami |
-| POST | `/api/loop` | Pętla o zadanym dystansie |
-
-## Deploy
-
-Szczegółowe instrukcje:
-
-- **Backend (Render / Railway):** `cycle-route-mvp/docs/DEPLOY_BACKEND.md`
-- **Supabase i Vercel:** `cycle-route-mvp/docs/SUPABASE_VERCEL.md`
-
-Po wdrożeniu backendu ustaw `VITE_API_URL` na publiczny URL serwera i dodaj domenę frontendu do zmiennej `ALLOWED_ORIGINS` w backendzie.
-
-## Zmienne środowiskowe
-
-### Backend
-
-| Zmienna | Opis |
-|---------|------|
-| `ORS_API_KEY` | Klucz OpenRouteService |
-| `ALLOWED_ORIGINS` | Dozwolone originy CORS (np. localhost i domena Vercel) |
-| `PORT` | Port serwera (ustawiany automatycznie na Render) |
-
-### Frontend
-
-| Zmienna | Opis |
-|---------|------|
-| `VITE_SUPABASE_URL` | URL projektu Supabase |
-| `VITE_SUPABASE_ANON_KEY` | Publishable key z Supabase |
-| `VITE_API_URL` | URL backendu ORS |
+| GET | `/api/health` | Status + `orsConfigured` |
+| GET | `/api/geocode?address=` | Geokodowanie (PL) |
+| POST | `/api/route` | Trasa A→B |
+| POST | `/api/loop` | Pętla |
 
 ## Licencja
 
-Projekt prywatny / edukacyjny. OpenStreetMap, OpenRouteService i pozostałe usługi zewnętrzne podlegają własnym warunkom użytkowania.
+Projekt portfolio / edukacyjny. OpenStreetMap, OpenRouteService i inne usługi zewnętrzne mają własne warunki.

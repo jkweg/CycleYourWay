@@ -1,13 +1,14 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
-export async function apiFetch(path, options = {}, token = null) {
+/**
+ * Fetch JSON from the ORS backend proxy.
+ * @param {string} path
+ * @param {RequestInit} [options]
+ */
+export async function apiFetch(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
   }
 
   let response
@@ -25,11 +26,6 @@ export async function apiFetch(path, options = {}, token = null) {
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
-    if (response.status === 404 && path.startsWith('/api/auth')) {
-      throw new Error(
-        'Endpoint logowania niedostępny. Zrestartuj backend po ostatniej aktualizacji.',
-      )
-    }
     throw new Error(data.error || `Błąd serwera (${response.status}).`)
   }
 

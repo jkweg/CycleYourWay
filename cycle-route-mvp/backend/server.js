@@ -2,6 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const axios = require("axios");
+const rateLimit = require("express-rate-limit");
+const {
+  rankFeaturesByMainRoadShare,
+} = require("./lib/routeRanking");
 
 dotenv.config();
 
@@ -10,15 +14,19 @@ const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
 const ALLOWED_PROFILES = new Set(["cycling-mountain", "cycling-regular"]);
 
+if (!ORS_API_KEY) {
+  console.warn(
+    "[startup] ORS_API_KEY is missing — /api/geocode, /api/route and /api/loop will return 500 until it is set.",
+  );
+}
+
 // Originy zawsze dozwolone (lokalny dev + dowolny deploy Vercela, w tym preview).
-// Dzięki temu nie trzeba ręcznie aktualizować listy po każdym deployu.
 const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://*.vercel.app",
 ];
 
-// Dozwolone originy. Wpisy mogą zawierać wildcard "*", np. https://*.vercel.app
 const allowedOriginPatterns = [
   ...DEFAULT_ALLOWED_ORIGINS,
   ...(process.env.ALLOWED_ORIGINS || "").split(","),
@@ -49,7 +57,17 @@ app.use(
     },
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "32kb" }));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Zbyt wiele zapytań. Spróbuj ponownie za chwilę." },
+});
+
+app.use("/api/", apiLimiter);
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
@@ -101,37 +119,10 @@ const friendlyOrsError = (apiData) => {
 };
 
 // ORS waytype: 1 = state_road, 2 = road (traktujemy jako drogi główne)
-const MAIN_ROAD_WAYTYPES = new Set([1, 2]);
-
 const BASE_EXTRA_INFO = ["surface", "steepness"];
 
 const getExtraInfo = (avoidMainRoads) =>
   avoidMainRoads ? [...BASE_EXTRA_INFO, "waytype"] : BASE_EXTRA_INFO;
-
-const getMainRoadSharePercent = (feature) => {
-  const summary = feature?.properties?.extras?.waytype?.summary;
-  if (!Array.isArray(summary) || summary.length === 0) return null;
-
-  let mainRoadShare = 0;
-  for (const item of summary) {
-    if (MAIN_ROAD_WAYTYPES.has(item?.value) && typeof item.amount === "number") {
-      mainRoadShare += item.amount;
-    }
-  }
-  return mainRoadShare;
-};
-
-const rankFeaturesByMainRoadShare = (features) => {
-  if (!Array.isArray(features) || features.length <= 1) return features;
-
-  return [...features].sort((featureA, featureB) => {
-    const shareA = getMainRoadSharePercent(featureA);
-    const shareB = getMainRoadSharePercent(featureB);
-    const scoreA = shareA === null ? Number.POSITIVE_INFINITY : shareA;
-    const scoreB = shareB === null ? Number.POSITIVE_INFINITY : shareB;
-    return scoreA - scoreB;
-  });
-};
 
 const optimizeGeoJsonForMainRoads = (geoJson) => {
   if (!geoJson?.features?.length) return geoJson;
@@ -232,7 +223,6 @@ app.get("/api/geocode", async (req, res) => {
     });
     return res.status(status).json({
       error: "Failed to geocode address.",
-      details: apiData || error.message,
     });
   }
 });
@@ -359,7 +349,6 @@ app.post("/api/route", async (req, res) => {
 
     return res.status(status).json({
       error: friendlyOrsError(apiData),
-      details: apiData || error.message,
     });
   }
 });
@@ -451,7 +440,6 @@ app.post("/api/loop", async (req, res) => {
     });
     return res.status(status).json({
       error: "Failed to generate loop route.",
-      details: apiData || error.message,
     });
   }
 });

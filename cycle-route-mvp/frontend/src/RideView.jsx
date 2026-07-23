@@ -147,11 +147,9 @@ function RideView({ feature, routeName, mode, onExit }) {
   const headingAnchorRef = useRef(null)
 
   useEffect(() => {
-    setRouteFeature(feature)
     hintRef.current = 0
     spokenRef.current = null
     offRouteSinceRef.current = null
-    setRecalcError('')
   }, [feature])
 
   const handleRecalculateRoute = useCallback(async () => {

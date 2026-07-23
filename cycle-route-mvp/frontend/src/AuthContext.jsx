@@ -10,9 +10,27 @@ function mapUser(authUser) {
   }
 }
 
+function polishAuthError(message) {
+  const text = String(message || '')
+  if (/invalid login credentials/i.test(text)) {
+    return 'Nieprawidłowy e-mail lub hasło.'
+  }
+  if (/email not confirmed/i.test(text)) {
+    return 'Potwierdź e-mail, zanim się zalogujesz (sprawdź skrzynkę).'
+  }
+  if (/user already registered/i.test(text)) {
+    return 'Konto z tym e-mailem już istnieje — zaloguj się.'
+  }
+  if (/password/i.test(text) && /at least/i.test(text)) {
+    return 'Hasło jest zbyt krótkie (minimum 6 znaków).'
+  }
+  return text || 'Nie udało się wykonać operacji.'
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -26,9 +44,12 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(mapUser(session?.user ?? null))
       setIsLoading(false)
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true)
+      }
     })
 
     return () => {
@@ -39,7 +60,8 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
-    if (error) throw new Error(error.message)
+    if (error) throw new Error(polishAuthError(error.message))
+    setPasswordRecovery(false)
   }, [])
 
   const login = useCallback(async (email, password) => {
@@ -47,7 +69,7 @@ export function AuthProvider({ children }) {
       email: email.trim(),
       password,
     })
-    if (error) throw new Error(error.message)
+    if (error) throw new Error(polishAuthError(error.message))
     const mapped = mapUser(data.user)
     setUser(mapped)
     return mapped
@@ -58,11 +80,11 @@ export function AuthProvider({ children }) {
       email: email.trim(),
       password,
     })
-    if (error) throw new Error(error.message)
+    if (error) throw new Error(polishAuthError(error.message))
 
     if (!data.session) {
       throw new Error(
-        'Konto utworzone. Sprawdź e-mail i potwierdź rejestrację, albo wyłącz Confirm email w Supabase.',
+        'Konto utworzone. Sprawdź e-mail i potwierdź rejestrację, albo wyłącz Confirm email w Supabase (Authentication → Providers).',
       )
     }
 
@@ -71,16 +93,48 @@ export function AuthProvider({ children }) {
     return mapped
   }, [])
 
+  const requestPasswordReset = useCallback(async (email) => {
+    const redirectTo = `${window.location.origin}/`
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo,
+    })
+    if (error) throw new Error(polishAuthError(error.message))
+  }, [])
+
+  const updatePassword = useCallback(async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw new Error(polishAuthError(error.message))
+    setPasswordRecovery(false)
+  }, [])
+
+  const clearPasswordRecovery = useCallback(() => {
+    setPasswordRecovery(false)
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
       isLoading,
       isAuthenticated: Boolean(user),
+      passwordRecovery,
       login,
       register,
       logout,
+      requestPasswordReset,
+      updatePassword,
+      clearPasswordRecovery,
     }),
-    [user, isLoading, login, register, logout],
+    [
+      user,
+      isLoading,
+      passwordRecovery,
+      login,
+      register,
+      logout,
+      requestPasswordReset,
+      updatePassword,
+      clearPasswordRecovery,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

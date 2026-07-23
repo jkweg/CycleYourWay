@@ -1,31 +1,41 @@
--- OPCJONALNIE — tylko gdy chcesz dodatkowe dane użytkownika (nick, avatar itd.)
--- Użytkownicy logowania są już w auth.users (Supabase tworzy to automatycznie).
--- Uruchom w SQL Editor dopiero gdy będziesz tego potrzebować.
+-- Profiles + user preferences (run after schema.sql)
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text,
+  prefer_avoid_main_roads boolean not null default false,
+  default_loop_distance_km integer not null default 30
+    check (default_loop_distance_km between 5 and 100),
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles
+  add column if not exists prefer_avoid_main_roads boolean not null default false;
+
+alter table public.profiles
+  add column if not exists default_loop_distance_km integer not null default 30;
+
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can read own profile" on public.profiles;
 create policy "Users can read own profile"
   on public.profiles
   for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles
   for update
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
+drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile"
   on public.profiles
   for insert
   with check (auth.uid() = id);
 
--- Auto-tworzenie profilu po rejestracji (opcjonalnie)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -34,7 +44,8 @@ set search_path = public
 as $$
 begin
   insert into public.profiles (id, display_name)
-  values (new.id, split_part(new.email, '@', 1));
+  values (new.id, split_part(new.email, '@', 1))
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
