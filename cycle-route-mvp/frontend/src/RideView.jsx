@@ -136,6 +136,8 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   const [navState, setNavState] = useState(null)
   const [follow, setFollow] = useState(true)
   const [voiceOn, setVoiceOn] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [rideSummary, setRideSummary] = useState(null)
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
@@ -146,13 +148,28 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
   const originalFeatureRef = useRef(feature)
+  const trackRef = useRef([])
+  const startedAtRef = useRef(Date.now())
+  const pausedAtRef = useRef(null)
+  const pausedMsRef = useRef(0)
+  const isPausedRef = useRef(false)
 
   useEffect(() => {
     hintRef.current = 0
     spokenRef.current = null
     offRouteSinceRef.current = null
     originalFeatureRef.current = feature
+    trackRef.current = []
+    startedAtRef.current = Date.now()
+    pausedAtRef.current = null
+    pausedMsRef.current = 0
+    setIsPaused(false)
+    setRideSummary(null)
   }, [feature])
+
+  useEffect(() => {
+    isPausedRef.current = isPaused
+  }, [isPaused])
 
   const handleRecalculateRoute = useCallback(async () => {
     if (!userPos || recalcInFlightRef.current) return
@@ -195,7 +212,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   }, [userPos, routeFeature, voiceOn, avoidMainRoads])
 
   useEffect(() => {
-    if (!navState?.isOffRoute || !userPos || isRecalculating) {
+    if (!navState?.isOffRoute || !userPos || isRecalculating || isPaused) {
       if (!navState?.isOffRoute) {
         offRouteSinceRef.current = null
       }
@@ -219,7 +236,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
     if (offRouteDuration >= OFF_ROUTE_TRIGGER_MS && sinceLastRecalc >= RECALC_COOLDOWN_MS) {
       handleRecalculateRoute()
     }
-  }, [navState, userPos, isRecalculating, handleRecalculateRoute])
+  }, [navState, userPos, isRecalculating, isPaused, handleRecalculateRoute])
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -253,6 +270,14 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
         setGpsSpeed(Number.isFinite(speed) ? speed : null)
         setAccuracy(Number.isFinite(acc) ? acc : null)
         setGeoError('')
+
+        if (!isPausedRef.current) {
+          const track = trackRef.current
+          const last = track[track.length - 1]
+          if (!last || haversineMeters(last, point) >= 8) {
+            track.push({ ...point, t: Date.now() })
+          }
+        }
       },
       (error) => setGeoError(geoErrorMessage(error)),
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 25000 },
@@ -262,7 +287,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   }, [])
 
   useEffect(() => {
-    if (!userPos || coordinates.length === 0) return
+    if (!userPos || coordinates.length === 0 || isPaused) return
     const speed = gpsSpeed && gpsSpeed > 0.8 ? gpsSpeed : 4.5
     const state = computeNavState({
       coordinates,
@@ -276,7 +301,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
       hintRef.current = state.nearestIndex
       setNavState(state)
     }
-  }, [userPos, gpsSpeed, coordinates, cumulative, maneuvers])
+  }, [userPos, gpsSpeed, coordinates, cumulative, maneuvers, isPaused])
 
   useEffect(() => {
     let wakeLock = null
@@ -299,7 +324,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   }, [])
 
   useEffect(() => {
-    if (!voiceOn || !navState?.nextManeuver) return
+    if (!voiceOn || isPaused || !navState?.nextManeuver) return
     const { nextManeuver, distanceToManeuver } = navState
     if (distanceToManeuver == null) return
 
@@ -332,7 +357,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
       }
       speak(tier.phrase)
     }
-  }, [navState, voiceOn])
+  }, [navState, voiceOn, isPaused])
 
   useEffect(() => {
     return () => {
@@ -341,6 +366,55 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
       }
     }
   }, [])
+
+  const buildRideSummary = () => {
+    const points = trackRef.current
+    let distanceMeters = 0
+    for (let i = 1; i < points.length; i += 1) {
+      distanceMeters += haversineMeters(points[i - 1], points[i])
+    }
+
+    let pausedMs = pausedMsRef.current
+    if (pausedAtRef.current) {
+      pausedMs += Date.now() - pausedAtRef.current
+    }
+    const durationSeconds = Math.max(
+      0,
+      Math.round((Date.now() - startedAtRef.current - pausedMs) / 1000),
+    )
+    const avgSpeedKmh =
+      durationSeconds > 0 ? (distanceMeters / durationSeconds) * 3.6 : 0
+
+    return {
+      distanceMeters,
+      durationSeconds,
+      avgSpeedKmh,
+      pointCount: points.length,
+    }
+  }
+
+  const togglePause = () => {
+    setIsPaused((current) => {
+      if (current) {
+        if (pausedAtRef.current) {
+          pausedMsRef.current += Date.now() - pausedAtRef.current
+          pausedAtRef.current = null
+        }
+        return false
+      }
+      pausedAtRef.current = Date.now()
+      return true
+    })
+  }
+
+  const handleExitRequest = () => {
+    const summary = buildRideSummary()
+    if (summary.distanceMeters >= 40 || summary.durationSeconds >= 45) {
+      setRideSummary(summary)
+      return
+    }
+    onExit()
+  }
 
   const routeLine = useMemo(() => {
     if (!routeFeature) return null
@@ -371,6 +445,46 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   const maneuverVisual = nextManeuver ? getManeuverVisual(nextManeuver.type) : null
 
   const lineColor = mode === 'Loop' ? '#7a6248' : '#2e5f43'
+
+  if (rideSummary) {
+    return (
+      <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[#0f1a14]/80 p-4">
+        <div className="w-full max-w-md rounded-2xl bg-[#15241b] p-6 text-emerald-50 shadow-2xl ring-1 ring-white/10">
+          <h2 className="text-xl font-semibold text-white">Podsumowanie jazdy</h2>
+          <p className="mt-1 text-sm text-emerald-100/70">{routeName || 'Trasa'}</p>
+          <dl className="mt-5 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-white/5 p-3">
+              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Dystans</dt>
+              <dd className="mt-1 text-lg font-bold text-white">
+                {formatDistance(rideSummary.distanceMeters)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Czas</dt>
+              <dd className="mt-1 text-lg font-bold text-white">
+                {formatDuration(rideSummary.durationSeconds)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Średnia</dt>
+              <dd className="mt-1 text-lg font-bold text-white">
+                {rideSummary.avgSpeedKmh > 0
+                  ? `${rideSummary.avgSpeedKmh.toFixed(1)} km/h`
+                  : '—'}
+              </dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            onClick={onExit}
+            className="mt-6 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-emerald-400"
+          >
+            Zamknij
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-[3000] flex flex-col bg-[#0f1a14] text-white">
@@ -439,14 +553,27 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={onExit}
+              onClick={handleExitRequest}
               className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20"
             >
               ← Zakończ
             </button>
             <p className="min-w-0 flex-1 truncate text-center text-sm font-medium text-emerald-100">
               {routeName || 'Trasa'}
+              {isPaused ? ' · Pauza' : ''}
             </p>
+            <button
+              type="button"
+              onClick={togglePause}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                isPaused
+                  ? 'bg-amber-400 text-[#2a1f05]'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+              aria-pressed={isPaused}
+            >
+              {isPaused ? '▶ Wznów' : '⏸ Pauza'}
+            </button>
             <button
               type="button"
               onClick={() => setVoiceOn((value) => !value)}
@@ -455,11 +582,15 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
               }`}
               aria-pressed={voiceOn}
             >
-              {voiceOn ? '🔊 Głos' : '🔈 Głos'}
+              {voiceOn ? '🔊' : '🔈'}
             </button>
           </div>
 
-          {geoError ? (
+          {isPaused ? (
+            <p className="mt-3 rounded-lg bg-amber-400/20 px-3 py-2 text-sm text-amber-100">
+              Jazda wstrzymana — nawigacja i zapis śladu są zapauzowane.
+            </p>
+          ) : geoError ? (
             <p className="mt-3 rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
               {geoError}
             </p>

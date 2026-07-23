@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../useAuth'
 
 function ProfileModal({ isOpen, onClose, onApplied }) {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const [displayName, setDisplayName] = useState('')
   const [preferAvoidMainRoads, setPreferAvoidMainRoads] = useState(false)
   const [defaultLoopDistanceKm, setDefaultLoopDistanceKm] = useState(30)
@@ -11,6 +11,8 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
   const [info, setInfo] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     if (!isOpen || !isAuthenticated || !user?.id) return undefined
@@ -21,6 +23,7 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
       setIsLoading(true)
       setError('')
       setInfo('')
+      setConfirmDelete(false)
       try {
         const { data, error: fetchError } = await supabase
           .from('profiles')
@@ -46,7 +49,7 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
         if (!cancelled) {
           setError(
             loadError.message.includes('relation') || loadError.message.includes('schema cache')
-              ? 'Tabela profiles nie istnieje — uruchom supabase/profiles.optional.sql w SQL Editor.'
+              ? 'Tabela profiles nie istnieje — uruchom supabase/schema.sql w SQL Editor.'
               : loadError.message || 'Nie udało się wczytać profilu.',
           )
         }
@@ -88,6 +91,36 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
       setError(saveError.message || 'Nie udało się zapisać profilu.')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      setInfo('')
+      setError('Potwierdź usunięcie konta — tej operacji nie da się cofnąć.')
+      return
+    }
+
+    setIsDeleting(true)
+    setError('')
+    setInfo('')
+
+    try {
+      const { error: rpcError } = await supabase.rpc('delete_own_account')
+      if (rpcError) {
+        throw new Error(
+          rpcError.message.includes('function') || rpcError.message.includes('schema cache')
+            ? 'Brak funkcji delete_own_account — uruchom zaktualizowany supabase/schema.sql.'
+            : rpcError.message,
+        )
+      }
+      await logout()
+      onClose()
+    } catch (deleteError) {
+      setError(deleteError.message || 'Nie udało się usunąć konta.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -165,11 +198,26 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
 
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isDeleting}
               className="soft-button w-full rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#356b4b] disabled:opacity-60"
             >
               {isSaving ? 'Zapisywanie…' : 'Zapisz profil'}
             </button>
+
+            <div className="border-t border-[#eadfcf] pt-4">
+              <button
+                type="button"
+                disabled={isDeleting || isSaving}
+                onClick={handleDeleteAccount}
+                className="soft-button w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"
+              >
+                {isDeleting
+                  ? 'Usuwanie…'
+                  : confirmDelete
+                    ? 'Na pewno usunąć konto?'
+                    : 'Usuń konto'}
+              </button>
+            </div>
           </form>
         )}
       </div>

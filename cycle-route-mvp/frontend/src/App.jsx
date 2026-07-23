@@ -49,6 +49,7 @@ function App() {
   const [endPoint, setEndPoint] = useState(null)
   const [startInput, setStartInput] = useState('')
   const [endInput, setEndInput] = useState('')
+  const [viaStops, setViaStops] = useState([])
   const [loopDistanceKm, setLoopDistanceKm] = useState(() => {
     const savedLoopDistance = window.localStorage.getItem('loopDistanceKm')
     const numericValue = Number(savedLoopDistance)
@@ -162,20 +163,46 @@ function App() {
     [selectedFeature],
   )
 
-  const requestRoute = async (start, end) => {
+  const createViaStop = (point = null, input = '') => ({
+    id:
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `via-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    point,
+    input,
+  })
+
+  const clearPlannedRoute = () => {
+    setRouteGeoJson(null)
+    setSelectedRouteIndex(0)
+    setLoadedSavedRouteId(null)
+    setLoadedSavedRouteName('')
+    bumpRouteDisplay()
+  }
+
+  const requestRoute = async (waypoints) => {
     setIsLoadingRoute(true)
     setError('')
 
     try {
+      const payload =
+        waypoints.length === 2
+          ? {
+              start: waypoints[0],
+              end: waypoints[1],
+              profile: 'cycling-mountain',
+              avoidMainRoads,
+            }
+          : {
+              waypoints,
+              profile: 'cycling-mountain',
+              avoidMainRoads,
+            }
+
       const response = await fetch(`${API_BASE}/api/route`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          start,
-          end,
-          profile: 'cycling-mountain',
-          avoidMainRoads,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
@@ -185,6 +212,7 @@ function App() {
       }
 
       setLoadedSavedRouteId(null)
+      setLoadedSavedRouteName('')
       setRouteGeoJson(data)
       setSelectedRouteIndex(0)
       bumpRouteDisplay()
@@ -192,6 +220,7 @@ function App() {
       setRouteGeoJson(null)
       setSelectedRouteIndex(0)
       setLoadedSavedRouteId(null)
+      setLoadedSavedRouteName('')
       bumpRouteDisplay()
       setError(requestError.message || 'Unexpected route error.')
     } finally {
@@ -220,6 +249,7 @@ function App() {
     if (nextMode === 'Loop') {
       setEndPoint(null)
       setEndInput('')
+      setViaStops([])
     }
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
@@ -235,6 +265,7 @@ function App() {
     setEndPoint(null)
     setStartInput('')
     setEndInput('')
+    setViaStops([])
     setLockedPoint(null)
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
@@ -259,24 +290,41 @@ function App() {
       setEndPoint(null)
     }
 
-    setRouteGeoJson(null)
-    setSelectedRouteIndex(0)
+    clearPlannedRoute()
     setError('')
   }
 
-  const applyGeocodeResult = (type, result) => {
+  const handleViaInputChange = (viaId, value) => {
+    setViaStops((current) =>
+      current.map((stop) =>
+        stop.id === viaId ? { ...stop, input: value, point: null } : stop,
+      ),
+    )
+    clearPlannedRoute()
+    setError('')
+  }
+
+  const applyGeocodeResult = (type, result, viaId = null) => {
     const selectedPoint = { lat: result.lat, lng: result.lon }
     if (type === 'start') {
       setStartPoint(selectedPoint)
       setStartInput(result.name)
+      setLockedPoint(selectedPoint)
+    } else if (type === 'via' && viaId) {
+      setViaStops((current) =>
+        current.map((stop) =>
+          stop.id === viaId
+            ? { ...stop, point: selectedPoint, input: result.name }
+            : stop,
+        ),
+      )
       setLockedPoint(selectedPoint)
     } else {
       setEndPoint(selectedPoint)
       setEndInput(result.name)
       setLockedPoint(selectedPoint)
     }
-    setRouteGeoJson(null)
-    setSelectedRouteIndex(0)
+    clearPlannedRoute()
     setError('')
   }
 
@@ -301,6 +349,7 @@ function App() {
         if (routeMode === 'AtoB') {
           setEndPoint(null)
           setEndInput('')
+          setViaStops([])
         }
         setRouteGeoJson(null)
         setSelectedRouteIndex(0)
@@ -325,8 +374,13 @@ function App() {
     )
   }
 
-  const geocodeAddress = async (type) => {
-    const rawAddress = type === 'start' ? startInput : endInput
+  const geocodeAddress = async (type, viaId = null) => {
+    const rawAddress =
+      type === 'start'
+        ? startInput
+        : type === 'via'
+          ? viaStops.find((stop) => stop.id === viaId)?.input || ''
+          : endInput
     const address = rawAddress.trim()
 
     if (!address) {
@@ -335,7 +389,7 @@ function App() {
     }
 
     if (type === 'start') setIsSearchingStart(true)
-    else setIsSearchingEnd(true)
+    else if (type === 'end') setIsSearchingEnd(true)
     setError('')
 
     try {
@@ -353,12 +407,12 @@ function App() {
         throw new Error('Nie znaleziono wyników dla podanego adresu.')
       }
 
-      applyGeocodeResult(type, firstResult)
+      applyGeocodeResult(type, firstResult, viaId)
     } catch (requestError) {
       setError(requestError.message || 'Unexpected geocoding error.')
     } finally {
       if (type === 'start') setIsSearchingStart(false)
-      else setIsSearchingEnd(false)
+      else if (type === 'end') setIsSearchingEnd(false)
     }
   }
 
@@ -367,7 +421,52 @@ function App() {
       setError('Najpierw wybierz punkt początkowy i końcowy.')
       return
     }
-    requestRoute(startPoint, endPoint)
+
+    const incompleteVia = viaStops.find((stop) => !stop.point)
+    if (incompleteVia) {
+      setError('Uzupełnij wszystkie punkty pośrednie albo je usuń.')
+      return
+    }
+
+    const waypoints = [
+      startPoint,
+      ...viaStops.map((stop) => stop.point),
+      endPoint,
+    ]
+    requestRoute(waypoints)
+  }
+
+  const handleReverseRoute = () => {
+    if (routeMode !== 'AtoB') return
+
+    const nextStart = endPoint
+    const nextStartInput = endInput
+    const nextEnd = startPoint
+    const nextEndInput = startInput
+
+    setStartPoint(nextStart)
+    setStartInput(nextStartInput)
+    setEndPoint(nextEnd)
+    setEndInput(nextEndInput)
+    setViaStops((current) => [...current].reverse())
+    if (nextStart) setLockedPoint(nextStart)
+    clearPlannedRoute()
+    setError('')
+  }
+
+  const handleAddViaStop = () => {
+    if (viaStops.length >= 5) {
+      setError('Możesz dodać maksymalnie 5 punktów pośrednich.')
+      return
+    }
+    setViaStops((current) => [...current, createViaStop()])
+    setError('')
+  }
+
+  const handleRemoveViaStop = (viaId) => {
+    setViaStops((current) => current.filter((stop) => stop.id !== viaId))
+    clearPlannedRoute()
+    setError('')
   }
 
   const handleLoopSubmit = async () => {
@@ -575,6 +674,7 @@ function App() {
     setSaveSuccessMessage('')
     setError('')
     setIsLoadingRoute(false)
+    setViaStops([])
 
     if (savedRoute.mode === 'Loop') {
       setEndPoint(null)
@@ -842,39 +942,99 @@ function App() {
   }, [pendingRideId, isAuthLoading, isAuthenticated])
 
   const handleMapClick = (latlng) => {
-    if (routeGeoJson && routeMode === 'AtoB') {
-      return
-    }
-
     const clickedPoint = { lat: latlng.lat, lng: latlng.lng }
+
     if (routeMode === 'Loop') {
       setStartPoint(clickedPoint)
       setStartInput(mapSelectionLabel(clickedPoint))
       setLockedPoint(clickedPoint)
-      setRouteGeoJson(null)
-      setSelectedRouteIndex(0)
+      clearPlannedRoute()
       setError('')
       return
     }
 
-    if (!startPoint || (startPoint && endPoint)) {
+    if (!startPoint) {
       setStartPoint(clickedPoint)
       setStartInput(mapSelectionLabel(clickedPoint))
       setLockedPoint(clickedPoint)
-      setEndPoint(null)
-      setEndInput('')
-      setRouteGeoJson(null)
-      setSelectedRouteIndex(0)
+      clearPlannedRoute()
       setError('')
       return
     }
 
-    setEndPoint(clickedPoint)
-    setEndInput(mapSelectionLabel(clickedPoint))
+    if (!endPoint) {
+      setEndPoint(clickedPoint)
+      setEndInput(mapSelectionLabel(clickedPoint))
+      setLockedPoint(clickedPoint)
+      clearPlannedRoute()
+      setError('')
+      return
+    }
+
+    const emptyVia = viaStops.find((stop) => !stop.point)
+    if (emptyVia) {
+      setViaStops((current) =>
+        current.map((stop) =>
+          stop.id === emptyVia.id
+            ? {
+                ...stop,
+                point: clickedPoint,
+                input: mapSelectionLabel(clickedPoint),
+              }
+            : stop,
+        ),
+      )
+      setLockedPoint(clickedPoint)
+      clearPlannedRoute()
+      setError('')
+      return
+    }
+
+    if (viaStops.length < 5) {
+      setViaStops((current) => [
+        ...current,
+        createViaStop(clickedPoint, mapSelectionLabel(clickedPoint)),
+      ])
+      setLockedPoint(clickedPoint)
+      clearPlannedRoute()
+      setError('')
+      return
+    }
+
+    setStartPoint(clickedPoint)
+    setStartInput(mapSelectionLabel(clickedPoint))
     setLockedPoint(clickedPoint)
-    setRouteGeoJson(null)
-    setSelectedRouteIndex(0)
+    setEndPoint(null)
+    setEndInput('')
+    setViaStops([])
+    clearPlannedRoute()
     setError('')
+  }
+
+  const handleStartDrag = (point) => {
+    setStartPoint(point)
+    setStartInput(mapSelectionLabel(point))
+    setLockedPoint(point)
+    clearPlannedRoute()
+  }
+
+  const handleEndDrag = (point) => {
+    setEndPoint(point)
+    setEndInput(mapSelectionLabel(point))
+    setLockedPoint(point)
+    clearPlannedRoute()
+  }
+
+  const handleViaDrag = (viaId, point) => {
+    setViaStops((current) =>
+      current.map((stop) =>
+        stop.id === viaId
+          ? { ...stop, point, input: mapSelectionLabel(point) }
+          : stop,
+      ),
+    )
+    setLockedPoint(point)
+    clearPlannedRoute()
   }
 
   const goToPlanner = () => {
@@ -1140,6 +1300,71 @@ function App() {
                   </button>
                 </div>
 
+                {viaStops.map((stop, index) => (
+                  <div key={stop.id}>
+                    <label
+                      htmlFor={`via-point-input-${stop.id}`}
+                      className="mb-1 flex items-center justify-between gap-2 text-sm font-medium text-stone-700"
+                    >
+                      <span>
+                        Punkt pośredni {index + 1}
+                        {stop.point && (
+                          <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                            Ustawiony
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveViaStop(stop.id)}
+                        className="text-xs font-semibold text-rose-700 hover:underline"
+                      >
+                        Usuń
+                      </button>
+                    </label>
+                    <div className="flex gap-2">
+                      <AddressAutocomplete
+                        id={`via-point-input-${stop.id}`}
+                        value={stop.input}
+                        onChange={(nextValue) =>
+                          handleViaInputChange(stop.id, nextValue)
+                        }
+                        onSelect={(result) =>
+                          applyGeocodeResult('via', result, stop.id)
+                        }
+                        onSubmit={() => geocodeAddress('via', stop.id)}
+                        placeholder="np. Jedlicze"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => geocodeAddress('via', stop.id)}
+                        className="soft-button rounded-lg bg-[#3f7b57] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#356b4b]"
+                      >
+                        Szukaj
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddViaStop}
+                    disabled={viaStops.length >= 5}
+                    className="soft-button flex-1 rounded-xl border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-semibold text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Dodaj punkt pośredni
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReverseRoute}
+                    disabled={!startPoint && !endPoint}
+                    className="soft-button flex-1 rounded-xl border border-[#dfd4c2] bg-white px-3 py-2 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Odwróć trasę
+                  </button>
+                </div>
+
                 <div>
                   <label
                     htmlFor="end-point-input"
@@ -1350,6 +1575,16 @@ function App() {
             {!isLoadingRoute && startPoint && !endPoint && routeMode === 'AtoB' && (
               <p>Kliknij drugi raz, aby wybrać punkt końcowy.</p>
             )}
+            {!isLoadingRoute &&
+              startPoint &&
+              endPoint &&
+              routeMode === 'AtoB' &&
+              viaStops.length < 5 && (
+              <p>
+                Kolejny klik doda punkt pośredni (max 5). Znaczniki możesz przeciągać —
+                potem ponownie wyznacz trasę.
+              </p>
+            )}
             {!isLoadingRoute && routeMode === 'Loop' && !startPoint && (
               <p>Kliknij mapę lub wpisz adres, aby ustawić punkt startowy pętli.</p>
             )}
@@ -1382,10 +1617,14 @@ function App() {
               selectedRouteGeoJson={selectedRouteGeoJson}
               startPoint={startPoint}
               endPoint={endPoint}
+              viaStops={viaStops}
               routeMode={routeMode}
               routeGeoJson={routeGeoJson}
               routeDisplayKey={routeDisplayKey}
               selectedRouteIndex={selectedRouteIndex}
+              onStartDrag={handleStartDrag}
+              onEndDrag={handleEndDrag}
+              onViaDrag={handleViaDrag}
             />
           </Suspense>
         </div>

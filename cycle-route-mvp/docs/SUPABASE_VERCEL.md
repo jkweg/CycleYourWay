@@ -26,14 +26,14 @@ flowchart LR
 
 1. [supabase.com](https://supabase.com) → **New project** (zapisz hasło bazy).
 2. **SQL Editor** → wklej [`supabase/schema.sql`](../supabase/schema.sql) → **Run**.
-3. (Zalecane pod profil / preferencje) uruchom też [`profiles.optional.sql`](../supabase/profiles.optional.sql).
-4. **Authentication → Providers** → włącz **Email**.
-5. Na czas developmentu możesz wyłączyć „Confirm email”.
-6. Klucze: przycisk **Connect** u góry projektu albo **Settings → API Keys**:
+   (Zawiera też `profiles`, trigger nowego użytkownika oraz `delete_own_account`.)
+3. **Authentication → Providers** → włącz **Email**.
+4. Na czas developmentu możesz wyłączyć „Confirm email”.
+5. Klucze: przycisk **Connect** u góry projektu albo **Settings → API Keys**:
    - Project URL → `VITE_SUPABASE_URL` (bez `/rest/v1/`)
    - Publishable / anon key → `VITE_SUPABASE_ANON_KEY`
 
-**Po aktualizacji schematu na istniejącym projekcie** uruchom ponownie `schema.sql` (dodaje `is_public`, politykę UPDATE i SELECT dla tras publicznych).
+**Po aktualizacji schematu na istniejącym projekcie** uruchom ponownie `schema.sql` (dodaje `is_public`, `profiles`, polityki i funkcję usuwania konta).
 
 ---
 

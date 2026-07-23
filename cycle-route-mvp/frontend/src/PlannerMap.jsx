@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { plannerMarkerIcon } from './lib/leafletIcons'
+import { createViaMarkerIcon, plannerMarkerIcon } from './lib/leafletIcons'
 
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
@@ -56,16 +56,41 @@ function MapResizeFix() {
   return null
 }
 
+function DraggableMarker({ point, icon, onDragEnd }) {
+  if (!point) return null
+  return (
+    <Marker
+      position={[point.lat, point.lng]}
+      icon={icon}
+      draggable={Boolean(onDragEnd)}
+      eventHandlers={
+        onDragEnd
+          ? {
+              dragend: (event) => {
+                const next = event.target.getLatLng()
+                onDragEnd({ lat: next.lat, lng: next.lng })
+              },
+            }
+          : undefined
+      }
+    />
+  )
+}
+
 function PlannerMap({
   onMapClick,
   lockedPoint,
   selectedRouteGeoJson,
   startPoint,
   endPoint,
+  viaStops = [],
   routeMode,
   routeGeoJson,
   routeDisplayKey,
   selectedRouteIndex,
+  onStartDrag,
+  onEndDrag,
+  onViaDrag,
 }) {
   return (
     <div className="h-full w-full min-h-[320px]">
@@ -78,18 +103,27 @@ function PlannerMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {startPoint && (
-          <Marker
-            key={`start-${startPoint.lat.toFixed(5)}-${startPoint.lng.toFixed(5)}`}
-            position={[startPoint.lat, startPoint.lng]}
+        <DraggableMarker
+          point={startPoint}
+          icon={plannerMarkerIcon}
+          onDragEnd={onStartDrag}
+        />
+        {routeMode === 'AtoB' &&
+          viaStops.map((stop, index) => (
+            <DraggableMarker
+              key={stop.id}
+              point={stop.point}
+              icon={createViaMarkerIcon(String(index + 1))}
+              onDragEnd={
+                onViaDrag ? (point) => onViaDrag(stop.id, point) : undefined
+              }
+            />
+          ))}
+        {routeMode === 'AtoB' && (
+          <DraggableMarker
+            point={endPoint}
             icon={plannerMarkerIcon}
-          />
-        )}
-        {routeMode === 'AtoB' && endPoint && (
-          <Marker
-            key={`end-${endPoint.lat.toFixed(5)}-${endPoint.lng.toFixed(5)}`}
-            position={[endPoint.lat, endPoint.lng]}
-            icon={plannerMarkerIcon}
+            onDragEnd={onEndDrag}
           />
         )}
         {routeGeoJson?.features?.map((feature, index) => (
