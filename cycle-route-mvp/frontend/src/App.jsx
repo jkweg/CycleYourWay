@@ -451,7 +451,7 @@ function App() {
     setShowSaveRouteModal(true)
   }
 
-  const handleSaveRouteConfirm = async (name) => {
+  const handleSaveRouteConfirm = async (name, saveMode = 'insert') => {
     setIsSavingRoute(true)
     setError('')
     setSaveSuccessMessage('')
@@ -466,38 +466,86 @@ function App() {
         throw new Error('Sesja wygasła. Zaloguj się ponownie.')
       }
 
-      const feature = selectedFeature ?? routeGeoJson?.features?.[0]
-      const summary = feature?.properties?.summary
+      const features = Array.isArray(routeGeoJson?.features)
+        ? [...routeGeoJson.features]
+        : []
+      if (features.length === 0) {
+        throw new Error('Najpierw wyznacz trasę do zapisania.')
+      }
+
+      const selected =
+        features[selectedRouteIndex] || selectedFeature || features[0]
+      const remaining = features.filter((feature) => feature !== selected)
+      // Selected alternative first so ride / load always use features[0].
+      const geojsonToSave = {
+        type: 'FeatureCollection',
+        features: [selected, ...remaining],
+      }
+
+      const summary = selected?.properties?.summary
       const distanceMeters =
         typeof summary?.distance === 'number'
           ? summary.distance
-          : typeof feature?.properties?.distance === 'number'
-            ? feature.properties.distance
+          : typeof selected?.properties?.distance === 'number'
+            ? selected.properties.distance
             : null
       const durationSeconds =
         typeof summary?.duration === 'number'
           ? summary.duration
-          : typeof feature?.properties?.duration === 'number'
-            ? feature.properties.duration
+          : typeof selected?.properties?.duration === 'number'
+            ? selected.properties.duration
             : null
 
-      const { error: saveError } = await supabase.from('saved_routes').insert({
-        user_id: authUser.id,
+      const payload = {
         name: name.trim(),
         mode: routeMode,
-        geojson: routeGeoJson,
+        geojson: geojsonToSave,
         distance_km:
           distanceMeters != null
             ? Math.round((distanceMeters / 1000) * 100) / 100
             : null,
         duration_seconds:
           durationSeconds != null ? Math.round(durationSeconds) : null,
-      })
+      }
 
-      if (saveError) throw new Error(saveError.message)
+      const shouldUpdate =
+        saveMode === 'update' && Boolean(loadedSavedRouteId)
+
+      if (shouldUpdate) {
+        const { error: saveError } = await supabase
+          .from('saved_routes')
+          .update(payload)
+          .eq('id', loadedSavedRouteId)
+          .eq('user_id', authUser.id)
+
+        if (saveError) throw new Error(saveError.message)
+
+        setLoadedSavedRouteName(payload.name)
+        setRouteGeoJson(geojsonToSave)
+        setSelectedRouteIndex(0)
+        setSaveSuccessMessage(`Zaktualizowano trasę „${payload.name}”.`)
+      } else {
+        const { data: inserted, error: saveError } = await supabase
+          .from('saved_routes')
+          .insert({
+            user_id: authUser.id,
+            ...payload,
+          })
+          .select('id')
+          .maybeSingle()
+
+        if (saveError) throw new Error(saveError.message)
+
+        if (inserted?.id) {
+          setLoadedSavedRouteId(inserted.id)
+        }
+        setLoadedSavedRouteName(payload.name)
+        setRouteGeoJson(geojsonToSave)
+        setSelectedRouteIndex(0)
+        setSaveSuccessMessage(`Zapisano trasę „${payload.name}”.`)
+      }
 
       setSavedRoutesRefreshKey((current) => current + 1)
-      setSaveSuccessMessage(`Zapisano trasę „${name}”.`)
       setShowSaveRouteModal(false)
     } catch (saveError) {
       setError(saveError.message || 'Nie udało się zapisać trasy.')
@@ -616,7 +664,12 @@ function App() {
         )
       }
 
-      setRideRoute({ feature: navigableFeature, name, mode })
+      setRideRoute({
+        feature: navigableFeature,
+        name,
+        mode,
+        avoidMainRoads,
+      })
     } catch (prepareError) {
       setError(
         prepareError.message ||
@@ -886,6 +939,7 @@ function App() {
           feature={rideRoute.feature}
           routeName={rideRoute.name}
           mode={rideRoute.mode}
+          avoidMainRoads={Boolean(rideRoute.avoidMainRoads)}
           onExit={() => setRideRoute(null)}
         />
       </Suspense>
@@ -1065,7 +1119,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('start', nextValue)}
                       onSelect={(result) => applyGeocodeResult('start', result)}
                       onSubmit={() => geocodeAddress('start')}
-                      placeholder="np. Widokowa 8, Jasło"
+                      placeholder="np. Rynek 1, Krosno"
                     />
                     <button
                       type="button"
@@ -1105,7 +1159,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('end', nextValue)}
                       onSelect={(result) => applyGeocodeResult('end', result)}
                       onSubmit={() => geocodeAddress('end')}
-                      placeholder="np. Rynek 1, Kraków"
+                      placeholder="np. Rynek 1, Jedlicze"
                     />
                     <button
                       type="button"
@@ -1155,7 +1209,7 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('start', nextValue)}
                       onSelect={(result) => applyGeocodeResult('start', result)}
                       onSubmit={() => geocodeAddress('start')}
-                      placeholder="np. Widokowa 8, Jasło"
+                      placeholder="np. Wolności 2, Krosno"
                     />
                     <button
                       type="button"
@@ -1375,7 +1429,11 @@ function App() {
       <SaveRouteModal
         key={showSaveRouteModal ? 'save-open' : 'save-closed'}
         isOpen={showSaveRouteModal}
-        defaultName={`Trasa ${new Date().toLocaleDateString('pl-PL')}`}
+        defaultName={
+          loadedSavedRouteName ||
+          `Trasa ${new Date().toLocaleDateString('pl-PL')}`
+        }
+        canOverwrite={Boolean(loadedSavedRouteId)}
         isSaving={isSavingRoute}
         onClose={() => setShowSaveRouteModal(false)}
         onSave={handleSaveRouteConfirm}

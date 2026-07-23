@@ -1,15 +1,22 @@
 import { useState } from 'react'
 
-function SaveRouteModal({ isOpen, defaultName, isSaving, onClose, onSave }) {
+function SaveRouteModal({
+  isOpen,
+  defaultName,
+  isSaving,
+  canOverwrite = false,
+  onClose,
+  onSave,
+}) {
   const [name, setName] = useState(defaultName)
 
   if (!isOpen) return null
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event, mode = 'insert') => {
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave(trimmed)
+    onSave(trimmed, mode)
   }
 
   return (
@@ -25,7 +32,11 @@ function SaveRouteModal({ isOpen, defaultName, isSaving, onClose, onSave }) {
             <h2 id="save-route-title" className="text-xl font-semibold text-[#2e5f43]">
               Zapisz trasę
             </h2>
-            <p className="mt-1 text-sm text-stone-600">Podaj nazwę, aby łatwo ją odnaleźć później.</p>
+            <p className="mt-1 text-sm text-stone-600">
+              {canOverwrite
+                ? 'Możesz nadpisać wczytaną trasę albo zapisać ją jako nową.'
+                : 'Podaj nazwę, aby łatwo ją odnaleźć później.'}
+            </p>
           </div>
           <button
             type="button"
@@ -37,7 +48,7 @@ function SaveRouteModal({ isOpen, defaultName, isSaving, onClose, onSave }) {
           </button>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={(event) => handleSubmit(event, canOverwrite ? 'update' : 'insert')}>
           <div>
             <label htmlFor="route-name" className="mb-1 block text-sm font-medium text-stone-700">
               Nazwa trasy
@@ -53,7 +64,7 @@ function SaveRouteModal({ isOpen, defaultName, isSaving, onClose, onSave }) {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={onClose}
@@ -61,13 +72,33 @@ function SaveRouteModal({ isOpen, defaultName, isSaving, onClose, onSave }) {
             >
               Anuluj
             </button>
-            <button
-              type="submit"
-              disabled={isSaving || !name.trim()}
-              className="soft-button flex-1 rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#356b4b] disabled:opacity-60"
-            >
-              {isSaving ? 'Zapisywanie...' : 'Zapisz'}
-            </button>
+            {canOverwrite ? (
+              <>
+                <button
+                  type="button"
+                  disabled={isSaving || !name.trim()}
+                  onClick={(event) => handleSubmit(event, 'insert')}
+                  className="soft-button flex-1 rounded-xl border border-[#cfe7d2] bg-[#f4faf4] px-4 py-2.5 text-sm font-semibold text-[#2e5f43] hover:bg-[#e9f5ec] disabled:opacity-60"
+                >
+                  {isSaving ? 'Zapisywanie...' : 'Zapisz jako nową'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || !name.trim()}
+                  className="soft-button flex-1 rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#356b4b] disabled:opacity-60"
+                >
+                  {isSaving ? 'Zapisywanie...' : 'Nadpisz'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSaving || !name.trim()}
+                className="soft-button flex-1 rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#356b4b] disabled:opacity-60"
+              >
+                {isSaving ? 'Zapisywanie...' : 'Zapisz'}
+              </button>
+            )}
           </div>
         </form>
       </div>

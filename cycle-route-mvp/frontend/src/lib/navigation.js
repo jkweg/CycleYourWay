@@ -131,6 +131,39 @@ export const getRouteEndpointsFromFeature = (feature) => {
   return { start, end }
 }
 
+/**
+ * Sample evenly spaced waypoints along a coordinate line (for ORS multi-stop
+ * refresh / rejoin without regenerating a random loop).
+ */
+export const sampleWaypointsFromCoordinates = (
+  coordinates,
+  { maxPoints = 24 } = {},
+) => {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return []
+
+  const limit = Math.max(2, Math.min(maxPoints, 50))
+  if (coordinates.length <= limit) {
+    return coordinates.map(toLatLng).filter(Boolean)
+  }
+
+  const waypoints = []
+  const step = (coordinates.length - 1) / (limit - 1)
+  for (let i = 0; i < limit; i += 1) {
+    const index = Math.round(i * step)
+    const point = toLatLng(coordinates[index])
+    if (!point) continue
+    const prev = waypoints[waypoints.length - 1]
+    if (prev && prev.lat === point.lat && prev.lng === point.lng) continue
+    waypoints.push(point)
+  }
+
+  if (waypoints.length < 2) return []
+  return waypoints
+}
+
+export const sampleWaypointsAlongFeature = (feature, options) =>
+  sampleWaypointsFromCoordinates(getFeatureCoordinates(feature), options)
+
 export const getFeatureDistanceKm = (feature) => {
   const summaryDistance = feature?.properties?.summary?.distance
   if (typeof summaryDistance === 'number') {

@@ -202,12 +202,31 @@ app.post("/api/route", async (req, res) => {
       });
     }
 
-    const { start, end, profile, avoidMainRoads } = req.body || {};
+    const { start, end, waypoints, profile, avoidMainRoads } = req.body || {};
 
-    if (!isValidPoint(start) || !isValidPoint(end)) {
+    let coordinates;
+    if (Array.isArray(waypoints) && waypoints.length >= 2) {
+      if (waypoints.length > 50) {
+        return res.status(400).json({
+          error: "Too many waypoints. Maximum is 50.",
+        });
+      }
+      if (!waypoints.every(isValidPoint)) {
+        return res.status(400).json({
+          error:
+            "Invalid waypoints. Expected: { waypoints: [{ lat, lng }, ...] }",
+        });
+      }
+      coordinates = waypoints.map((point) => [point.lng, point.lat]);
+    } else if (isValidPoint(start) && isValidPoint(end)) {
+      coordinates = [
+        [start.lng, start.lat],
+        [end.lng, end.lat],
+      ];
+    } else {
       return res.status(400).json({
         error:
-          "Invalid payload. Expected: { start: { lat, lng }, end: { lat, lng } }",
+          "Invalid payload. Expected: { start, end } or { waypoints: [{ lat, lng }, ...] }",
       });
     }
 
@@ -219,14 +238,21 @@ app.post("/api/route", async (req, res) => {
         ? ["cycling-mountain", "cycling-regular"]
         : [requestedProfile];
 
-    const straightLineMeters = haversineMeters(start, end);
-    const useAlternatives = straightLineMeters <= ALTERNATIVE_ROUTES_MAX_METERS;
+    const routeStart = {
+      lat: coordinates[0][1],
+      lng: coordinates[0][0],
+    };
+    const routeEnd = {
+      lat: coordinates[coordinates.length - 1][1],
+      lng: coordinates[coordinates.length - 1][0],
+    };
+    const straightLineMeters = haversineMeters(routeStart, routeEnd);
+    const useAlternatives =
+      coordinates.length === 2 &&
+      straightLineMeters <= ALTERNATIVE_ROUTES_MAX_METERS;
 
     const routePayload = {
-      coordinates: [
-        [start.lng, start.lat],
-        [end.lng, end.lat],
-      ],
+      coordinates,
       elevation: true,
       instructions: true,
       instructions_format: "text",
@@ -304,8 +330,15 @@ app.post("/api/route", async (req, res) => {
 
     if (shouldFallbackToOsrm) {
       try {
-        const { start, end } = req.body || {};
-        const osrmGeoJson = await getRouteFromOsrm(start, end);
+        const body = req.body || {};
+        const fallbackStart = Array.isArray(body.waypoints) && body.waypoints[0]
+          ? body.waypoints[0]
+          : body.start;
+        const fallbackEnd =
+          Array.isArray(body.waypoints) && body.waypoints.length >= 2
+            ? body.waypoints[body.waypoints.length - 1]
+            : body.end;
+        const osrmGeoJson = await getRouteFromOsrm(fallbackStart, fallbackEnd);
         console.warn("Using OSRM fallback because ORS access was denied.");
         return res.status(200).json(osrmGeoJson);
       } catch (osrmError) {

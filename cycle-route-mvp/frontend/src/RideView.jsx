@@ -22,7 +22,7 @@ import {
   haversineMeters,
   toLatLng,
 } from './lib/navigation'
-import { getRouteDestination, rerouteFromPosition } from './lib/offRouteRecalc'
+import { getRouteDestination, buildRejoinWaypoints, rerouteFromPosition } from './lib/offRouteRecalc'
 
 const OFF_ROUTE_TRIGGER_MS = 10_000
 const OFF_ROUTE_MIN_DISTANCE_M = 50
@@ -112,7 +112,7 @@ function speak(text) {
   }
 }
 
-function RideView({ feature, routeName, mode, onExit }) {
+function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) {
   const [routeFeature, setRouteFeature] = useState(feature)
   const [isRecalculating, setIsRecalculating] = useState(false)
   const [recalcError, setRecalcError] = useState('')
@@ -145,18 +145,22 @@ function RideView({ feature, routeName, mode, onExit }) {
   // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
+  const originalFeatureRef = useRef(feature)
 
   useEffect(() => {
     hintRef.current = 0
     spokenRef.current = null
     offRouteSinceRef.current = null
+    originalFeatureRef.current = feature
   }, [feature])
 
   const handleRecalculateRoute = useCallback(async () => {
     if (!userPos || recalcInFlightRef.current) return
 
-    const routeDestination = getRouteDestination(routeFeature)
-    if (!routeDestination) {
+    const sourceFeature = originalFeatureRef.current || routeFeature
+    const waypoints = buildRejoinWaypoints(sourceFeature, userPos, hintRef.current)
+    const routeDestination = getRouteDestination(sourceFeature)
+    if (!waypoints && !routeDestination) {
       setRecalcError('Nie udało się ustalić celu trasy do przeliczenia.')
       return
     }
@@ -169,6 +173,8 @@ function RideView({ feature, routeName, mode, onExit }) {
       const refreshed = await rerouteFromPosition({
         user: userPos,
         destination: routeDestination,
+        waypoints,
+        avoidMainRoads,
       })
 
       setRouteFeature(refreshed)
@@ -186,7 +192,7 @@ function RideView({ feature, routeName, mode, onExit }) {
       recalcInFlightRef.current = false
       setIsRecalculating(false)
     }
-  }, [userPos, routeFeature, voiceOn])
+  }, [userPos, routeFeature, voiceOn, avoidMainRoads])
 
   useEffect(() => {
     if (!navState?.isOffRoute || !userPos || isRecalculating) {

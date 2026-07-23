@@ -7,7 +7,7 @@ function AddressAutocomplete({
   onChange,
   onSelect,
   onSubmit,
-  placeholder = 'np. Widokowa 8, Jasło',
+  placeholder = 'np. Rynek 1, Krosno',
   disabled = false,
 }) {
   const [suggestions, setSuggestions] = useState([])
