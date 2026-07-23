@@ -34,6 +34,17 @@ const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 
+let viaStopSequentialId = 0
+
+function createViaStop(point = null, input = '') {
+  viaStopSequentialId += 1
+  const id =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `via-${viaStopSequentialId}`
+  return { id, point, input }
+}
+
 function App() {
   const {
     user,
@@ -77,6 +88,7 @@ function App() {
   const [showOpenOnPhone, setShowOpenOnPhone] = useState(false)
   const [openOnPhoneTarget, setOpenOnPhoneTarget] = useState(null)
   const [rideRoute, setRideRoute] = useState(null)
+  const [rideSessionKey, setRideSessionKey] = useState(0)
   const [pendingRideId, setPendingRideId] = useState(() => {
     if (typeof window === 'undefined') return null
     return new URLSearchParams(window.location.search).get('ride')
@@ -162,15 +174,6 @@ function App() {
     () => summarizeRouteSurfaces(selectedFeature),
     [selectedFeature],
   )
-
-  const createViaStop = (point = null, input = '') => ({
-    id:
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `via-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    point,
-    input,
-  })
 
   const clearPlannedRoute = () => {
     setRouteGeoJson(null)
@@ -764,6 +767,7 @@ function App() {
         )
       }
 
+      setRideSessionKey((current) => current + 1)
       setRideRoute({
         feature: navigableFeature,
         name,
@@ -1095,7 +1099,7 @@ function App() {
     return (
       <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#0f1a14] text-emerald-100" />}>
         <RideView
-          key={rideRoute.name || 'ride'}
+          key={rideSessionKey}
           feature={rideRoute.feature}
           routeName={rideRoute.name}
           mode={rideRoute.mode}

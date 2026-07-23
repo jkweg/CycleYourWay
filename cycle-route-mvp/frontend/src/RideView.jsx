@@ -149,22 +149,17 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   const headingAnchorRef = useRef(null)
   const originalFeatureRef = useRef(feature)
   const trackRef = useRef([])
-  const startedAtRef = useRef(Date.now())
+  const startedAtRef = useRef(0)
   const pausedAtRef = useRef(null)
   const pausedMsRef = useRef(0)
   const isPausedRef = useRef(false)
 
   useEffect(() => {
-    hintRef.current = 0
-    spokenRef.current = null
-    offRouteSinceRef.current = null
-    originalFeatureRef.current = feature
-    trackRef.current = []
     startedAtRef.current = Date.now()
-    pausedAtRef.current = null
-    pausedMsRef.current = 0
-    setIsPaused(false)
-    setRideSummary(null)
+  }, [])
+
+  useEffect(() => {
+    originalFeatureRef.current = feature
   }, [feature])
 
   useEffect(() => {
