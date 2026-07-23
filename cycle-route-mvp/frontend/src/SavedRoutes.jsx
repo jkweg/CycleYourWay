@@ -30,7 +30,7 @@ function SavedRoutes({
   onBackToList,
   onRouteRemoved,
 }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const [routes, setRoutes] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -42,20 +42,29 @@ function SavedRoutes({
     setRoutes((data ?? []).map(mapSavedRouteRow))
   }, [])
 
+  const buildOwnRoutesQuery = useCallback(() => {
+    let query = supabase
+      .from('saved_routes')
+      .select(SELECT_FIELDS)
+      .order('created_at', { ascending: false })
+
+    // Tylko własne trasy — polityka SELECT obejmuje też cudze publiczne.
+    if (user?.id) {
+      query = query.eq('user_id', user.id)
+    }
+
+    if (detailMode && activeRouteId) {
+      query = query.eq('id', activeRouteId)
+    }
+
+    return query
+  }, [user, detailMode, activeRouteId])
+
   const loadRoutes = useCallback(async () => {
     setIsLoading(true)
     setError('')
     try {
-      let query = supabase
-        .from('saved_routes')
-        .select(SELECT_FIELDS)
-        .order('created_at', { ascending: false })
-
-      if (detailMode && activeRouteId) {
-        query = query.eq('id', activeRouteId)
-      }
-
-      const { data, error: fetchError } = await query
+      const { data, error: fetchError } = await buildOwnRoutesQuery()
 
       if (fetchError) throw new Error(fetchError.message)
       applyRoutes(data)
@@ -65,10 +74,10 @@ function SavedRoutes({
     } finally {
       setIsLoading(false)
     }
-  }, [applyRoutes, detailMode, activeRouteId])
+  }, [applyRoutes, buildOwnRoutesQuery])
 
   useEffect(() => {
-    if (!isAuthenticated) return undefined
+    if (!isAuthenticated || !user?.id) return undefined
 
     let cancelled = false
 
@@ -76,16 +85,7 @@ function SavedRoutes({
       setIsLoading(true)
       setError('')
       try {
-        let query = supabase
-          .from('saved_routes')
-          .select(SELECT_FIELDS)
-          .order('created_at', { ascending: false })
-
-        if (detailMode && activeRouteId) {
-          query = query.eq('id', activeRouteId)
-        }
-
-        const { data, error: fetchError } = await query
+        const { data, error: fetchError } = await buildOwnRoutesQuery()
 
         if (fetchError) throw new Error(fetchError.message)
         if (!cancelled) applyRoutes(data)
@@ -103,18 +103,35 @@ function SavedRoutes({
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, refreshKey, applyRoutes, detailMode, activeRouteId])
+  }, [isAuthenticated, user?.id, refreshKey, applyRoutes, buildOwnRoutesQuery])
 
   const handleDelete = async (routeId) => {
     if (!window.confirm('Usunąć zapisaną trasę?')) return
 
     try {
-      const { error: deleteError } = await supabase
+      // .select() wymusza zwrot usuniętych wierszy — bez tego RLS może
+      // „udawać” sukces przy 0 usuniętych rekordach.
+      const { data, error: deleteError } = await supabase
         .from('saved_routes')
         .delete()
         .eq('id', routeId)
+        .eq('user_id', user.id)
+        .select('id')
 
-      if (deleteError) throw new Error(deleteError.message)
+      if (deleteError) {
+        throw new Error(
+          deleteError.message.includes('policy')
+            ? 'Brak uprawnień do usuwania — uruchom zaktualizowany supabase/schema.sql (polityka DELETE).'
+            : deleteError.message,
+        )
+      }
+
+      if (!data?.length) {
+        throw new Error(
+          'Nie usunięto trasy w bazie (brak uprawnień albo rekord już nie istnieje). Odśwież listę.',
+        )
+      }
+
       setRoutes((current) => current.filter((route) => route.id !== routeId))
       onRouteRemoved?.(routeId)
     } catch (deleteError) {
@@ -130,12 +147,20 @@ function SavedRoutes({
     }
 
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('saved_routes')
         .update({ name: nextName })
         .eq('id', routeId)
+        .eq('user_id', user.id)
+        .select('id')
 
       if (updateError) throw new Error(updateError.message)
+      if (!data?.length) {
+        throw new Error(
+          'Nie zapisano nowej nazwy — sprawdź uprawnienia UPDATE w supabase/schema.sql.',
+        )
+      }
+
       setRoutes((current) =>
         current.map((route) =>
           route.id === routeId ? { ...route, name: nextName } : route,
@@ -156,12 +181,19 @@ function SavedRoutes({
     setShareInfo('')
     const nextPublic = !route.isPublic
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('saved_routes')
         .update({ is_public: nextPublic })
         .eq('id', route.id)
+        .eq('user_id', user.id)
+        .select('id')
 
       if (updateError) throw new Error(updateError.message)
+      if (!data?.length) {
+        throw new Error(
+          'Nie zmieniono udostępniania — sprawdź uprawnienia UPDATE w supabase/schema.sql.',
+        )
+      }
 
       setRoutes((current) =>
         current.map((item) =>
