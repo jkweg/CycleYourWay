@@ -1,7 +1,21 @@
-// Minimalny service worker - umożliwia instalację PWA i offline app-shell.
-// Pełne cache'owanie kafelków mapy offline planujemy w kolejnym etapie.
-const CACHE = 'cyw-shell-v2'
+// Minimalny service worker — instalacja PWA + app-shell.
+// NIE cache'ujemy odpowiedzi API / Supabase (dane tras muszą być zawsze świeże).
+const CACHE = 'cyw-shell-v3'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.png']
+
+const shouldBypassCache = (request, url) => {
+  if (request.method !== 'GET') return true
+
+  // Cross-origin data backends — always network (browser default).
+  if (url.origin !== self.location.origin) return true
+
+  if (url.pathname.startsWith('/api')) return true
+
+  const accept = request.headers.get('Accept') || ''
+  if (accept.includes('application/json')) return true
+
+  return false
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -15,44 +29,51 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
-      ),
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+    ),
   )
   self.clients.claim()
 })
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
-  if (request.method !== 'GET') return
-
   const url = new URL(request.url)
 
-  // API i kafelki mapy zawsze z sieci (świeże dane, bez psucia cache).
-  if (url.pathname.startsWith('/api') || url.hostname.includes('tile.openstreetmap')) {
+  if (shouldBypassCache(request, url)) {
     return
   }
 
-  // Nawigacja po SPA -> network-first z fallbackiem do app-shell.
+  // Nawigacja SPA: network-first, fallback do shell.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html').then((res) => res || fetch(request))),
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone()
+          caches.open(CACHE).then((cache) => {
+            cache.put('/index.html', clone).catch(() => undefined)
+          })
+          return response
+        })
+        .catch(() =>
+          caches.match('/index.html').then((res) => res || caches.match('/')),
+        ),
     )
     return
   }
 
-  // Pozostałe zasoby: cache-first z dogrywaniem do cache.
+  // Zasoby same-origin (JS/CSS z hashem): network-first, żeby deploy od razu działał.
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
           const clone = response.clone()
-          caches.open(CACHE).then((cache) => cache.put(request, clone).catch(() => undefined))
-          return response
-        }),
-    ),
+          caches.open(CACHE).then((cache) => {
+            cache.put(request, clone).catch(() => undefined)
+          })
+        }
+        return response
+      })
+      .catch(() => caches.match(request)),
   )
 })

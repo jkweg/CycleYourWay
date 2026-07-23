@@ -18,7 +18,21 @@ if (import.meta.env.PROD && (!supabaseUrl || !supabaseAnonKey)) {
   )
 }
 
-export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder')
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder',
+  {
+    global: {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  },
+)
 
 export function mapSavedRouteRow(row) {
   return {
