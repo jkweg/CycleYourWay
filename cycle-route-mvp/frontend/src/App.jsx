@@ -45,6 +45,29 @@ function createViaStop(point = null, input = '') {
   return { id, point, input }
 }
 
+function isMissingColumnError(message) {
+  const text = String(message || '').toLowerCase()
+  return (
+    text.includes('is_public') ||
+    text.includes('schema cache') ||
+    (text.includes('column') && text.includes('does not exist'))
+  )
+}
+
+function polishSaveError(message) {
+  const text = String(message || '')
+  if (/policy|permission|rls/i.test(text)) {
+    return 'Brak uprawnień do zapisu trasy — uruchom supabase/schema.sql (polityki INSERT/SELECT).'
+  }
+  if (/is_public/i.test(text) || isMissingColumnError(text)) {
+    return 'Schemat bazy jest nieaktualny — uruchom supabase/schema.sql w SQL Editor.'
+  }
+  if (/jwt|session|auth/i.test(text)) {
+    return 'Sesja wygasła. Zaloguj się ponownie i spróbuj zapisać trasę.'
+  }
+  return text || 'Nie udało się zapisać trasy.'
+}
+
 function App() {
   const {
     user,
@@ -614,14 +637,24 @@ function App() {
         saveMode === 'update' && Boolean(loadedSavedRouteId)
 
       if (shouldUpdate) {
-        const { error: saveError } = await supabase
+        const { data: updated, error: saveError } = await supabase
           .from('saved_routes')
           .update(payload)
           .eq('id', loadedSavedRouteId)
           .eq('user_id', authUser.id)
+          .select('id')
+          .maybeSingle()
 
-        if (saveError) throw new Error(saveError.message)
+        if (saveError) {
+          throw new Error(polishSaveError(saveError.message))
+        }
+        if (!updated?.id) {
+          throw new Error(
+            'Nie zaktualizowano trasy w bazie (brak uprawnień UPDATE albo rekord nie istnieje).',
+          )
+        }
 
+        setLoadedSavedRouteId(updated.id)
         setLoadedSavedRouteName(payload.name)
         setRouteGeoJson(geojsonToSave)
         setSelectedRouteIndex(0)
@@ -636,11 +669,16 @@ function App() {
           .select('id')
           .maybeSingle()
 
-        if (saveError) throw new Error(saveError.message)
-
-        if (inserted?.id) {
-          setLoadedSavedRouteId(inserted.id)
+        if (saveError) {
+          throw new Error(polishSaveError(saveError.message))
         }
+        if (!inserted?.id) {
+          throw new Error(
+            'Zapis nie zwrócił ID trasy — sprawdź polityki INSERT/SELECT w supabase/schema.sql i czy jesteś zalogowany.',
+          )
+        }
+
+        setLoadedSavedRouteId(inserted.id)
         setLoadedSavedRouteName(payload.name)
         setRouteGeoJson(geojsonToSave)
         setSelectedRouteIndex(0)
@@ -648,6 +686,7 @@ function App() {
       }
 
       setSavedRoutesRefreshKey((current) => current + 1)
+      setPlannerPanel('savedDetail')
       setShowSaveRouteModal(false)
     } catch (saveError) {
       setError(saveError.message || 'Nie udało się zapisać trasy.')

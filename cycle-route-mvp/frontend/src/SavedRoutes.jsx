@@ -17,7 +17,18 @@ const formatDate = (value) => {
 }
 
 const SELECT_FIELDS =
-  'id, name, mode, geojson, distance_km, duration_seconds, is_public, created_at'
+  'id, name, mode, geojson, distance_km, duration_seconds, is_public, created_at, user_id'
+const SELECT_FIELDS_LEGACY =
+  'id, name, mode, geojson, distance_km, duration_seconds, created_at, user_id'
+
+function isMissingColumnError(message) {
+  const text = String(message || '').toLowerCase()
+  return (
+    text.includes('is_public') ||
+    text.includes('column') ||
+    text.includes('schema cache')
+  )
+}
 
 function SavedRoutes({
   onLoadRoute,
@@ -42,29 +53,43 @@ function SavedRoutes({
     setRoutes((data ?? []).map(mapSavedRouteRow))
   }, [])
 
-  const buildOwnRoutesQuery = useCallback(() => {
-    let query = supabase
-      .from('saved_routes')
-      .select(SELECT_FIELDS)
-      .order('created_at', { ascending: false })
+  const buildOwnRoutesQuery = useCallback(
+    (selectFields = SELECT_FIELDS) => {
+      let query = supabase
+        .from('saved_routes')
+        .select(selectFields)
+        .order('created_at', { ascending: false })
 
-    // Tylko własne trasy — polityka SELECT obejmuje też cudze publiczne.
-    if (user?.id) {
-      query = query.eq('user_id', user.id)
+      // Tylko własne trasy — polityka SELECT obejmuje też cudze publiczne.
+      if (user?.id) {
+        query = query.eq('user_id', user.id)
+      }
+
+      if (detailMode && activeRouteId) {
+        query = query.eq('id', activeRouteId)
+      }
+
+      return query
+    },
+    [user, detailMode, activeRouteId],
+  )
+
+  const fetchOwnRoutes = useCallback(async () => {
+    const primary = await buildOwnRoutesQuery(SELECT_FIELDS)
+    if (!primary.error) return primary
+
+    // Starsze projekty bez kolumny is_public.
+    if (isMissingColumnError(primary.error.message)) {
+      return buildOwnRoutesQuery(SELECT_FIELDS_LEGACY)
     }
-
-    if (detailMode && activeRouteId) {
-      query = query.eq('id', activeRouteId)
-    }
-
-    return query
-  }, [user, detailMode, activeRouteId])
+    return primary
+  }, [buildOwnRoutesQuery])
 
   const loadRoutes = useCallback(async () => {
     setIsLoading(true)
     setError('')
     try {
-      const { data, error: fetchError } = await buildOwnRoutesQuery()
+      const { data, error: fetchError } = await fetchOwnRoutes()
 
       if (fetchError) throw new Error(fetchError.message)
       applyRoutes(data)
@@ -74,18 +99,18 @@ function SavedRoutes({
     } finally {
       setIsLoading(false)
     }
-  }, [applyRoutes, buildOwnRoutesQuery])
+  }, [applyRoutes, fetchOwnRoutes])
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return undefined
 
     let cancelled = false
 
-    const fetchRoutes = async () => {
+    const run = async () => {
       setIsLoading(true)
       setError('')
       try {
-        const { data, error: fetchError } = await buildOwnRoutesQuery()
+        const { data, error: fetchError } = await fetchOwnRoutes()
 
         if (fetchError) throw new Error(fetchError.message)
         if (!cancelled) applyRoutes(data)
@@ -99,11 +124,11 @@ function SavedRoutes({
       }
     }
 
-    fetchRoutes()
+    run()
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user?.id, refreshKey, applyRoutes, buildOwnRoutesQuery])
+  }, [isAuthenticated, user?.id, refreshKey, applyRoutes, fetchOwnRoutes])
 
   const handleDelete = async (routeId) => {
     if (!window.confirm('Usunąć zapisaną trasę?')) return
