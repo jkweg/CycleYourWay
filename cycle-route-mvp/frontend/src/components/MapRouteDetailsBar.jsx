@@ -10,6 +10,7 @@ function MapRouteDetailsBar({
   selectedRouteGeoJson,
   routeDisplayKey,
   surfaces = { known: [], unknownPercent: null },
+  steepness = { climbs: [], totalClimbPercent: null },
 }) {
   if (!routeStats || !selectedRouteGeoJson) return null
 
@@ -18,11 +19,13 @@ function MapRouteDetailsBar({
   const unknownPercent = Array.isArray(surfaces)
     ? null
     : surfaces.unknownPercent
+  const climbs = steepness?.climbs || []
   const hasSurfaceInfo = knownSurfaces.length > 0 || unknownPercent != null
+  const hasSteepness = climbs.length > 0
 
   return (
     <div className="shrink-0 border-t border-[#e8e2d6] bg-white/95 backdrop-blur-sm">
-      <div className="grid gap-3 p-3 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,12rem)] md:items-stretch md:gap-4 md:p-4">
+      <div className="grid gap-3 p-3 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,14rem)] md:items-stretch md:gap-4 md:p-4">
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-100 bg-[#f5fbf6] px-3 py-3 md:flex-col md:items-stretch md:justify-center">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
@@ -50,6 +53,16 @@ function MapRouteDetailsBar({
               {elevationGain == null ? '—' : `${Math.round(elevationGain)} m`}
             </p>
           </div>
+          {steepness?.totalClimbPercent != null && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                Podjazdy
+              </p>
+              <p className="text-lg font-semibold text-[#2e5f43]">
+                {steepness.totalClimbPercent}%
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="min-h-[140px] overflow-hidden rounded-xl border border-[#e7dbc9] bg-[#faf7f1] md:min-h-[160px]">
@@ -69,39 +82,61 @@ function MapRouteDetailsBar({
           </Suspense>
         </div>
 
-        {hasSurfaceInfo ? (
-          <div className="max-h-[160px] overflow-y-auto rounded-xl border border-[#e7dbc9] bg-[#faf7f1] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7a6248]">
-              Nawierzchnia
-            </p>
-            <div className="mt-2 space-y-2">
-              {knownSurfaces.slice(0, 4).map((surface) => (
-                <div key={`${surface.code}-${surface.label}`}>
-                  <div className="mb-0.5 flex justify-between gap-2 text-[11px] text-stone-700">
-                    <span className="truncate font-medium">{surface.label}</span>
-                    <span className="shrink-0">{surface.percentage}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-[#efe6d8]">
-                    <div
-                      className={`h-1.5 rounded-full ${surface.colorClass}`}
-                      style={{ width: `${surface.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            {unknownPercent != null && unknownPercent > 0 && (
-              <p className="mt-2 border-t border-[#eadfcf] pt-2 text-[10px] leading-4 text-stone-500">
-                {unknownPercent}% trasy bez tagu nawierzchni w OpenStreetMap —
-                nie znaczy to „zła droga”, tylko brak danych w mapie.
+        <div className="max-h-[160px] space-y-3 overflow-y-auto">
+          {hasSurfaceInfo ? (
+            <div className="rounded-xl border border-[#e7dbc9] bg-[#faf7f1] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7a6248]">
+                Nawierzchnia
               </p>
-            )}
-          </div>
-        ) : (
-          <div className="hidden rounded-xl border border-dashed border-[#e7dbc9] bg-[#faf7f1]/30 p-3 text-xs text-stone-500 md:flex md:items-center">
-            Brak danych o nawierzchni dla tej trasy.
-          </div>
-        )}
+              <div className="mt-2 space-y-2">
+                {knownSurfaces.slice(0, 3).map((surface) => (
+                  <div key={`${surface.code}-${surface.label}`}>
+                    <div className="mb-0.5 flex justify-between gap-2 text-[11px] text-stone-700">
+                      <span className="truncate font-medium">{surface.label}</span>
+                      <span className="shrink-0">{surface.percentage}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-[#efe6d8]">
+                      <div
+                        className={`h-1.5 rounded-full ${surface.colorClass}`}
+                        style={{ width: `${surface.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {unknownPercent != null && unknownPercent > 0 && (
+                <p className="mt-2 border-t border-[#eadfcf] pt-2 text-[10px] leading-4 text-stone-500">
+                  {unknownPercent}% trasy bez tagu nawierzchni w OSM.
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {hasSteepness ? (
+            <div className="rounded-xl border border-[#e7dbc9] bg-[#faf7f1] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7a6248]">
+                Stromizny
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {climbs.slice(0, 4).map((climb) => (
+                  <li
+                    key={`${climb.code}-${climb.label}`}
+                    className="flex justify-between gap-2 text-[11px] text-stone-700"
+                  >
+                    <span className="truncate font-medium">{climb.label}</span>
+                    <span className="shrink-0 tabular-nums">
+                      {climb.percentage}% · {climb.distanceKm} km
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : !hasSurfaceInfo ? (
+            <div className="hidden rounded-xl border border-dashed border-[#e7dbc9] bg-[#faf7f1]/30 p-3 text-xs text-stone-500 md:flex md:items-center">
+              Brak danych o nawierzchni / stromiźnie dla tej trasy.
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )

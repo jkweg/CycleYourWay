@@ -31,6 +31,21 @@ export const SURFACE_COLORS = [
   'bg-yellow-700',
 ]
 
+/** ORS steepness codes → Polish labels (inclines only for “stromizny”). */
+export const STEEPNESS_LABELS = {
+  1: 'Lekki podjazd (1–3%)',
+  2: 'Podjazd (4–6%)',
+  3: 'Stromy podjazd (7–9%)',
+  4: 'Bardzo stromy (10–15%)',
+  5: 'Ekstremalny podjazd (>16%)',
+  [-1]: 'Lekki zjazd (1–3%)',
+  [-2]: 'Zjazd (4–6%)',
+  [-3]: 'Stromy zjazd (7–9%)',
+  [-4]: 'Bardzo stromy zjazd (10–15%)',
+  [-5]: 'Ekstremalny zjazd (>16%)',
+  0: 'Płasko',
+}
+
 const UNKNOWN_SURFACE_CODE = 0
 
 const MAIN_ROAD_WAYTYPES = new Set([1, 2])
@@ -288,6 +303,39 @@ export function summarizeRouteSurfaces(feature) {
     known,
     unknownPercent: unknown ? unknown.percentage : null,
     unknownDistanceKm: unknown ? unknown.distanceKm : null,
+  }
+}
+
+export function summarizeRouteSteepness(feature) {
+  const summary = feature?.properties?.extras?.steepness?.summary
+  if (!Array.isArray(summary) || summary.length === 0) {
+    return { climbs: [], totalClimbPercent: null }
+  }
+
+  const rows = summary
+    .map((item) => {
+      const code = item?.value
+      const amount = typeof item?.amount === 'number' ? item.amount : null
+      const distanceMeters = typeof item?.distance === 'number' ? item.distance : null
+      if (amount === null || distanceMeters === null) return null
+      if (typeof code !== 'number' || code <= 0) return null
+      return {
+        code,
+        label: STEEPNESS_LABELS[code] || `Podjazd (${code})`,
+        percentage: Number(amount.toFixed(1)),
+        distanceKm: Number((distanceMeters / 1000).toFixed(2)),
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.code - a.code || b.percentage - a.percentage)
+
+  const totalClimbPercent = rows.reduce((sum, row) => sum + row.percentage, 0)
+
+  return {
+    climbs: rows,
+    totalClimbPercent: rows.length
+      ? Number(Math.min(100, totalClimbPercent).toFixed(1))
+      : null,
   }
 }
 

@@ -27,8 +27,10 @@ import {
   getLineCoordinates,
   getRouteSummary,
   pointFromCoordinate,
+  summarizeRouteSteepness,
   summarizeRouteSurfaces,
 } from './lib/routeStats'
+import { pushAddressHistory } from './lib/addressHistory'
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
@@ -198,6 +200,11 @@ function App() {
     [selectedFeature],
   )
 
+  const selectedRouteSteepness = useMemo(
+    () => summarizeRouteSteepness(selectedFeature),
+    [selectedFeature],
+  )
+
   const clearPlannedRoute = () => {
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
@@ -256,6 +263,39 @@ function App() {
 
   const mapSelectionLabel = (point) =>
     `Wybrano punkt na mapie [${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}]`
+
+  const reverseGeocodePoint = async (point) => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/reverse?lat=${encodeURIComponent(point.lat)}&lng=${encodeURIComponent(point.lng)}`,
+      )
+      const data = await response.json()
+      if (!response.ok || !data?.result?.name) return mapSelectionLabel(point)
+      pushAddressHistory({
+        name: data.result.name,
+        lat: data.result.lat,
+        lon: data.result.lon,
+      })
+      return data.result.name
+    } catch {
+      return mapSelectionLabel(point)
+    }
+  }
+
+  const applyPointLabel = async (type, point, viaId = null) => {
+    const label = await reverseGeocodePoint(point)
+    if (type === 'start') {
+      setStartInput(label)
+    } else if (type === 'end') {
+      setEndInput(label)
+    } else if (type === 'via' && viaId) {
+      setViaStops((current) =>
+        current.map((stop) =>
+          stop.id === viaId ? { ...stop, input: label } : stop,
+        ),
+      )
+    }
+  }
 
   const bumpRouteDisplay = () => {
     setRouteDisplayKey((current) => current + 1)
@@ -332,6 +372,7 @@ function App() {
 
   const applyGeocodeResult = (type, result, viaId = null) => {
     const selectedPoint = { lat: result.lat, lng: result.lon }
+    pushAddressHistory(result)
     if (type === 'start') {
       setStartPoint(selectedPoint)
       setStartInput(result.name)
@@ -836,17 +877,120 @@ function App() {
     })
   }
 
-  const handleOpenOnPhone = () => {
+  const handleOpenOnPhone = async () => {
     if (!isAuthenticated) {
       setShowAuthModal(true)
       return
     }
-    if (!loadedSavedRouteId) {
-      setError('Najpierw zapisz trasę („Zapisz trasę”), aby otworzyć ją na telefonie.')
+
+    if (!selectedFeature && !routeGeoJson?.features?.length) {
+      setError('Najpierw wyznacz trasę, aby otworzyć ją na telefonie.')
       return
     }
-    setOpenOnPhoneTarget({ rideUrl, routeName: currentRouteName })
-    setShowOpenOnPhone(true)
+
+    try {
+      let routeId = loadedSavedRouteId
+      let routeName = currentRouteName
+
+      if (!routeId) {
+        const {
+          data: { user: authUser },
+          error: userError,
+        } = await supabase.auth.getUser()
+        if (userError || !authUser) {
+          throw new Error('Sesja wygasła. Zaloguj się ponownie.')
+        }
+
+        const features = Array.isArray(routeGeoJson?.features)
+          ? [...routeGeoJson.features]
+          : []
+        const selected =
+          features[selectedRouteIndex] || selectedFeature || features[0]
+        if (!selected) {
+          throw new Error('Brak trasy do udostępnienia na telefon.')
+        }
+
+        const remaining = features.filter((feature) => feature !== selected)
+        const geojsonToSave = {
+          type: 'FeatureCollection',
+          features: [selected, ...remaining],
+        }
+        const summary = getRouteSummary(selected)
+        const autoName =
+          loadedSavedRouteName ||
+          `Telefon · ${new Date().toLocaleString('pl-PL')}`
+
+        const { data: inserted, error: saveError } = await supabase
+          .from('saved_routes')
+          .insert({
+            user_id: authUser.id,
+            name: autoName,
+            mode: routeMode,
+            geojson: geojsonToSave,
+            distance_km: summary
+              ? Math.round((summary.distanceMeters / 1000) * 100) / 100
+              : null,
+            duration_seconds: summary
+              ? Math.round(summary.durationSeconds)
+              : null,
+            is_public: true,
+          })
+          .select('id, name')
+          .maybeSingle()
+
+        if (saveError) {
+          // Older schema without is_public
+          if (/is_public|column|schema cache/i.test(saveError.message)) {
+            const retry = await supabase
+              .from('saved_routes')
+              .insert({
+                user_id: authUser.id,
+                name: autoName,
+                mode: routeMode,
+                geojson: geojsonToSave,
+                distance_km: summary
+                  ? Math.round((summary.distanceMeters / 1000) * 100) / 100
+                  : null,
+                duration_seconds: summary
+                  ? Math.round(summary.durationSeconds)
+                  : null,
+              })
+              .select('id, name')
+              .maybeSingle()
+            if (retry.error || !retry.data?.id) {
+              throw new Error(
+                retry.error?.message ||
+                  'Nie udało się przygotować linku na telefon.',
+              )
+            }
+            routeId = retry.data.id
+            routeName = retry.data.name
+          } else {
+            throw new Error(saveError.message)
+          }
+        } else if (!inserted?.id) {
+          throw new Error('Nie udało się przygotować linku na telefon.')
+        } else {
+          routeId = inserted.id
+          routeName = inserted.name
+        }
+
+        setLoadedSavedRouteId(routeId)
+        setLoadedSavedRouteName(routeName)
+        setSavedRoutesRefreshKey((current) => current + 1)
+        setSaveSuccessMessage(
+          'Zapisano trasę jako publiczną, żeby otworzyć ją na telefonie.',
+        )
+      }
+
+      setOpenOnPhoneTarget({
+        rideUrl: `${window.location.origin}/?ride=${routeId}`,
+        routeName,
+      })
+      setShowOpenOnPhone(true)
+    } catch (phoneError) {
+      setError(phoneError.message || 'Nie udało się przygotować linku na telefon.')
+    }
   }
 
   // Akcje "Jedź" / "Otwórz na telefonie" bezpośrednio z listy zapisanych tras.
@@ -932,34 +1076,46 @@ function App() {
     let cancelled = false
 
     const loadRideRoute = async () => {
-      if (!isAuthenticated) {
-        setView('planner')
-        setShowAuthModal(true)
-        return
-      }
-
       setView('planner')
 
-      const { data, error: fetchError } = await supabase
+      // Public routes can be ridden without login; private ones need the owner.
+      let query = supabase
         .from('saved_routes')
-        .select('id, name, mode, geojson, distance_km')
+        .select('id, name, mode, geojson, distance_km, is_public, user_id')
         .eq('id', pendingRideId)
-        .single()
+
+      const { data, error: fetchError } = await query.maybeSingle()
 
       if (cancelled) return
 
       if (fetchError || !data) {
-        setView('planner')
-        setError(
-          'Nie udało się wczytać trasy do nawigacji. Sprawdź, czy jesteś zalogowany właściwym kontem.',
-        )
+        if (!isAuthenticated) {
+          setShowAuthModal(true)
+          setError(
+            'Zaloguj się, aby otworzyć prywatną trasę, albo użyj publicznego linku udostępniania.',
+          )
+        } else {
+          setError(
+            'Nie udało się wczytać trasy do nawigacji. Sprawdź, czy link jest aktualny.',
+          )
+        }
+        setPendingRideId(null)
+        return
+      }
+
+      const isOwner = isAuthenticated && user?.id && data.user_id === user.id
+      const isPublic = Boolean(data.is_public)
+      if (!isOwner && !isPublic) {
+        if (!isAuthenticated) {
+          setShowAuthModal(true)
+        }
+        setError('Ta trasa jest prywatna — zaloguj się kontem właściciela.')
         setPendingRideId(null)
         return
       }
 
       const feature = data.geojson?.features?.[0]
       if (!feature) {
-        setView('planner')
         setError('Zapisana trasa nie zawiera danych do nawigacji.')
         setPendingRideId(null)
         return
@@ -980,9 +1136,8 @@ function App() {
     return () => {
       cancelled = true
     }
-    // startRideWithFeature is recreated each render; deep-link bootstrap runs once per pendingRideId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingRideId, isAuthLoading, isAuthenticated])
+  }, [pendingRideId, isAuthLoading, isAuthenticated, user?.id])
 
   const handleMapClick = (latlng) => {
     const clickedPoint = { lat: latlng.lat, lng: latlng.lng }
@@ -993,6 +1148,7 @@ function App() {
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
       setError('')
+      void applyPointLabel('start', clickedPoint)
       return
     }
 
@@ -1002,6 +1158,7 @@ function App() {
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
       setError('')
+      void applyPointLabel('start', clickedPoint)
       return
     }
 
@@ -1011,6 +1168,7 @@ function App() {
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
       setError('')
+      void applyPointLabel('end', clickedPoint)
       return
     }
 
@@ -1030,17 +1188,17 @@ function App() {
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
       setError('')
+      void applyPointLabel('via', clickedPoint, emptyVia.id)
       return
     }
 
     if (viaStops.length < 5) {
-      setViaStops((current) => [
-        ...current,
-        createViaStop(clickedPoint, mapSelectionLabel(clickedPoint)),
-      ])
+      const stop = createViaStop(clickedPoint, mapSelectionLabel(clickedPoint))
+      setViaStops((current) => [...current, stop])
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
       setError('')
+      void applyPointLabel('via', clickedPoint, stop.id)
       return
     }
 
@@ -1052,6 +1210,7 @@ function App() {
     setViaStops([])
     clearPlannedRoute()
     setError('')
+    void applyPointLabel('start', clickedPoint)
   }
 
   const handleStartDrag = (point) => {
@@ -1059,6 +1218,7 @@ function App() {
     setStartInput(mapSelectionLabel(point))
     setLockedPoint(point)
     clearPlannedRoute()
+    void applyPointLabel('start', point)
   }
 
   const handleEndDrag = (point) => {
@@ -1066,6 +1226,7 @@ function App() {
     setEndInput(mapSelectionLabel(point))
     setLockedPoint(point)
     clearPlannedRoute()
+    void applyPointLabel('end', point)
   }
 
   const handleViaDrag = (viaId, point) => {
@@ -1078,6 +1239,7 @@ function App() {
     )
     setLockedPoint(point)
     clearPlannedRoute()
+    void applyPointLabel('via', point, viaId)
   }
 
   const goToPlanner = () => {
@@ -1677,6 +1839,7 @@ function App() {
           selectedRouteGeoJson={selectedRouteGeoJson}
           routeDisplayKey={routeDisplayKey}
           surfaces={selectedRouteSurfaces}
+          steepness={selectedRouteSteepness}
         />
       </div>
             </div>

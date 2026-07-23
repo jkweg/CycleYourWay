@@ -6,6 +6,7 @@ import {
   getElevationGainMeters,
   getMainRoadSharePercent,
   getRouteSummary,
+  summarizeRouteSteepness,
   summarizeRouteSurfaces,
 } from './routeStats'
 
@@ -101,7 +102,28 @@ describe('routeStats', () => {
     expect(Math.min(...elevations)).toBeGreaterThan(280)
   })
 
-  it('summarizes surfaces with unknown as footnote data', () => {
+  it('summarizes climb steepness from extras', () => {
+    const feature = {
+      properties: {
+        extras: {
+          steepness: {
+            summary: [
+              { value: 0, amount: 40, distance: 4000 },
+              { value: 3, amount: 25, distance: 2500 },
+              { value: 5, amount: 10, distance: 1000 },
+              { value: -2, amount: 25, distance: 2500 },
+            ],
+          },
+        },
+      },
+    }
+    const result = summarizeRouteSteepness(feature)
+    expect(result.climbs).toHaveLength(2)
+    expect(result.climbs[0].code).toBe(5)
+    expect(result.totalClimbPercent).toBe(35)
+  })
+
+  it('summarizes route surfaces from extras', () => {
     const feature = {
       properties: {
         extras: {

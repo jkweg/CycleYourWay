@@ -6,6 +6,7 @@
 const axios = require("axios");
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse";
 const ORS_SEARCH_URL = "https://api.openrouteservice.org/geocode/search";
 const ORS_AUTOCOMPLETE_URL =
   "https://api.openrouteservice.org/geocode/autocomplete";
@@ -385,10 +386,64 @@ async function geocodePolishAddress({
   return mergeResults([...nominatimResults, ...orsBatches], limit);
 }
 
+/**
+ * Reverse-geocode lat/lng to a Polish address label.
+ */
+async function reverseGeocodePolish({ lat, lng }) {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error("Invalid coordinates for reverse geocode.");
+  }
+
+  const response = await axios.get(NOMINATIM_REVERSE_URL, {
+    params: {
+      lat: latitude,
+      lon: longitude,
+      format: "jsonv2",
+      addressdetails: 1,
+      "accept-language": "pl",
+      zoom: 18,
+    },
+    headers: {
+      "User-Agent": "CycleYourWay/1.0 (cycle-route-mvp; contact@local)",
+    },
+    timeout: 10000,
+  });
+
+  const item = response.data;
+  if (!item || item.error) {
+    return {
+      name: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+      lat: latitude,
+      lon: longitude,
+    };
+  }
+
+  const label =
+    formatNominatimLabel(item) ||
+    polishCountryLabel(item.display_name) ||
+    `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+  return {
+    name: label,
+    lat: latitude,
+    lon: longitude,
+  };
+}
+
 module.exports = {
   expandQueryVariants,
   formatNominatimLabel,
   formatOrsLabel,
   geocodePolishAddress,
+  reverseGeocodePolish,
   polishCountryLabel,
 };

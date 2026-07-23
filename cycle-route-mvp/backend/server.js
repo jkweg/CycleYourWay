@@ -6,7 +6,7 @@ const rateLimit = require("express-rate-limit");
 const {
   rankFeaturesByMainRoadShare,
 } = require("./lib/routeRanking");
-const { geocodePolishAddress } = require("./lib/geocode");
+const { geocodePolishAddress, reverseGeocodePolish } = require("./lib/geocode");
 
 dotenv.config();
 
@@ -189,6 +189,32 @@ app.get("/api/geocode", async (req, res) => {
     });
     return res.status(status).json({
       error: "Failed to geocode address.",
+    });
+  }
+});
+
+app.get("/api/reverse", async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng ?? req.query.lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({
+        error: "Missing or invalid query params: lat, lng",
+      });
+    }
+
+    const result = await reverseGeocodePolish({ lat, lng });
+    return res.status(200).json({ result });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    console.error("Error while reverse geocoding:", {
+      message: error.message,
+      status,
+      details: error.response?.data || null,
+    });
+    return res.status(status).json({
+      error: "Failed to reverse geocode coordinates.",
     });
   }
 });

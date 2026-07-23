@@ -138,6 +138,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
   const [voiceOn, setVoiceOn] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [rideSummary, setRideSummary] = useState(null)
+  const [showManeuverList, setShowManeuverList] = useState(false)
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
@@ -559,6 +560,19 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
             </p>
             <button
               type="button"
+              onClick={() => setShowManeuverList((value) => !value)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                showManeuverList
+                  ? 'bg-emerald-500 text-[#10231a]'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+              aria-pressed={showManeuverList}
+              title="Lista manewrów"
+            >
+              ☰
+            </button>
+            <button
+              type="button"
               onClick={togglePause}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 isPaused
@@ -567,7 +581,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
               }`}
               aria-pressed={isPaused}
             >
-              {isPaused ? '▶ Wznów' : '⏸ Pauza'}
+              {isPaused ? '▶' : '⏸'}
             </button>
             <button
               type="button"
@@ -580,6 +594,44 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
               {voiceOn ? '🔊' : '🔈'}
             </button>
           </div>
+
+          {showManeuverList && (
+            <div className="mt-3 max-h-48 overflow-y-auto rounded-xl bg-black/25 p-2">
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100/70">
+                Manewry ({maneuvers.length})
+              </p>
+              {maneuvers.length === 0 ? (
+                <p className="px-1 text-sm text-emerald-100/70">Brak instrukcji dla tej trasy.</p>
+              ) : (
+                <ol className="space-y-1">
+                  {maneuvers.map((maneuver, index) => {
+                    const visual = getManeuverVisual(maneuver.type)
+                    const isCurrent =
+                      navState?.nextManeuver?.coordIndex === maneuver.coordIndex
+                    return (
+                      <li
+                        key={`${maneuver.coordIndex}-${index}`}
+                        className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                          isCurrent ? 'bg-emerald-500/25 text-white' : 'text-emerald-50/90'
+                        }`}
+                      >
+                        <span className="w-6 shrink-0 text-center text-base">{visual.icon}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">
+                            {maneuver.instruction || visual.label}
+                          </span>
+                          <span className="text-[11px] text-emerald-100/55">
+                            {formatDistance(maneuver.distance)}
+                            {maneuver.name ? ` · ${maneuver.name}` : ''}
+                          </span>
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          )}
 
           {isPaused ? (
             <p className="mt-3 rounded-lg bg-amber-400/20 px-3 py-2 text-sm text-amber-100">

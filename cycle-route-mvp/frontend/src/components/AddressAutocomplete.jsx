@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { API_BASE } from '../api'
+import { pushAddressHistory, readAddressHistory } from '../lib/addressHistory'
 
 function AddressAutocomplete({
   id,
@@ -11,9 +12,11 @@ function AddressAutocomplete({
   disabled = false,
 }) {
   const [suggestions, setSuggestions] = useState([])
+  const [history, setHistory] = useState(() => readAddressHistory())
   const [isOpen, setIsOpen] = useState(false)
   const [isFetching, setIsFetching] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [showHistory, setShowHistory] = useState(false)
   const wrapperRef = useRef(null)
   const debounceRef = useRef(null)
 
@@ -27,6 +30,7 @@ function AddressAutocomplete({
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       setIsFetching(true)
+      setShowHistory(false)
       try {
         const response = await fetch(
           `${API_BASE}/api/geocode?address=${encodeURIComponent(query)}&limit=6&autocomplete=true`,
@@ -58,6 +62,7 @@ function AddressAutocomplete({
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false)
+        setShowHistory(false)
         setActiveIndex(-1)
       }
     }
@@ -67,35 +72,41 @@ function AddressAutocomplete({
   }, [])
 
   const handleSelect = (result) => {
+    const nextHistory = pushAddressHistory(result)
+    setHistory(nextHistory)
     onSelect(result)
     setSuggestions([])
     setIsOpen(false)
+    setShowHistory(false)
     setActiveIndex(-1)
   }
+
+  const dropdownItems = showHistory ? history : suggestions
 
   const handleKeyDown = (event) => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      if (isOpen && suggestions.length > 0) {
-        handleSelect(suggestions[activeIndex >= 0 ? activeIndex : 0])
+      if ((isOpen || showHistory) && dropdownItems.length > 0) {
+        handleSelect(dropdownItems[activeIndex >= 0 ? activeIndex : 0])
       } else if (onSubmit) {
         onSubmit()
       }
       return
     }
 
-    if (!isOpen || suggestions.length === 0) return
+    if ((!isOpen && !showHistory) || dropdownItems.length === 0) return
 
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      setActiveIndex((current) => (current + 1) % suggestions.length)
+      setActiveIndex((current) => (current + 1) % dropdownItems.length)
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       setActiveIndex((current) =>
-        current <= 0 ? suggestions.length - 1 : current - 1,
+        current <= 0 ? dropdownItems.length - 1 : current - 1,
       )
     } else if (event.key === 'Escape') {
       setIsOpen(false)
+      setShowHistory(false)
       setActiveIndex(-1)
     }
   }
@@ -109,7 +120,11 @@ function AddressAutocomplete({
     }
   }
 
-  const showDropdown = value.trim().length >= 2 && isOpen && suggestions.length > 0
+  const showRemoteDropdown =
+    value.trim().length >= 2 && isOpen && suggestions.length > 0
+  const showHistoryDropdown =
+    showHistory && history.length > 0 && value.trim().length < 2
+  const showDropdown = showRemoteDropdown || showHistoryDropdown
 
   return (
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
@@ -121,7 +136,13 @@ function AddressAutocomplete({
         disabled={disabled}
         onChange={(event) => handleChange(event.target.value)}
         onFocus={() => {
-          if (showDropdown) setIsOpen(true)
+          if (value.trim().length < 2 && history.length > 0) {
+            setHistory(readAddressHistory())
+            setShowHistory(true)
+            setActiveIndex(-1)
+          } else if (showRemoteDropdown) {
+            setIsOpen(true)
+          }
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
@@ -143,8 +164,16 @@ function AddressAutocomplete({
           role="listbox"
           className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[#dbcdb8] bg-white py-1 shadow-lg"
         >
-          {suggestions.map((suggestion, index) => (
-            <li key={`${suggestion.name}-${suggestion.lat}-${suggestion.lon}`} role="option">
+          {showHistoryDropdown && (
+            <li className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+              Ostatnie
+            </li>
+          )}
+          {dropdownItems.map((suggestion, index) => (
+            <li
+              key={`${suggestion.name}-${suggestion.lat}-${suggestion.lon}`}
+              role="option"
+            >
               <button
                 type="button"
                 aria-selected={index === activeIndex}
