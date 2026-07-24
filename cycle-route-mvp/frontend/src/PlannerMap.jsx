@@ -135,7 +135,7 @@ function PlannerMap({
                 selectedRouteIndex === index
                   ? routeMode === 'Loop'
                     ? '#7a6248'
-                    : '#3f7b57'
+                    : '#FC6C26'
                   : '#94a3b8',
               weight: selectedRouteIndex === index ? 6 : 4,
               opacity: selectedRouteIndex === index ? 0.95 : 0.7,

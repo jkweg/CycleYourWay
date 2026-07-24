@@ -3,34 +3,32 @@ import { LampContainer } from './ui/lamp'
 
 function LampHero({ onStartPlanning }) {
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-12 pt-8 md:px-10 md:pt-12">
+    <section className="relative w-full">
       <LampContainer>
+        <motion.h1
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.1, duration: 0.7, ease: 'easeOut' }}
+          className="font-serif text-5xl font-semibold tracking-tight text-burnt-orange md:text-7xl lg:text-8xl"
+        >
+          Cycle Your Way
+        </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.15, duration: 0.6 }}
-          className="text-xs font-semibold uppercase tracking-[0.28em] text-[#a8d4b8]"
+          transition={{ delay: 0.28, duration: 0.65 }}
+          className="mt-6 max-w-2xl text-lg font-medium leading-8 text-ink md:text-xl"
         >
-          Cycle Your Way
+          Planuj trasy, które prowadzą dalej.
         </motion.p>
-        <motion.h1
-          initial={{ opacity: 0.5, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3, duration: 0.8, ease: 'easeInOut' }}
-          className="mt-5 bg-gradient-to-br from-[#f0faf3] via-[#cfe7d2] to-[#c4a882] bg-clip-text text-4xl font-semibold leading-[1.15] tracking-tight text-transparent md:text-5xl lg:text-6xl"
-        >
-          Planuj trasy,
-          <br />
-          które prowadzą dalej.
-        </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.45, duration: 0.7 }}
-          className="mt-6 max-w-2xl text-center text-sm leading-7 text-[#c8ddd0] md:text-base"
+          transition={{ delay: 0.4, duration: 0.6 }}
+          className="mt-4 max-w-xl text-sm leading-7 text-ink-muted md:text-base"
         >
           Mapa, routing rowerowy, elewacja i zapis tras — w jednym planerze stworzonym
           dla codziennych przejażdżek i długich wyjazdów.
@@ -39,19 +37,19 @@ function LampHero({ onStartPlanning }) {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.65, duration: 0.6 }}
-          className="mt-8 flex flex-wrap items-center justify-center gap-3 pb-2"
+          transition={{ delay: 0.55, duration: 0.55 }}
+          className="mt-10 flex flex-wrap items-center justify-center gap-3 pb-2"
         >
           <button
             type="button"
             onClick={onStartPlanning}
-            className="soft-button rounded-full bg-[#6fa07c] px-8 py-3 text-sm font-semibold uppercase tracking-wide text-[#142318] transition hover:bg-[#8bc49a]"
+            className="soft-button rounded-full bg-burnt-orange px-8 py-3.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
           >
             Rozpocznij planowanie
           </button>
           <a
             href="#how-it-works"
-            className="soft-button rounded-full border border-[#8bc49a]/35 bg-white/5 px-8 py-3 text-sm font-semibold text-[#e2f2e8] transition hover:bg-white/10"
+            className="soft-button rounded-full border-2 border-burnt-orange px-8 py-3.5 text-sm font-semibold text-burnt-orange transition hover:bg-burnt-orange/10"
           >
             Dowiedz się więcej
           </a>

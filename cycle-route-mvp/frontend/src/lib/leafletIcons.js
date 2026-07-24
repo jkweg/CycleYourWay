@@ -19,7 +19,7 @@ export const createViaMarkerIcon = (label) =>
     className: 'cyw-via-marker',
     html: `<div style="
       width:26px;height:26px;border-radius:999px;
-      background:#3f7b57;color:#fff;font:700 12px/26px system-ui,sans-serif;
+      background:#FC6C26;color:#fff;font:700 12px/26px system-ui,sans-serif;
       text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);
     ">${label}</div>`,
     iconSize: [26, 26],

@@ -81,14 +81,14 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
       <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-[#e8dfcf] bg-white p-6 shadow-xl"
+        className="soft-panel w-full max-w-md rounded-2xl border border-burnt-orange/20 bg-vanilla p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-modal-title"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 id="auth-modal-title" className="text-xl font-semibold text-[#2e5f43]">
+            <h2 id="auth-modal-title" className="text-xl font-semibold text-burnt-orange">
               {title}
             </h2>
             <p className="mt-1 text-sm text-stone-600">{subtitle}</p>
@@ -104,7 +104,7 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         </div>
 
         {(activeMode === 'login' || activeMode === 'register') && (
-          <div className="mb-4 grid grid-cols-2 rounded-xl border border-[#eadfcf] bg-[#f4efe6] p-1">
+          <div className="mb-4 grid grid-cols-2 rounded-xl border border-burnt-orange/20 bg-vanilla-deep p-1">
             <button
               type="button"
               onClick={() => {
@@ -114,8 +114,8 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               }}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                 activeMode === 'login'
-                  ? 'bg-white text-[#2e5f43] shadow-sm'
-                  : 'text-stone-600 hover:text-[#6f553b]'
+                  ? 'bg-vanilla text-burnt-orange shadow-sm'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               Logowanie
@@ -129,8 +129,8 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               }}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                 activeMode === 'register'
-                  ? 'bg-white text-[#2e5f43] shadow-sm'
-                  : 'text-stone-600 hover:text-[#6f553b]'
+                  ? 'bg-vanilla text-burnt-orange shadow-sm'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               Rejestracja
@@ -151,7 +151,7 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm outline-none ring-emerald-500/30 focus:ring-2"
+                className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
               />
             </div>
           )}
@@ -174,7 +174,7 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 minLength={6}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm outline-none ring-emerald-500/30 focus:ring-2"
+                className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
               />
               {(activeMode === 'register' || activeMode === 'newPassword') && (
                 <p className="mt-1 text-xs text-stone-500">Minimum 6 znaków.</p>
@@ -191,16 +191,16 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 setInfo('')
                 setPassword('')
               }}
-              className="text-xs font-medium text-[#3f7b57] hover:underline"
+              className="text-xs font-medium text-burnt-orange hover:underline"
             >
               Nie pamiętam hasła
             </button>
           )}
 
           {error && <p className="text-sm font-medium text-rose-700">{error}</p>}
-          {info && <p className="text-sm font-medium text-emerald-700">{info}</p>}
+          {info && <p className="text-sm font-medium text-burnt-orange">{info}</p>}
           {passwordRecovery && !info && (
-            <p className="text-sm font-medium text-emerald-700">
+            <p className="text-sm font-medium text-burnt-orange">
               Ustaw nowe hasło dla swojego konta.
             </p>
           )}
@@ -208,7 +208,7 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="soft-button w-full rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#356b4b] disabled:opacity-60"
+            className="soft-button w-full rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla transition hover:bg-burnt-orange-dark disabled:opacity-60"
           >
             {isSubmitting
               ? 'Proszę czekać...'

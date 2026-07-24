@@ -23,11 +23,11 @@ export const SURFACE_LABELS = {
 }
 
 export const SURFACE_COLORS = [
-  'bg-emerald-500',
+  'bg-orange-500',
   'bg-lime-500',
   'bg-amber-600',
   'bg-stone-500',
-  'bg-green-700',
+  'bg-orange-700',
   'bg-yellow-700',
 ]
 

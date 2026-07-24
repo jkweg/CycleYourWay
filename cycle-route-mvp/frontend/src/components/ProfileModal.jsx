@@ -127,14 +127,14 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
       <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-[#e8dfcf] bg-white p-6 shadow-xl"
+        className="soft-panel w-full max-w-md rounded-2xl border border-[#f0d4b8] bg-white p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-modal-title"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 id="profile-modal-title" className="text-xl font-semibold text-[#2e5f43]">
+            <h2 id="profile-modal-title" className="text-xl font-semibold text-[#FC6C26]">
               Profil
             </h2>
             <p className="mt-1 text-sm text-stone-600">{user?.email}</p>
@@ -161,11 +161,11 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
                 id="profile-name"
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
-                className="w-full rounded-lg border border-[#dfd4c2] px-3 py-2 text-sm outline-none ring-emerald-500/30 focus:ring-2"
+                className="w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
               />
             </div>
 
-            <label className="flex items-start gap-3 rounded-xl border border-[#eadfcf] bg-[#faf7f1] p-3 text-sm text-stone-700">
+            <label className="flex items-start gap-3 rounded-xl border border-[#f0d4b8] bg-[#FFF4D6] p-3 text-sm text-stone-700">
               <input
                 type="checkbox"
                 checked={preferAvoidMainRoads}
@@ -189,22 +189,22 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
                 max={100}
                 value={defaultLoopDistanceKm}
                 onChange={(event) => setDefaultLoopDistanceKm(Number(event.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#d9e6dc]"
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#f5d0b8]"
               />
             </div>
 
             {error && <p className="text-sm font-medium text-rose-700">{error}</p>}
-            {info && <p className="text-sm font-medium text-emerald-700">{info}</p>}
+            {info && <p className="text-sm font-medium text-orange-800">{info}</p>}
 
             <button
               type="submit"
               disabled={isSaving || isDeleting}
-              className="soft-button w-full rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#356b4b] disabled:opacity-60"
+              className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#E05518] disabled:opacity-60"
             >
               {isSaving ? 'Zapisywanie…' : 'Zapisz profil'}
             </button>
 
-            <div className="border-t border-[#eadfcf] pt-4">
+            <div className="border-t border-[#f0d4b8] pt-4">
               <button
                 type="button"
                 disabled={isDeleting || isSaving}
