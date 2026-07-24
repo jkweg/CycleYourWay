@@ -452,29 +452,29 @@ function RideView({
   const followingManeuver = navState?.followingManeuver || null
   const maneuverVisual = nextManeuver ? getManeuverVisual(nextManeuver.type) : null
 
-  const lineColor = mode === 'Loop' ? '#7a6248' : '#2e5f43'
+  const lineColor = mode === 'Loop' ? '#7a6248' : '#FC6C26'
 
   if (rideSummary) {
     return (
-      <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[#0f1a14]/80 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-[#15241b] p-6 text-emerald-50 shadow-2xl ring-1 ring-white/10">
+      <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[#2c1e16]/80 p-4">
+        <div className="w-full max-w-md rounded-2xl bg-[#3d2a20] p-6 text-orange-50 shadow-2xl ring-1 ring-white/10">
           <h2 className="text-xl font-semibold text-white">Podsumowanie jazdy</h2>
-          <p className="mt-1 text-sm text-emerald-100/70">{routeName || 'Trasa'}</p>
+          <p className="mt-1 text-sm text-orange-100/70">{routeName || 'Trasa'}</p>
           <dl className="mt-5 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Dystans</dt>
+              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Dystans</dt>
               <dd className="mt-1 text-lg font-bold text-white">
                 {formatDistance(rideSummary.distanceMeters)}
               </dd>
             </div>
             <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Czas</dt>
+              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Czas</dt>
               <dd className="mt-1 text-lg font-bold text-white">
                 {formatDuration(rideSummary.durationSeconds)}
               </dd>
             </div>
             <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-emerald-100/60">Średnia</dt>
+              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Średnia</dt>
               <dd className="mt-1 text-lg font-bold text-white">
                 {rideSummary.avgSpeedKmh > 0
                   ? `${rideSummary.avgSpeedKmh.toFixed(1)} km/h`
@@ -485,7 +485,7 @@ function RideView({
           <button
             type="button"
             onClick={onExit}
-            className="mt-6 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-emerald-400"
+            className="mt-6 w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-orange-400"
           >
             Zamknij
           </button>
@@ -495,7 +495,7 @@ function RideView({
   }
 
   return (
-    <div className="fixed inset-0 z-[3000] flex flex-col bg-[#0f1a14] text-white">
+    <div className="fixed inset-0 z-[3000] flex flex-col bg-[#2c1e16] text-white">
       <div className="absolute inset-0">
         <MapContainer
           center={[52.0, 19.2]}
@@ -557,7 +557,7 @@ function RideView({
         className="pointer-events-none relative z-[3001] flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="pointer-events-auto m-3 rounded-2xl bg-[#15241b]/95 p-4 shadow-xl ring-1 ring-white/10 backdrop-blur">
+        <div className="pointer-events-auto m-3 rounded-2xl bg-[#3d2a20]/95 p-4 shadow-xl ring-1 ring-white/10 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -566,7 +566,7 @@ function RideView({
             >
               ← Zakończ
             </button>
-            <p className="min-w-0 flex-1 truncate text-center text-sm font-medium text-emerald-100">
+            <p className="min-w-0 flex-1 truncate text-center text-sm font-medium text-orange-100">
               {routeName || 'Trasa'}
               {isPaused ? ' · Pauza' : ''}
             </p>
@@ -575,7 +575,7 @@ function RideView({
               onClick={() => setShowManeuverList((value) => !value)}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 showManeuverList
-                  ? 'bg-emerald-500 text-[#10231a]'
+                  ? 'bg-orange-500 text-[#10231a]'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
               aria-pressed={showManeuverList}
@@ -599,7 +599,7 @@ function RideView({
               type="button"
               onClick={() => setVoiceOn((value) => !value)}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                voiceOn ? 'bg-emerald-500 text-[#10231a]' : 'bg-white/10 text-white hover:bg-white/20'
+                voiceOn ? 'bg-orange-500 text-[#10231a]' : 'bg-white/10 text-white hover:bg-white/20'
               }`}
               aria-pressed={voiceOn}
             >
@@ -609,11 +609,11 @@ function RideView({
 
           {showManeuverList && (
             <div className="mt-3 max-h-48 overflow-y-auto rounded-xl bg-black/25 p-2">
-              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100/70">
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-orange-100/70">
                 Manewry ({maneuvers.length})
               </p>
               {maneuvers.length === 0 ? (
-                <p className="px-1 text-sm text-emerald-100/70">Brak instrukcji dla tej trasy.</p>
+                <p className="px-1 text-sm text-orange-100/70">Brak instrukcji dla tej trasy.</p>
               ) : (
                 <ol className="space-y-1">
                   {maneuvers.map((maneuver, index) => {
@@ -624,7 +624,7 @@ function RideView({
                       <li
                         key={`${maneuver.coordIndex}-${index}`}
                         className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${
-                          isCurrent ? 'bg-emerald-500/25 text-white' : 'text-emerald-50/90'
+                          isCurrent ? 'bg-orange-500/25 text-white' : 'text-orange-50/90'
                         }`}
                       >
                         <span className="w-6 shrink-0 text-center text-base">{visual.icon}</span>
@@ -632,7 +632,7 @@ function RideView({
                           <span className="block truncate">
                             {maneuver.instruction || visual.label}
                           </span>
-                          <span className="text-[11px] text-emerald-100/55">
+                          <span className="text-[11px] text-orange-100/55">
                             {formatDistance(maneuver.distance)}
                             {maneuver.name ? ` · ${maneuver.name}` : ''}
                           </span>
@@ -654,7 +654,7 @@ function RideView({
               {geoError}
             </p>
           ) : !userPos ? (
-            <p className="mt-3 text-sm text-emerald-100/80">Ustalanie pozycji GPS…</p>
+            <p className="mt-3 text-sm text-orange-100/80">Ustalanie pozycji GPS…</p>
           ) : navState?.isOffRoute ? (
             <div className="mt-3 space-y-3">
               <div className="flex items-center gap-3">
@@ -663,7 +663,7 @@ function RideView({
                   <p className="text-base font-semibold text-amber-200">
                     {isRecalculating ? 'Przeliczanie trasy…' : 'Poza trasą'}
                   </p>
-                  <p className="text-sm text-emerald-100/80">
+                  <p className="text-sm text-orange-100/80">
                     {isRecalculating
                       ? 'Szukamy nowej drogi do celu z Twojej pozycji.'
                       : `Jesteś ${formatDistance(navState.offRouteDistance)} od trasy. Możesz wrócić lub przeliczyć trasę.`}
@@ -688,22 +688,22 @@ function RideView({
           ) : navState?.isArriving ? (
             <div className="mt-3 flex items-center gap-3">
               <span className="text-3xl">🏁</span>
-              <p className="text-lg font-semibold text-emerald-100">Dojeżdżasz do celu</p>
+              <p className="text-lg font-semibold text-orange-100">Dojeżdżasz do celu</p>
             </div>
           ) : nextManeuver ? (
             <div className="mt-3 flex items-center gap-4">
-              <span className="text-4xl leading-none text-emerald-300">
+              <span className="text-4xl leading-none text-orange-300">
                 {maneuverVisual?.icon}
               </span>
               <div className="min-w-0">
                 <p className="text-2xl font-bold tabular-nums text-white">
                   {formatDistance(navState.distanceToManeuver)}
                 </p>
-                <p className="truncate text-sm text-emerald-100/90">
+                <p className="truncate text-sm text-orange-100/90">
                   {nextManeuver.instruction || maneuverVisual?.label}
                 </p>
                 {followingManeuver && (
-                  <p className="mt-0.5 truncate text-xs text-emerald-100/60">
+                  <p className="mt-0.5 truncate text-xs text-orange-100/60">
                     potem {getManeuverVisual(followingManeuver.type).icon}{' '}
                     {followingManeuver.instruction}
                   </p>
@@ -711,7 +711,7 @@ function RideView({
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-emerald-100/80">
+            <p className="mt-3 text-sm text-orange-100/80">
               Jedź wzdłuż wyznaczonej trasy.
             </p>
           )}
@@ -728,16 +728,16 @@ function RideView({
           <button
             type="button"
             onClick={() => setFollow(true)}
-            className="pointer-events-auto self-end rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#15241b] shadow-lg"
+            className="pointer-events-auto self-end rounded-full bg-[#FFF8E8] px-4 py-2 text-sm font-semibold text-[#2c1e16] shadow-lg"
           >
             ◎ Wyśrodkuj
           </button>
         )}
 
-        <div className="pointer-events-auto rounded-2xl bg-[#15241b]/95 px-4 py-3 shadow-xl ring-1 ring-white/10 backdrop-blur">
+        <div className="pointer-events-auto rounded-2xl bg-[#3d2a20]/95 px-4 py-3 shadow-xl ring-1 ring-white/10 backdrop-blur">
           <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
             <div
-              className="h-full rounded-full bg-emerald-400 transition-all"
+              className="h-full rounded-full bg-orange-400 transition-all"
               style={{ width: `${Math.round((navState?.progress || 0) * 100)}%` }}
             />
           </div>
@@ -746,19 +746,19 @@ function RideView({
               <p className="text-lg font-bold tabular-nums text-white">
                 {formatDistance(navState ? navState.remainingDistance : totalDistance)}
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-emerald-100/60">Pozostało</p>
+              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">Pozostało</p>
             </div>
             <div className="flex-1 border-x border-white/10">
               <p className="text-lg font-bold tabular-nums text-white">
                 {navState ? formatDuration(navState.remainingSeconds) : '—'}
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-emerald-100/60">Czas (szac.)</p>
+              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">Czas (szac.)</p>
             </div>
             <div className="flex-1">
               <p className="text-lg font-bold tabular-nums text-white">
                 {gpsSpeed != null ? `${Math.round(gpsSpeed * 3.6)}` : '—'}
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-emerald-100/60">km/h</p>
+              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">km/h</p>
             </div>
           </div>
         </div>

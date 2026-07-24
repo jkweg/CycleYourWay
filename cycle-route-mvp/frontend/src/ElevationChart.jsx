@@ -35,11 +35,11 @@ function ElevationChart({ routeData, compact = false }) {
       className={
         compact
           ? 'flex h-full flex-col p-3'
-          : 'soft-panel rounded-xl border border-emerald-100 bg-[#f8fbf6] p-4'
+          : 'soft-panel rounded-xl border border-orange-100 bg-[#FFF4D6] p-4'
       }
     >
       <p
-        className={`text-xs font-semibold uppercase tracking-wide text-emerald-700 ${
+        className={`text-xs font-semibold uppercase tracking-wide text-orange-800 ${
           compact ? 'mb-1' : ''
         }`}
       >
@@ -57,8 +57,8 @@ function ElevationChart({ routeData, compact = false }) {
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b7c54" stopOpacity={0.42} />
-                <stop offset="95%" stopColor="#3b7c54" stopOpacity={0.08} />
+                <stop offset="5%" stopColor="#FC6C26" stopOpacity={0.42} />
+                <stop offset="95%" stopColor="#FC6C26" stopOpacity={0.08} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ddcf" />
@@ -75,6 +75,8 @@ function ElevationChart({ routeData, compact = false }) {
               width={compact ? 40 : 52}
             />
             <Tooltip
+              isAnimationActive={false}
+              animationDuration={0}
               formatter={(value, name) =>
                 name === 'elevation' ? [`${value} m n.p.m.`, 'Wysokość'] : [value, name]
               }

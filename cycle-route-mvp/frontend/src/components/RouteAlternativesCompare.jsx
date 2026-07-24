@@ -11,8 +11,8 @@ function RouteAlternativesCompare({ alternatives, selectedIndex, onSelect }) {
   )
 
   return (
-    <div className="soft-panel rounded-xl border border-emerald-100 bg-[#f4faf4] p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+    <div className="soft-panel rounded-xl border border-orange-100 bg-[#FFF4D6] p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
         Porównanie wariantów
       </p>
       <p className="mt-1 text-xs text-stone-500">
@@ -34,8 +34,8 @@ function RouteAlternativesCompare({ alternatives, selectedIndex, onSelect }) {
               onClick={() => onSelect(option.index)}
               className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${
                 isSelected
-                  ? 'border-emerald-500 bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-200'
-                  : 'border-emerald-200 bg-[#f4faf4] text-stone-700 hover:bg-white'
+                  ? 'border-orange-500 bg-[#FFF8E8] text-orange-950 shadow-sm ring-1 ring-orange-200'
+                  : 'border-orange-200 bg-[#FFF4D6] text-stone-700 hover:bg-[#FFF8E8]'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -63,7 +63,7 @@ function RouteAlternativesCompare({ alternatives, selectedIndex, onSelect }) {
               {(isShortest || isFastest || isQuietest) && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {isShortest && (
-                    <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                    <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-900">
                       Najkrótsza
                     </span>
                   )}

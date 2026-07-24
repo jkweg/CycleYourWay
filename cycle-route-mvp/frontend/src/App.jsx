@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import FloatingLines from './FloatingLines'
 import { API_BASE } from './api'
 import AuthModal from './AuthModal'
 import { useAuth } from './useAuth'
@@ -1280,24 +1279,24 @@ function App() {
   }
 
   const accountBar = (
-    <div className="soft-panel flex items-center justify-between gap-3 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] px-4 py-3 text-sm">
+    <div className="soft-panel flex items-center justify-between gap-3 rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm">
       {isAuthenticated ? (
         <>
           <p className="min-w-0 truncate text-stone-700" title={user?.email}>
-            <span className="font-medium text-[#2e5f43]">Konto:</span> {user?.email}
+            <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
           </p>
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+              className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
             >
               Profil
             </button>
             <button
               type="button"
               onClick={logout}
-              className="rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+              className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
             >
               Wyloguj
             </button>
@@ -1305,13 +1304,13 @@ function App() {
         </>
       ) : (
         <>
-          <p className="text-xs leading-5 text-stone-600">
+          <p className="text-xs leading-5 text-stone-700">
             Zaloguj się, aby zapisywać trasy.
           </p>
           <button
             type="button"
             onClick={() => setShowAuthModal(true)}
-            className="shrink-0 rounded-lg bg-[#3f7b57] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#356b4b]"
+            className="shrink-0 rounded-lg bg-[#FC6C26] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#E05518]"
           >
             Konto
           </button>
@@ -1322,7 +1321,7 @@ function App() {
 
   if (rideRoute) {
     return (
-      <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#0f1a14] text-emerald-100" />}>
+      <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#2c1e16] text-orange-100" />}>
         <RideView
           key={rideSessionKey}
           feature={rideRoute.feature}
@@ -1339,23 +1338,7 @@ function App() {
   }
 
   return (
-    <div className="relative min-h-full w-full overflow-x-clip bg-transparent text-stone-800">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <FloatingLines
-          enabledWaves={['top', 'middle', 'bottom']}
-          lineCount={10}
-          lineDistance={9}
-          bendRadius={10}
-          bendStrength={-2.4}
-          interactive
-          parallax
-          animationSpeed={0.95}
-          gradientStart="#cfe7d2"
-          gradientMid="#56775b"
-          gradientEnd="#8e6f4f"
-        />
-      </div>
-
+    <div className="relative min-h-full w-full overflow-x-clip bg-vanilla text-ink">
       <Navbar
         view={view}
         onGoHome={goToHome}
@@ -1380,7 +1363,7 @@ function App() {
         </>
       ) : (
         <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
-          <div className="mx-auto flex max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#e8e2d6] bg-[#f7f5ef] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}
@@ -1396,24 +1379,24 @@ function App() {
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r border-[#e9e1d2] bg-white/95 shadow-[0_12px_44px_rgba(95,74,53,0.12)] backdrop-blur-sm md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
-        <div className="shrink-0 space-y-4 border-b border-[#ebe3d6] p-6 pb-4">
+      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[#F5E6C0] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
+        <div className="shrink-0 space-y-4 border-b border-[#C4A574] p-6 pb-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
               {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
                 ? 'Biblioteka tras'
                 : routeMode === 'AtoB'
                   ? 'Tryb: Trasa A → B'
                   : 'Tryb: Pętla treningowa'}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#2e5f43]">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#FC6C26]">
               {plannerPanel === 'saved'
                 ? 'Zapisane trasy'
                 : plannerPanel === 'savedDetail'
                   ? 'Szczegóły trasy'
                   : 'Planer tras'}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
+            <p className="mt-2 text-sm leading-6 text-stone-800">
               {plannerPanel === 'saved'
                 ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
                 : plannerPanel === 'savedDetail'
@@ -1425,7 +1408,7 @@ function App() {
           <div className="md:hidden">{accountBar}</div>
 
           {saveSuccessMessage && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+            <p className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-900">
               {saveSuccessMessage}
             </p>
           )}
@@ -1452,20 +1435,20 @@ function App() {
           )}
 
           {plannerPanel === 'savedDetail' && !isAuthenticated && (
-            <div className="soft-panel rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-stone-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div className="soft-panel rounded-xl border border-[#E08A50] bg-orange-50 p-4 text-sm text-stone-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
                 Udostępniona trasa
               </p>
-              <p className="mt-2 text-lg font-semibold text-[#2e5f43]">
+              <p className="mt-2 text-lg font-semibold text-[#FC6C26]">
                 {loadedSavedRouteName || 'Trasa'}
               </p>
-              <p className="mt-2 text-xs leading-5 text-stone-600">
+              <p className="mt-2 text-xs leading-5 text-stone-700">
                 Szczegóły (dystans, czas, profil) są pod mapą. Zaloguj się, aby zapisywać własne trasy.
               </p>
               <button
                 type="button"
                 onClick={() => setShowAuthModal(true)}
-                className="soft-button mt-3 w-full rounded-xl bg-[#3f7b57] px-4 py-2.5 text-sm font-semibold text-white"
+                className="soft-button mt-3 w-full rounded-xl bg-[#FC6C26] px-4 py-2.5 text-sm font-semibold text-white"
               >
                 Zaloguj się
               </button>
@@ -1473,28 +1456,17 @@ function App() {
           )}
 
           {plannerPanel === 'plan' && (
-          <div className="soft-panel space-y-4 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4">
-            <RoutePreferencesPanel
-              rideStyle={rideStyle}
-              climbPreference={climbPreference}
-              preferAsphalt={preferAsphalt}
-              avoidMainRoads={avoidMainRoads}
-              onRideStyleChange={setRideStyle}
-              onClimbPreferenceChange={setClimbPreference}
-              onPreferAsphaltChange={setPreferAsphalt}
-              onAvoidMainRoadsChange={setAvoidMainRoads}
-            />
-
+          <div className="soft-panel space-y-4 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-4">
             {routeMode === 'AtoB' ? (
               <>
                 <div>
                   <label
                     htmlFor="start-point-input"
-                    className="mb-1 block text-sm font-medium text-stone-700"
+                    className="mb-1 block text-sm font-semibold text-stone-800"
                   >
                     Punkt początkowy
                     {startPoint && (
-                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                         Ustawiony
                       </span>
                     )}
@@ -1512,7 +1484,7 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('start')}
                       disabled={isSearchingStart}
-                      className="soft-button rounded-lg bg-[#3f7b57] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#356b4b] disabled:cursor-not-allowed disabled:bg-[#9ab3a1]"
+                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
@@ -1521,7 +1493,7 @@ function App() {
                     type="button"
                     onClick={handleUseMyLocation}
                     disabled={isLocating}
-                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-medium text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:opacity-60"
+                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:opacity-60"
                   >
                     {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji'}
                   </button>
@@ -1531,12 +1503,12 @@ function App() {
                   <div key={stop.id}>
                     <label
                       htmlFor={`via-point-input-${stop.id}`}
-                      className="mb-1 flex items-center justify-between gap-2 text-sm font-medium text-stone-700"
+                      className="mb-1 flex items-center justify-between gap-2 text-sm font-semibold text-stone-800"
                     >
                       <span>
                         Punkt pośredni {index + 1}
                         {stop.point && (
-                          <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                             Ustawiony
                           </span>
                         )}
@@ -1565,7 +1537,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => geocodeAddress('via', stop.id)}
-                        className="soft-button rounded-lg bg-[#3f7b57] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#356b4b]"
+                        className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518]"
                       >
                         Szukaj
                       </button>
@@ -1578,7 +1550,7 @@ function App() {
                     type="button"
                     onClick={handleAddViaStop}
                     disabled={viaStops.length >= 5}
-                    className="soft-button flex-1 rounded-xl border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-semibold text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="soft-button flex-1 rounded-xl border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Dodaj punkt pośredni
                   </button>
@@ -1586,7 +1558,7 @@ function App() {
                     type="button"
                     onClick={handleReverseRoute}
                     disabled={!startPoint && !endPoint}
-                    className="soft-button flex-1 rounded-xl border border-[#dfd4c2] bg-white px-3 py-2 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="soft-button flex-1 rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Odwróć trasę
                   </button>
@@ -1595,11 +1567,11 @@ function App() {
                 <div>
                   <label
                     htmlFor="end-point-input"
-                    className="mb-1 block text-sm font-medium text-stone-700"
+                    className="mb-1 block text-sm font-semibold text-stone-800"
                   >
                     Punkt końcowy
                     {endPoint && (
-                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                         Ustawiony
                       </span>
                     )}
@@ -1617,25 +1589,36 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('end')}
                       disabled={isSearchingEnd}
-                      className="soft-button rounded-lg bg-[#3f7b57] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#356b4b] disabled:cursor-not-allowed disabled:bg-[#9ab3a1]"
+                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingEnd ? '...' : 'Szukaj'}
                     </button>
                   </div>
                 </div>
 
+                <RoutePreferencesPanel
+                  rideStyle={rideStyle}
+                  climbPreference={climbPreference}
+                  preferAsphalt={preferAsphalt}
+                  avoidMainRoads={avoidMainRoads}
+                  onRideStyleChange={setRideStyle}
+                  onClimbPreferenceChange={setClimbPreference}
+                  onPreferAsphaltChange={setPreferAsphalt}
+                  onAvoidMainRoadsChange={setAvoidMainRoads}
+                />
+
                 <button
                   type="button"
                   onClick={handleRouteSubmit}
                   disabled={!startPoint || !endPoint || isLoadingRoute}
-                  className="soft-button w-full rounded-xl bg-[#3f7b57] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#356b4b] disabled:cursor-not-allowed disabled:bg-[#9ab3a1]"
+                  className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                 >
                   {isLoadingRoute ? 'Wyznaczanie trasy...' : 'Wyznacz trasę'}
                 </button>
                 <button
                   type="button"
                   onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#d8cbb7] bg-white px-4 py-3 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
                 >
                   Wyczyść
                 </button>
@@ -1645,11 +1628,11 @@ function App() {
                 <div>
                   <label
                     htmlFor="loop-start-point-input"
-                    className="mb-1 block text-sm font-medium text-stone-700"
+                    className="mb-1 block text-sm font-semibold text-stone-800"
                   >
                     Punkt startowy pętli
                     {startPoint && (
-                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                         Ustawiony
                       </span>
                     )}
@@ -1667,7 +1650,7 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('start')}
                       disabled={isSearchingStart}
-                      className="soft-button rounded-lg bg-[#3f7b57] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#356b4b] disabled:cursor-not-allowed disabled:bg-[#9ab3a1]"
+                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
@@ -1676,16 +1659,16 @@ function App() {
                     type="button"
                     onClick={handleUseMyLocation}
                     disabled={isLocating}
-                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe7d2] bg-[#f4faf4] px-3 py-2 text-sm font-medium text-[#2e5f43] transition hover:bg-[#e9f5ec] disabled:opacity-60"
+                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:opacity-60"
                   >
                     {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji (start pętli)'}
                   </button>
                 </div>
 
                 <div>
-                  <div className="mb-1 flex items-center justify-between text-sm font-medium text-stone-700">
+                  <div className="mb-1 flex items-center justify-between text-sm font-semibold text-stone-800">
                     <label htmlFor="loop-distance-range">Dystans pętli</label>
-                    <span className="rounded-md bg-white px-2 py-1 text-[#2e5f43] shadow-sm">
+                    <span className="rounded-md bg-[#FFF4D6] px-2 py-1 text-[#FC6C26] shadow-sm">
                       {loopDistanceKm} km
                     </span>
                   </div>
@@ -1697,13 +1680,24 @@ function App() {
                     step={1}
                     value={loopDistanceKm}
                     onChange={(event) => setLoopDistanceKm(Number(event.target.value))}
-                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#d9e6dc]"
+                    className="loop-distance-range h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#f5d0b8]"
                   />
-                  <div className="mt-1 flex justify-between text-xs text-stone-500">
+                  <div className="mt-1 flex justify-between text-xs text-stone-700">
                     <span>5 km</span>
                     <span>100 km</span>
                   </div>
                 </div>
+
+                <RoutePreferencesPanel
+                  rideStyle={rideStyle}
+                  climbPreference={climbPreference}
+                  preferAsphalt={preferAsphalt}
+                  avoidMainRoads={avoidMainRoads}
+                  onRideStyleChange={setRideStyle}
+                  onClimbPreferenceChange={setClimbPreference}
+                  onPreferAsphaltChange={setPreferAsphalt}
+                  onAvoidMainRoadsChange={setAvoidMainRoads}
+                />
 
                 <button
                   type="button"
@@ -1716,7 +1710,7 @@ function App() {
                 <button
                   type="button"
                   onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#d8cbb7] bg-white px-4 py-3 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2]"
+                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
                 >
                   Wyczyść
                 </button>
@@ -1732,11 +1726,11 @@ function App() {
             )}
 
             {routeStats && (
-              <div className="soft-panel rounded-xl border border-emerald-100 bg-[#f5fbf6] p-4 text-sm text-stone-800">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              <div className="soft-panel rounded-xl border border-[#E08A50] bg-[#FFF4D6] p-4 text-sm text-stone-800">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
                   Akcje
                 </p>
-                <p className="mt-1 text-xs text-stone-500">
+                <p className="mt-1 text-xs text-stone-700">
                   Szczegóły trasy (dystans, czas, profil) są pod mapą.
                 </p>
                 <div className="mt-4 grid gap-2">
@@ -1744,7 +1738,7 @@ function App() {
                     type="button"
                     onClick={handleStartRide}
                     disabled={isPreparingRide}
-                    className="soft-button w-full rounded-xl bg-[#2e5f43] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#264f38] disabled:opacity-60"
+                    className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#E05518] disabled:opacity-60"
                   >
                     {isPreparingRide ? 'Przygotowywanie nawigacji…' : 'Nawiguj (tryb jazdy)'}
                   </button>
@@ -1752,7 +1746,7 @@ function App() {
                     <button
                       type="button"
                       onClick={handleOpenOnPhone}
-                      className="soft-button rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                      className="soft-button rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-900 transition hover:bg-orange-100"
                     >
                       Otwórz na telefonie
                     </button>
@@ -1768,7 +1762,7 @@ function App() {
                     type="button"
                     onClick={handleSaveRouteClick}
                     disabled={isSavingRoute}
-                    className="soft-button w-full rounded-xl border border-[#dfd4c2] bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-[#f3ede2] disabled:opacity-60"
+                    className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-2.5 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0] disabled:opacity-60"
                   >
                     {isSavingRoute
                       ? 'Zapisywanie...'
@@ -1777,11 +1771,11 @@ function App() {
                         : 'Zapisz trasę (wymaga konta)'}
                   </button>
                 </div>
-                <div className="mt-3 border-t border-emerald-100 pt-3">
+                <div className="mt-3 border-t border-orange-100 pt-3">
                   <button
                     type="button"
                     onClick={handleExportToGoogleMaps}
-                    className="text-xs font-medium text-stone-500 underline-offset-2 transition hover:text-[#2e5f43] hover:underline"
+                    className="text-xs font-semibold text-stone-600 underline-offset-2 transition hover:text-[#E05518] hover:underline"
                   >
                     Otwórz w Google Maps (przybliżone)
                   </button>
@@ -1794,7 +1788,7 @@ function App() {
 
         {plannerPanel === 'plan' && (
         <div className="shrink-0 p-6 pt-0">
-          <div className="soft-panel rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4 text-sm text-stone-700">
+          <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-4 text-sm font-medium text-stone-800">
             {isLoadingRoute && <p className="font-medium">Wyznaczanie trasy...</p>}
             {!isLoadingRoute && !startPoint && routeMode === 'AtoB' && (
               <p>Kliknij mapę, aby wybrać punkt startowy.</p>
@@ -1835,7 +1829,7 @@ function App() {
         <div className="relative min-h-0 flex-1">
           <Suspense
             fallback={
-              <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#eef3ea]" />
+              <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#FFF4D6]" />
             }
           >
             <PlannerMap
@@ -1922,7 +1916,7 @@ function App() {
 
       {isPreparingRide && (
         <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/25 backdrop-blur-[2px]">
-          <div className="rounded-2xl bg-white px-6 py-4 text-sm font-medium text-stone-700 shadow-xl">
+          <div className="rounded-2xl bg-[#FFF4D6] px-6 py-4 text-sm font-medium text-stone-700 shadow-xl">
             Przygotowywanie nawigacji…
           </div>
         </div>

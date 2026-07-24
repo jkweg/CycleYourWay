@@ -1,8 +1,12 @@
 import { motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '../../lib/utils'
 import { SidebarContext } from './sidebarContext'
 import { useSidebar } from './useSidebar'
+
+const COLLAPSED_WIDTH = '4.5rem'
+const EXPANDED_WIDTH = '16rem'
+const CLOSE_DELAY_MS = 180
 
 function SidebarProvider({ children, open: openProp, setOpen: setOpenProp }) {
   const [openState, setOpenState] = useState(false)
@@ -15,21 +19,50 @@ function SidebarProvider({ children, open: openProp, setOpen: setOpenProp }) {
 }
 
 export function Sidebar({ children, open, setOpen, animate = true, className }) {
+  const closeTimerRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
+  const handleEnter = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setOpen(true)
+  }
+
+  const handleLeave = () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false)
+      closeTimerRef.current = null
+    }, CLOSE_DELAY_MS)
+  }
+
   return (
     <SidebarProvider open={open} setOpen={setOpen}>
-      <motion.aside
-        className={cn(
-          'hidden h-full shrink-0 flex-col border-r border-[#e9e1d2] bg-[#fcfaf5] px-3 py-4 md:flex',
-          className,
-        )}
-        animate={{
-          width: animate ? (open ? '16rem' : '4.5rem') : '16rem',
-        }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        {children}
-      </motion.aside>
+      {/* Spacer keeps flex layout stable — expanding panel overlays instead of resizing the map */}
+      <div className="relative hidden h-full w-[4.5rem] shrink-0 md:block">
+        <motion.aside
+          className={cn(
+            'absolute inset-y-0 left-0 z-30 flex h-full flex-col overflow-hidden border-r border-[#f0d4b8] bg-[#F5E6C0] px-3 py-4 shadow-[4px_0_24px_-12px_rgba(42,26,18,0.35)]',
+            className,
+          )}
+          initial={false}
+          animate={{
+            width: animate ? (open ? EXPANDED_WIDTH : COLLAPSED_WIDTH) : EXPANDED_WIDTH,
+          }}
+          transition={{ type: 'tween', duration: 0.18, ease: 'easeOut' }}
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
+        >
+          {children}
+        </motion.aside>
+      </div>
     </SidebarProvider>
   )
 }
@@ -47,21 +80,20 @@ export function SidebarLink({ link, className, ...props }) {
   const content = (
     <>
       {link.icon}
-      <motion.span
-        animate={{
-          display: open ? 'inline-block' : 'none',
-          opacity: open ? 1 : 0,
-        }}
-        className="whitespace-pre text-sm text-stone-700 transition duration-150 group-hover/sidebar:translate-x-1"
+      <span
+        className={cn(
+          'overflow-hidden whitespace-nowrap text-sm text-stone-700 transition-[opacity,max-width,margin] duration-150 group-hover/sidebar:translate-x-0.5',
+          open ? 'ml-0 max-w-[12rem] opacity-100' : 'ml-0 max-w-0 opacity-0',
+        )}
       >
         {link.label}
-      </motion.span>
+      </span>
     </>
   )
 
   const sharedClassName = cn(
-    'group/sidebar flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[#eef7f0]',
-    link.active && 'bg-[#eef7f0] ring-1 ring-[#cfe7d2]',
+    'group/sidebar flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[#FFE8D6]',
+    link.active && 'bg-[#FFE8D6] ring-1 ring-[#FC6C26]/35',
     className,
   )
 

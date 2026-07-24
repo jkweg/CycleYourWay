@@ -6,7 +6,7 @@
     <link rel="apple-touch-icon" href="/app-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#2e5f43" />
+    <meta name="theme-color" content="#FC6C26" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -18,8 +18,30 @@
       rel="stylesheet"
     />
     <title>Cycle Your Way - planer i nawigacja rowerowa</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #fff4d6;
+      }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff4d6;
+        color: #fc6c26;
+        font-family: Fraunces, Georgia, 'Times New Roman', serif;
+        font-size: clamp(1.75rem, 4vw, 2.75rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true">Cycle Your Way</div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

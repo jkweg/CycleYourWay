@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-burnt-orange: #fc6c26;
+  --color-burnt-orange-dark: #e05518;
+  --color-vanilla: #fff4d6;
+  --color-vanilla-deep: #f5e6c0;
+  --color-ink: #2a1a12;
+  --color-ink-muted: #5c4030;
+}
+
 html,
 body,
 #root {
@@ -11,11 +20,110 @@ body,
 body {
   margin: 0;
   font-family: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
-  color: #2a241d;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(111, 160, 124, 0.16), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(165, 130, 90, 0.12), transparent 35%),
-    #f7f5ef;
+  color: var(--color-ink);
+  background: var(--color-vanilla);
+}
+
+/* Route constellation backdrop animations */
+.route-constellation__blob--a {
+  animation: route-blob-drift 18s ease-in-out infinite alternate;
+}
+.route-constellation__blob--b {
+  animation: route-blob-drift 22s ease-in-out infinite alternate-reverse;
+}
+.route-constellation__blob--c {
+  animation: route-blob-drift 26s ease-in-out infinite alternate;
+}
+
+.route-constellation__orbit--slow {
+  transform-origin: 600px 420px;
+  animation: route-orbit-spin 80s linear infinite;
+}
+
+.route-constellation__orbit--rev {
+  transform-origin: 600px 450px;
+  animation: route-orbit-spin 110s linear infinite reverse;
+}
+
+.route-constellation__trail--a {
+  animation: route-trail-pulse 7s ease-in-out infinite;
+}
+.route-constellation__trail--b {
+  animation: route-trail-pulse 9s ease-in-out infinite 1s;
+}
+.route-constellation__trail--c {
+  animation: route-trail-pulse 8s ease-in-out infinite 2s;
+}
+.route-constellation__trail--d {
+  animation: route-trail-pulse 10s ease-in-out infinite 0.5s;
+}
+
+.route-constellation__node {
+  animation: route-node-pulse 4s ease-in-out infinite;
+}
+
+@keyframes route-blob-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(4%, 6%) scale(1.08);
+  }
+}
+
+@keyframes route-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes route-trail-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes route-node-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.loading-screen {
+  opacity: 1;
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.loading-screen--exit {
+  opacity: 0;
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+.loading-screen__cyclist-rail {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  transform: translateX(calc(var(--loading-progress, 0) * 100%));
+  will-change: transform;
+}
+
+.loading-screen__cyclist {
+  width: fit-content;
+  transform: translateX(calc(var(--loading-progress, 0) * -100%));
+  will-change: transform;
+}
+
+.loading-screen__bar {
+  transform: scaleX(var(--loading-progress, 0));
 }
 
 .font-serif,
@@ -108,42 +216,42 @@ h2 {
   }
 }
 
-.floating-lines-root {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 8% 12%, rgba(122, 159, 127, 0.2), transparent 36%),
-    radial-gradient(circle at 92% 84%, rgba(146, 116, 82, 0.18), transparent 36%),
-    #f1ece2;
+/* Loop distance slider — brand thumb instead of browser blue */
+.loop-distance-range {
+  accent-color: var(--color-burnt-orange);
 }
 
-.floating-lines-svg {
-  width: 100%;
-  height: 100%;
+.loop-distance-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: var(--color-burnt-orange);
+  border: 2px solid #fff4d6;
+  box-shadow: 0 1px 3px rgba(42, 26, 18, 0.25);
+  cursor: pointer;
 }
 
-.floating-line-path {
-  animation: floating-line-drift var(--fl-duration, 28s) ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 0.8px rgba(72, 92, 71, 0.22));
+.loop-distance-range::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: var(--color-burnt-orange);
+  border: 2px solid #fff4d6;
+  box-shadow: 0 1px 3px rgba(42, 26, 18, 0.25);
+  cursor: pointer;
 }
 
-.floating-lines-parallax .floating-line-path:nth-child(2n) {
-  animation-duration: calc(var(--fl-duration, 28s) * 1.2);
+.loop-distance-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #f5d0b8;
 }
 
-.floating-lines-interactive::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 25% 35%, rgba(255, 255, 255, 0.16), transparent 40%);
-  mix-blend-mode: soft-light;
+.loop-distance-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #f5d0b8;
 }
 
-@keyframes floating-line-drift {
-  0% {
-    transform: translateX(-1.1%) translateY(-0.3%);
-  }
-  100% {
-    transform: translateX(1.1%) translateY(0.3%);
-  }
-}

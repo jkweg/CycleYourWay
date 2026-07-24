@@ -33,7 +33,7 @@ function PlannerOnboarding({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-[2100] flex items-end justify-center bg-stone-900/35 p-4 backdrop-blur-sm sm:items-center">
       <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-[#e8dfcf] bg-white p-5 shadow-xl"
+        className="soft-panel w-full max-w-md rounded-2xl border border-[#f0d4b8] bg-[#FFF8E8] p-5 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
@@ -41,7 +41,7 @@ function PlannerOnboarding({ isOpen, onClose }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6248]">
           Szybki start · {step + 1}/{STEPS.length}
         </p>
-        <h2 id="onboarding-title" className="mt-2 text-xl font-semibold text-[#2e5f43]">
+        <h2 id="onboarding-title" className="mt-2 text-xl font-semibold text-[#FC6C26]">
           {current.title}
         </h2>
         <p className="mt-2 text-sm leading-6 text-stone-600">{current.body}</p>
@@ -51,7 +51,7 @@ function PlannerOnboarding({ isOpen, onClose }) {
             <span
               key={item.title}
               className={`h-1.5 flex-1 rounded-full ${
-                index <= step ? 'bg-[#3f7b57]' : 'bg-[#e8dfcf]'
+                index <= step ? 'bg-[#FC6C26]' : 'bg-[#f0d4b8]'
               }`}
             />
           ))}
@@ -71,7 +71,7 @@ function PlannerOnboarding({ isOpen, onClose }) {
               if (isLast) finish()
               else setStep((currentStep) => currentStep + 1)
             }}
-            className="soft-button ml-auto rounded-xl bg-[#3f7b57] px-4 py-2 text-sm font-semibold text-white hover:bg-[#356b4b]"
+            className="soft-button ml-auto rounded-xl bg-[#FC6C26] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E05518]"
           >
             {isLast ? 'Zaczynamy' : 'Dalej'}
           </button>

@@ -48,13 +48,13 @@ function LegalPage({ type, onClose }) {
   return (
     <div className="fixed inset-0 z-[2200] flex items-center justify-center bg-stone-900/45 p-4 backdrop-blur-sm">
       <div
-        className="soft-panel max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#e8dfcf] bg-white p-6 shadow-xl"
+        className="soft-panel max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#f0d4b8] bg-white p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="legal-title"
       >
         <div className="mb-5 flex items-start justify-between gap-3">
-          <h2 id="legal-title" className="text-2xl font-semibold text-[#2e5f43]">
+          <h2 id="legal-title" className="text-2xl font-semibold text-[#FC6C26]">
             {doc.title}
           </h2>
           <button
@@ -69,7 +69,7 @@ function LegalPage({ type, onClose }) {
         <div className="space-y-5 text-sm leading-7 text-stone-700">
           {doc.sections.map((section) => (
             <section key={section.heading}>
-              <h3 className="font-semibold text-[#2e5f43]">{section.heading}</h3>
+              <h3 className="font-semibold text-[#FC6C26]">{section.heading}</h3>
               <p className="mt-1">{section.body}</p>
             </section>
           ))}

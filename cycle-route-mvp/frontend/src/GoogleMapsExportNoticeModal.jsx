@@ -9,14 +9,14 @@ function GoogleMapsExportNoticeModal({ isOpen, onClose, onConfirm, onDownloadGpx
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
       <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-[#e8dfcf] bg-white p-6 shadow-xl"
+        className="soft-panel w-full max-w-md rounded-2xl border border-[#f0d4b8] bg-white p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="google-maps-notice-title"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 id="google-maps-notice-title" className="text-xl font-semibold text-[#2e5f43]">
+            <h2 id="google-maps-notice-title" className="text-xl font-semibold text-[#FC6C26]">
               Trasa w Google Maps może być niedokładna
             </h2>
             <p className="mt-2 text-sm leading-6 text-stone-600">
@@ -42,7 +42,7 @@ function GoogleMapsExportNoticeModal({ isOpen, onClose, onConfirm, onDownloadGpx
           <button
             type="button"
             onClick={handleConfirm}
-            className="soft-button flex-1 rounded-xl border border-[#dfd4c2] bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-[#f3ede2]"
+            className="soft-button flex-1 rounded-xl border border-[#e8c9a8] bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-[#F5E6C0]"
           >
             Rozumiem
           </button>

@@ -248,11 +248,11 @@ function SavedRoutes({
 
   if (!isAuthenticated) {
     return (
-      <div className="soft-panel rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4 text-sm text-stone-600">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+      <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-4 text-sm text-stone-700">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">
           Zapisane trasy
         </p>
-        <p className="mt-2">Zaloguj się, aby zapisywać i wczytywać swoje trasy.</p>
+        <p className="mt-2 text-stone-800">Zaloguj się, aby zapisywać i wczytywać swoje trasy.</p>
       </div>
     )
   }
@@ -262,9 +262,9 @@ function SavedRoutes({
     : routes
 
   return (
-    <div className="soft-panel rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4 text-sm">
+    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-4 text-sm text-stone-800">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">
           {detailMode ? 'Wczytana trasa' : 'Zapisane trasy'}
         </p>
         <div className="flex items-center gap-2">
@@ -272,7 +272,7 @@ function SavedRoutes({
             <button
               type="button"
               onClick={onBackToList}
-              className="text-xs font-medium text-[#3f7b57] hover:underline"
+              className="text-xs font-semibold text-[#E05518] hover:underline"
             >
               ← Lista
             </button>
@@ -281,7 +281,7 @@ function SavedRoutes({
             <button
               type="button"
               onClick={loadRoutes}
-              className="text-xs font-medium text-[#3f7b57] hover:underline"
+              className="text-xs font-semibold text-[#E05518] hover:underline"
             >
               Odśwież
             </button>
@@ -289,12 +289,12 @@ function SavedRoutes({
         </div>
       </div>
 
-      {isLoading && <p className="mt-3 text-stone-600">Ładowanie...</p>}
-      {error && <p className="mt-3 font-medium text-rose-700">{error}</p>}
-      {shareInfo && <p className="mt-3 font-medium text-emerald-700">{shareInfo}</p>}
+      {isLoading && <p className="mt-3 text-stone-700">Ładowanie...</p>}
+      {error && <p className="mt-3 font-medium text-rose-800">{error}</p>}
+      {shareInfo && <p className="mt-3 font-medium text-[#E05518]">{shareInfo}</p>}
 
       {!isLoading && visibleRoutes.length === 0 && !error && (
-        <p className="mt-3 text-stone-600">
+        <p className="mt-3 text-stone-700">
           {detailMode
             ? 'Nie znaleziono tej trasy.'
             : 'Brak zapisanych tras. Wyznacz trasę i kliknij „Zapisz trasę”.'}
@@ -309,10 +309,10 @@ function SavedRoutes({
           return (
             <li
               key={route.id}
-              className={`rounded-lg border p-3 text-stone-800 ${
+              className={`rounded-lg border-2 p-3 text-stone-800 ${
                 activeRouteId === route.id || detailMode
-                  ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
-                  : 'border-emerald-100 bg-white'
+                  ? 'border-[#E08A50] bg-orange-50 ring-1 ring-[#FC6C26]/30'
+                  : 'border-[#C4A574] bg-[#FFF4D6]'
               }`}
             >
               {renamingId === route.id ? (
@@ -320,13 +320,13 @@ function SavedRoutes({
                   <input
                     value={renameValue}
                     onChange={(event) => setRenameValue(event.target.value)}
-                    className="min-w-0 flex-1 rounded-lg border border-[#dfd4c2] px-2 py-1.5 text-sm"
+                    className="min-w-0 flex-1 rounded-lg border border-[#C4A574] px-2 py-1.5 text-sm text-stone-800"
                     aria-label="Nowa nazwa trasy"
                   />
                   <button
                     type="button"
                     onClick={() => handleRenameSave(route.id)}
-                    className="rounded-lg bg-[#3f7b57] px-2 py-1 text-xs font-semibold text-white"
+                    className="rounded-lg bg-[#FC6C26] px-2 py-1 text-xs font-semibold text-white"
                   >
                     OK
                   </button>
@@ -336,29 +336,29 @@ function SavedRoutes({
                       setRenamingId(null)
                       setRenameValue('')
                     }}
-                    className="rounded-lg border border-[#dfd4c2] px-2 py-1 text-xs"
+                    className="rounded-lg border border-[#C4A574] px-2 py-1 text-xs font-semibold text-stone-800"
                   >
                     Anuluj
                   </button>
                 </div>
               ) : (
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-[#2e5f43]">{route.name}</p>
+                  <p className="font-semibold text-[#E05518]">{route.name}</p>
                   {route.isPublic && (
-                    <span className="shrink-0 rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">
+                    <span className="shrink-0 rounded-md border border-sky-400 bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-900">
                       Publiczna
                     </span>
                   )}
                 </div>
               )}
 
-              <p className="mt-1 text-xs text-stone-500">
+              <p className="mt-1 text-xs font-medium text-stone-600">
                 {route.mode === 'Loop' ? 'Pętla' : 'A → B'}
                 {route.distanceKm != null && ` · ${route.distanceKm.toFixed(1)} km`}
                 {route.createdAt && ` · ${formatDate(route.createdAt)}`}
               </p>
               {needsNavRefresh && (
-                <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-5 text-amber-800">
+                <p className="mt-2 rounded-md border border-amber-400 bg-amber-50 px-2 py-1 text-[11px] leading-5 text-amber-950">
                   Stara trasa — przy „Jedź” odświeżymy instrukcje nawigacji automatycznie.
                 </p>
               )}
@@ -369,7 +369,7 @@ function SavedRoutes({
                       type="button"
                       onClick={() => onRideRoute(route)}
                       disabled={isPreparingRide}
-                      className="soft-button flex-1 rounded-lg bg-[#2e5f43] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#264f38] disabled:opacity-60"
+                      className="soft-button flex-1 rounded-lg bg-[#FC6C26] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#E05518] disabled:opacity-60"
                     >
                       {isPreparingRide ? 'Przygotowanie…' : 'Jedź'}
                     </button>
@@ -378,7 +378,7 @@ function SavedRoutes({
                     <button
                       type="button"
                       onClick={() => onOpenOnPhone(route)}
-                      className="soft-button flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#2e5f43] hover:bg-emerald-50"
+                      className="soft-button flex-1 rounded-lg border border-[#E08A50] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-[#E05518] hover:bg-[#FFE8D6]"
                     >
                       Na telefonie
                     </button>
@@ -391,8 +391,8 @@ function SavedRoutes({
                       onClick={() => onLoadRoute(route)}
                       className={`soft-button flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
                         activeRouteId === route.id
-                          ? 'bg-emerald-100 text-[#2e5f43] ring-1 ring-emerald-300'
-                          : 'border border-[#dfd4c2] bg-white text-stone-700 hover:bg-stone-50'
+                          ? 'border border-[#E08A50] bg-orange-100 text-[#E05518]'
+                          : 'border border-[#C4A574] bg-[#FFF4D6] text-stone-800 hover:bg-[#F5E6C0]'
                       }`}
                     >
                       {activeRouteId === route.id ? 'Wczytana ✓' : 'Wczytaj'}
@@ -404,21 +404,21 @@ function SavedRoutes({
                       setRenamingId(route.id)
                       setRenameValue(route.name)
                     }}
-                    className="soft-button rounded-lg border border-[#dfd4c2] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                    className="soft-button rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-[#F5E6C0]"
                   >
                     Zmień nazwę
                   </button>
                   <button
                     type="button"
                     onClick={() => handleTogglePublic(route)}
-                    className="soft-button rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                    className="soft-button rounded-lg border border-sky-400 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-950 hover:bg-sky-100"
                   >
                     {route.isPublic ? 'Prywatna' : 'Udostępnij'}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(route.id)}
-                    className="soft-button rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                    className="soft-button rounded-lg border border-rose-400 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-900 hover:bg-rose-100"
                   >
                     Usuń
                   </button>

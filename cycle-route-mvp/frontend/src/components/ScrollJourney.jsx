@@ -8,7 +8,6 @@ import {
   useTransform,
 } from 'motion/react'
 
-// Trasa w układzie viewBox 0 0 560 440 (od dołu-lewej do góry-prawej).
 const ROUTE_D =
   'M 60 384 C 132 384 150 300 220 288 C 292 276 300 196 362 198 C 424 200 430 126 500 72'
 
@@ -47,7 +46,7 @@ const STEP_BREAKPOINTS = [0, 0.22, 0.47, 0.72, 1]
 
 function StepDot({ point, at, progress }) {
   const scale = useTransform(progress, [at - 0.16, at], [0.55, 1])
-  const fill = useTransform(progress, [at - 0.06, at], ['#cdddd0', '#2e5f43'])
+  const fill = useTransform(progress, [at - 0.06, at], ['#f5e6c0', '#FC6C26'])
   const pulse = useTransform(progress, [at - 0.14, at - 0.02, at + 0.22], [0, 0.55, 0])
   const labelOpacity = useTransform(
     progress,
@@ -57,7 +56,7 @@ function StepDot({ point, at, progress }) {
 
   return (
     <g transform={`translate(${point.x} ${point.y})`}>
-      <motion.circle r="22" fill="#2e5f43" style={{ opacity: pulse }} />
+      <motion.circle r="22" fill="#FC6C26" style={{ opacity: pulse }} />
       <motion.circle
         r="10"
         stroke="#ffffff"
@@ -68,7 +67,7 @@ function StepDot({ point, at, progress }) {
         x="0"
         y="-26"
         textAnchor="middle"
-        className="fill-[#2e5f43] text-[15px] font-bold"
+        className="fill-burnt-orange text-[15px] font-bold"
         style={{ opacity: labelOpacity }}
       >
         {STEPS.find((s) => s.point === point)?.n}
@@ -79,8 +78,8 @@ function StepDot({ point, at, progress }) {
 
 function MapStage({ progress, offsetDistance }) {
   return (
-    <div className="relative w-full overflow-hidden rounded-[2rem] border border-[#e2dac9] bg-gradient-to-br from-[#f3f7f1] via-[#eef4ec] to-[#f6f0e6] p-4 shadow-[0_30px_70px_-30px_rgba(46,95,67,0.45)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.5] [background-image:linear-gradient(#dfe7da_1px,transparent_1px),linear-gradient(90deg,#dfe7da_1px,transparent_1px)] [background-size:34px_34px]" />
+    <div className="relative w-full overflow-hidden rounded-[2rem] border border-burnt-orange/25 bg-gradient-to-br from-vanilla via-[#fff8e8] to-vanilla-deep p-4 shadow-[0_30px_70px_-30px_rgba(252,108,38,0.4)]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.45] [background-image:linear-gradient(rgba(252,108,38,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(252,108,38,0.12)_1px,transparent_1px)] [background-size:34px_34px]" />
 
       <svg
         viewBox="0 0 560 440"
@@ -88,27 +87,25 @@ function MapStage({ progress, offsetDistance }) {
         role="img"
         aria-label="Animowana mapa z trasą rowerową"
       >
-        {/* dekoracje: tereny zielone i woda */}
         <path
           d="M 40 60 Q 110 30 180 70 Q 200 130 130 150 Q 60 140 40 90 Z"
-          fill="#dcebd9"
-          opacity="0.45"
+          fill="#FC6C26"
+          opacity="0.12"
         />
-        <ellipse cx="450" cy="330" rx="95" ry="60" fill="#cfe3d4" opacity="0.55" />
+        <ellipse cx="450" cy="330" rx="95" ry="60" fill="#FC6C26" opacity="0.1" />
         <path
           d="M -10 250 C 120 230 160 320 300 300 C 420 284 470 360 580 330"
           fill="none"
-          stroke="#bcd6e8"
+          stroke="#e8c9a0"
           strokeWidth="14"
           strokeLinecap="round"
-          opacity="0.6"
+          opacity="0.7"
         />
 
-        {/* trasa: ślad bazowy + rysowana linia */}
         <path
           d={ROUTE_D}
           fill="none"
-          stroke="#cdd9ce"
+          stroke="#f0d9b0"
           strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray="1 12"
@@ -116,26 +113,23 @@ function MapStage({ progress, offsetDistance }) {
         <motion.path
           d={ROUTE_D}
           fill="none"
-          stroke="#2e5f43"
+          stroke="#FC6C26"
           strokeWidth="6"
           strokeLinecap="round"
           style={{ pathLength: progress }}
         />
 
-        {/* znaczniki kroków */}
         {STEPS.map((step) => (
           <StepDot key={step.n} point={step.point} at={step.at} progress={progress} />
         ))}
 
-        {/* meta (flaga) */}
         <g transform="translate(500 72)">
-          <circle r="13" fill="#ffffff" stroke="#7a6248" strokeWidth="3" />
+          <circle r="13" fill="#ffffff" stroke="#FC6C26" strokeWidth="3" />
           <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="14">
             🏁
           </text>
         </g>
 
-        {/* rowerzysta jadący po trasie */}
         <motion.g
           style={{
             offsetPath: `path('${ROUTE_D}')`,
@@ -143,15 +137,15 @@ function MapStage({ progress, offsetDistance }) {
             offsetRotate: '0deg',
           }}
         >
-          <circle r="20" fill="#2e5f43" opacity="0.18" />
-          <circle r="15" fill="#2e5f43" stroke="#ffffff" strokeWidth="3" />
+          <circle r="20" fill="#FC6C26" opacity="0.18" />
+          <circle r="15" fill="#FC6C26" stroke="#ffffff" strokeWidth="3" />
           <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="16">
             🚴
           </text>
         </motion.g>
       </svg>
 
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-full bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2e5f43] shadow-sm backdrop-blur">
+      <div className="pointer-events-none absolute bottom-5 left-5 rounded-full bg-vanilla/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-burnt-orange shadow-sm backdrop-blur">
         Cycle Your Way · podgląd trasy
       </div>
     </div>
@@ -194,12 +188,10 @@ function ScrollJourney({ onStartPlanning }) {
   const isLast = active === STEPS.length - 1
 
   return (
-    // wysokość sekcji = długość scrolla; wnętrze jest przypięte (pinned).
     <section ref={ref} className="relative h-[240vh] md:h-[250vh]">
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto w-full max-w-7xl px-6 md:px-10">
           <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-            {/* scena z mapą */}
             <div className="order-2 lg:order-1">
               <motion.div
                 style={{ scale: mapScale, y: mapY }}
@@ -209,12 +201,11 @@ function ScrollJourney({ onStartPlanning }) {
               </motion.div>
             </div>
 
-            {/* panel kroków — jedna karta zmieniająca treść */}
             <div className="order-1 lg:order-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#7a6248]">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-burnt-orange">
                 Od pomysłu do trasy
               </p>
-              <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#2e5f43] md:text-4xl">
+              <h2 className="mt-2 text-2xl font-semibold leading-tight text-ink md:text-4xl">
                 Jak to działa.
               </h2>
 
@@ -226,23 +217,23 @@ function ScrollJourney({ onStartPlanning }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: direction > 0 ? -22 : 22, scale: 0.99 }}
                     transition={{ duration: 0.36, ease: 'easeOut' }}
-                    className="rounded-3xl border border-[#bcd6c3] bg-white/90 p-7 shadow-[0_24px_60px_-32px_rgba(46,95,67,0.5)] backdrop-blur md:p-9"
+                    className="rounded-3xl border border-burnt-orange/25 bg-vanilla/95 p-7 shadow-[0_24px_60px_-32px_rgba(252,108,38,0.45)] backdrop-blur md:p-9"
                   >
                     <div className="flex items-center gap-4">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#2e5f43] text-lg font-bold text-white">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-burnt-orange text-lg font-bold text-vanilla">
                         {step.n}
                       </span>
-                      <h3 className="text-xl font-semibold text-[#2e5f43] md:text-2xl">
+                      <h3 className="text-xl font-semibold text-ink md:text-2xl">
                         {step.title}
                       </h3>
                     </div>
-                    <p className="mt-4 text-base leading-8 text-stone-700">{step.text}</p>
+                    <p className="mt-4 text-base leading-8 text-ink-muted">{step.text}</p>
 
                     {isLast && (
                       <button
                         type="button"
                         onClick={onStartPlanning}
-                        className="soft-button mt-6 rounded-full bg-[#2e5f43] px-7 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-[#356b4b]"
+                        className="soft-button mt-6 rounded-full bg-burnt-orange px-7 py-3 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
                       >
                         Rozpocznij planowanie
                       </button>
@@ -251,7 +242,6 @@ function ScrollJourney({ onStartPlanning }) {
                 </AnimatePresence>
               </div>
 
-              {/* pasek postępu kroków */}
               <div className="mt-7 flex items-center gap-2">
                 {STEPS.map((s, index) => (
                   <button
@@ -262,14 +252,14 @@ function ScrollJourney({ onStartPlanning }) {
                   >
                     <span
                       className={`block h-1.5 rounded-full transition-all duration-500 ${
-                        index <= active ? 'bg-[#2e5f43]' : 'bg-[#d7e2d8]'
+                        index <= active ? 'bg-burnt-orange' : 'bg-burnt-orange/20'
                       }`}
                     />
                   </button>
                 ))}
               </div>
 
-              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-stone-400">
+              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-ink-muted/70">
                 Przewiń, aby przejść dalej · {step.n} / 04
               </p>
             </div>

@@ -146,7 +146,7 @@ function AddressAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-[#dbcdb8] bg-white px-3 py-2 text-sm outline-none ring-[#83a58b] transition focus:ring-2 disabled:bg-stone-100"
+        className="w-full rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-2 text-sm text-stone-800 outline-none ring-[#FC6C26]/40 transition placeholder:text-stone-500 focus:ring-2 disabled:bg-[#F5E6C0]"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
         aria-controls={showDropdown ? `${id}-suggestions` : undefined}
@@ -162,7 +162,7 @@ function AddressAutocomplete({
         <ul
           id={`${id}-suggestions`}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[#dbcdb8] bg-white py-1 shadow-lg"
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[#C4A574] bg-[#FFF4D6] py-1 shadow-lg"
         >
           {showHistoryDropdown && (
             <li className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
@@ -181,8 +181,8 @@ function AddressAutocomplete({
                 onClick={() => handleSelect(suggestion)}
                 className={`block w-full px-3 py-2 text-left text-sm transition ${
                   index === activeIndex
-                    ? 'bg-[#eef7f0] text-[#2e5f43]'
-                    : 'text-stone-700 hover:bg-[#f4faf4]'
+                    ? 'bg-[#FFE8D6] text-[#FC6C26]'
+                    : 'text-stone-700 hover:bg-[#F5E6C0]'
                 }`}
               >
                 {suggestion.name}
