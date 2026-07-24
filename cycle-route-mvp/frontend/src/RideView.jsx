@@ -112,7 +112,16 @@ function speak(text) {
   }
 }
 
-function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) {
+function RideView({
+  feature,
+  routeName,
+  mode,
+  avoidMainRoads = false,
+  preferAsphalt = false,
+  rideStyle = 'gravel',
+  climbPreference = 'normal',
+  onExit,
+}) {
   const [routeFeature, setRouteFeature] = useState(feature)
   const [isRecalculating, setIsRecalculating] = useState(false)
   const [recalcError, setRecalcError] = useState('')
@@ -188,6 +197,9 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
         destination: routeDestination,
         waypoints,
         avoidMainRoads,
+        preferAsphalt,
+        rideStyle,
+        climbPreference,
       })
 
       setRouteFeature(refreshed)
@@ -205,7 +217,7 @@ function RideView({ feature, routeName, mode, avoidMainRoads = false, onExit }) 
       recalcInFlightRef.current = false
       setIsRecalculating(false)
     }
-  }, [userPos, routeFeature, voiceOn, avoidMainRoads])
+  }, [userPos, routeFeature, voiceOn, avoidMainRoads, preferAsphalt, rideStyle, climbPreference])
 
   useEffect(() => {
     if (!navState?.isOffRoute || !userPos || isRecalculating || isPaused) {

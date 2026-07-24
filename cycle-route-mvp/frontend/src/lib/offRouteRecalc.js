@@ -6,12 +6,13 @@ import {
   sampleWaypointsFromCoordinates,
   toLatLng,
 } from './navigation'
+import { buildRoutePreferencePayload } from './routePreferences'
 
 export async function rerouteFromPosition({
   user,
   destination,
   waypoints,
-  avoidMainRoads = false,
+  ...preferences
 }) {
   if (!user) {
     throw new Error('Brak pozycji do przeliczenia trasy.')
@@ -23,8 +24,7 @@ export async function rerouteFromPosition({
   }
 
   const payload = {
-    profile: 'cycling-mountain',
-    avoidMainRoads,
+    ...buildRoutePreferencePayload(preferences),
   }
 
   if (hasWaypoints) {

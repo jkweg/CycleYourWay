@@ -5,8 +5,9 @@ import {
   sampleWaypointsAlongFeature,
   sampleWaypointsFromCoordinates,
 } from './navigation'
+import { buildRoutePreferencePayload } from './routePreferences'
 
-async function fetchRouteThroughWaypoints({ waypoints, avoidMainRoads = false }) {
+async function fetchRouteThroughWaypoints({ waypoints, ...preferences }) {
   if (!Array.isArray(waypoints) || waypoints.length < 2) {
     throw new Error('Za mało punktów do odświeżenia trasy.')
   }
@@ -16,8 +17,7 @@ async function fetchRouteThroughWaypoints({ waypoints, avoidMainRoads = false })
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       waypoints,
-      profile: 'cycling-mountain',
-      avoidMainRoads,
+      ...buildRoutePreferencePayload(preferences),
     }),
   })
   const data = await response.json()
@@ -38,7 +38,7 @@ async function fetchRouteThroughWaypoints({ waypoints, avoidMainRoads = false })
  */
 export async function refreshRouteForNavigation({
   feature,
-  avoidMainRoads = false,
+  ...preferences
 }) {
   if (!feature) {
     throw new Error('Brak danych trasy.')
@@ -49,14 +49,14 @@ export async function refreshRouteForNavigation({
     throw new Error('Nie można odczytać geometrii zapisanej trasy.')
   }
 
-  return fetchRouteThroughWaypoints({ waypoints, avoidMainRoads })
+  return fetchRouteThroughWaypoints({ waypoints, ...preferences })
 }
 
 export async function ensureNavigableFeature({
   feature,
   mode,
   distanceKm,
-  avoidMainRoads = false,
+  ...preferences
 }) {
   if (routeHasTurnByTurnInstructions(feature)) {
     return { feature, refreshed: false }
@@ -68,7 +68,7 @@ export async function ensureNavigableFeature({
 
   const refreshedFeature = await refreshRouteForNavigation({
     feature,
-    avoidMainRoads,
+    ...preferences,
   })
 
   if (!routeHasTurnByTurnInstructions(refreshedFeature)) {

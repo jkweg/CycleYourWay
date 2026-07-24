@@ -17,6 +17,7 @@ import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
 import RouteAlternativesCompare from './components/RouteAlternativesCompare'
 import MapRouteDetailsBar from './components/MapRouteDetailsBar'
+import RoutePreferencesPanel from './components/RoutePreferencesPanel'
 import PlannerOnboarding from './components/PlannerOnboarding'
 import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
 import ProfileModal from './components/ProfileModal'
@@ -31,6 +32,12 @@ import {
   summarizeRouteSurfaces,
 } from './lib/routeStats'
 import { pushAddressHistory } from './lib/addressHistory'
+import {
+  DEFAULT_CLIMB_PREFERENCE,
+  DEFAULT_RIDE_STYLE,
+  buildRoutePreferencePayload,
+  getAsphaltSharePercent,
+} from './lib/routePreferences'
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
@@ -98,6 +105,9 @@ function App() {
   const [isSearchingEnd, setIsSearchingEnd] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [avoidMainRoads, setAvoidMainRoads] = useState(false)
+  const [rideStyle, setRideStyle] = useState(DEFAULT_RIDE_STYLE)
+  const [climbPreference, setClimbPreference] = useState(DEFAULT_CLIMB_PREFERENCE)
+  const [preferAsphalt, setPreferAsphalt] = useState(false)
   const [routeGeoJson, setRouteGeoJson] = useState(null)
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [lockedPoint, setLockedPoint] = useState(null)
@@ -205,6 +215,22 @@ function App() {
     [selectedFeature],
   )
 
+  const routePreferencePayload = useMemo(
+    () =>
+      buildRoutePreferencePayload({
+        rideStyle,
+        climbPreference,
+        preferAsphalt,
+        avoidMainRoads,
+      }),
+    [rideStyle, climbPreference, preferAsphalt, avoidMainRoads],
+  )
+
+  const asphaltSharePercent = useMemo(
+    () => getAsphaltSharePercent(selectedFeature),
+    [selectedFeature],
+  )
+
   const clearPlannedRoute = () => {
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
@@ -223,13 +249,11 @@ function App() {
           ? {
               start: waypoints[0],
               end: waypoints[1],
-              profile: 'cycling-mountain',
-              avoidMainRoads,
+              ...routePreferencePayload,
             }
           : {
               waypoints,
-              profile: 'cycling-mountain',
-              avoidMainRoads,
+              ...routePreferencePayload,
             }
 
       const response = await fetch(`${API_BASE}/api/route`, {
@@ -552,7 +576,7 @@ function App() {
         body: JSON.stringify({
           start: startPoint,
           distance: loopDistanceKm,
-          avoidMainRoads,
+          ...routePreferencePayload,
         }),
       })
 
@@ -838,7 +862,7 @@ function App() {
         feature,
         mode,
         distanceKm,
-        avoidMainRoads,
+        ...routePreferencePayload,
       })
 
       if (refreshed) {
@@ -852,7 +876,7 @@ function App() {
         feature: navigableFeature,
         name,
         mode,
-        avoidMainRoads,
+        ...routePreferencePayload,
       })
     } catch (prepareError) {
       setError(
@@ -1305,6 +1329,9 @@ function App() {
           routeName={rideRoute.name}
           mode={rideRoute.mode}
           avoidMainRoads={Boolean(rideRoute.avoidMainRoads)}
+          preferAsphalt={Boolean(rideRoute.preferAsphalt)}
+          rideStyle={rideRoute.rideStyle || DEFAULT_RIDE_STYLE}
+          climbPreference={rideRoute.climbPreference || DEFAULT_CLIMB_PREFERENCE}
           onExit={() => setRideRoute(null)}
         />
       </Suspense>
@@ -1447,21 +1474,16 @@ function App() {
 
           {plannerPanel === 'plan' && (
           <div className="soft-panel space-y-4 rounded-xl border border-[#e8dfcf] bg-[#fcfaf5] p-4">
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#dfd4c2] bg-white px-3 py-2 text-sm text-stone-700">
-              <input
-                type="checkbox"
-                checked={avoidMainRoads}
-                onChange={(event) => setAvoidMainRoads(event.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[#3f7b57]"
-              />
-              <span>
-                Unikaj dróg głównych
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  Wybieramy trasę z najmniejszym udziałem dróg głównych (gdy pełne
-                  uniknięcie nie jest możliwe).
-                </span>
-              </span>
-            </label>
+            <RoutePreferencesPanel
+              rideStyle={rideStyle}
+              climbPreference={climbPreference}
+              preferAsphalt={preferAsphalt}
+              avoidMainRoads={avoidMainRoads}
+              onRideStyleChange={setRideStyle}
+              onClimbPreferenceChange={setClimbPreference}
+              onPreferAsphaltChange={setPreferAsphalt}
+              onAvoidMainRoadsChange={setAvoidMainRoads}
+            />
 
             {routeMode === 'AtoB' ? (
               <>
@@ -1840,6 +1862,8 @@ function App() {
           routeDisplayKey={routeDisplayKey}
           surfaces={selectedRouteSurfaces}
           steepness={selectedRouteSteepness}
+          preferAsphalt={preferAsphalt}
+          asphaltSharePercent={asphaltSharePercent}
         />
       </div>
             </div>

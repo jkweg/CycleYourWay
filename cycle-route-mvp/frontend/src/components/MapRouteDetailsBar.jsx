@@ -11,6 +11,8 @@ function MapRouteDetailsBar({
   routeDisplayKey,
   surfaces = { known: [], unknownPercent: null },
   steepness = { climbs: [], totalClimbPercent: null },
+  preferAsphalt = false,
+  asphaltSharePercent = null,
 }) {
   if (!routeStats || !selectedRouteGeoJson) return null
 
@@ -22,9 +24,24 @@ function MapRouteDetailsBar({
   const climbs = steepness?.climbs || []
   const hasSurfaceInfo = knownSurfaces.length > 0 || unknownPercent != null
   const hasSteepness = climbs.length > 0
+  const showAsphaltWarning =
+    preferAsphalt &&
+    asphaltSharePercent != null &&
+    asphaltSharePercent < 85
 
   return (
     <div className="shrink-0 border-t border-[#e8e2d6] bg-white/95 backdrop-blur-sm">
+      {showAsphaltWarning && (
+        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:px-4">
+          Preferujesz asfalt, a wybrana trasa ma ok. {asphaltSharePercent}% asfaltu
+          w danych mapy. Reszta to inna nawierzchnia albo brak tagu w OSM.
+        </p>
+      )}
+      {preferAsphalt && asphaltSharePercent != null && asphaltSharePercent >= 85 && (
+        <p className="border-b border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 md:px-4">
+          Asfalt według mapy: ok. {asphaltSharePercent}% trasy.
+        </p>
+      )}
       <div className="grid gap-3 p-3 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,14rem)] md:items-stretch md:gap-4 md:p-4">
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-100 bg-[#f5fbf6] px-3 py-3 md:flex-col md:items-stretch md:justify-center">
           <div>

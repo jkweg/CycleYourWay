@@ -144,7 +144,25 @@ describe('routeStats', () => {
     expect(result.known.every((row) => !row.isUnknown)).toBe(true)
   })
 
-  it('builds alternatives list', () => {
+  it('computes asphalt share from surface extras', async () => {
+    const { getAsphaltSharePercent } = await import('./routePreferences')
+    const feature = {
+      properties: {
+        extras: {
+          surface: {
+            summary: [
+              { value: 3, amount: 70 },
+              { value: 1, amount: 10 },
+              { value: 12, amount: 20 },
+            ],
+          },
+        },
+      },
+    }
+    expect(getAsphaltSharePercent(feature)).toBe(80)
+  })
+
+  it('builds route alternatives from geojson', () => {
     const geojson = {
       type: 'FeatureCollection',
       features: [

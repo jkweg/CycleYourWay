@@ -4,16 +4,27 @@ const dotenv = require("dotenv");
 const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 const {
-  rankFeaturesByMainRoadShare,
+  rankFeaturesByPreferences,
 } = require("./lib/routeRanking");
 const { geocodePolishAddress, reverseGeocodePolish } = require("./lib/geocode");
+const {
+  buildOrsRoutingOptions,
+  profilesToTry,
+  resolveClimbPreference,
+  resolveOrsProfile,
+  resolveRideStyle,
+} = require("./lib/routePreferences");
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
-const ALLOWED_PROFILES = new Set(["cycling-mountain", "cycling-regular"]);
+const ALLOWED_PROFILES = new Set([
+  "cycling-mountain",
+  "cycling-regular",
+  "cycling-road",
+]);
 
 if (!ORS_API_KEY) {
   console.warn(
@@ -122,14 +133,25 @@ const friendlyOrsError = (apiData) => {
 // ORS waytype: 1 = state_road, 2 = road (traktujemy jako drogi główne)
 const BASE_EXTRA_INFO = ["surface", "steepness"];
 
-const getExtraInfo = (avoidMainRoads) =>
-  avoidMainRoads ? [...BASE_EXTRA_INFO, "waytype"] : BASE_EXTRA_INFO;
+const getExtraInfo = ({ avoidMainRoads = false, preferAsphalt = false } = {}) => {
+  const extras = [...BASE_EXTRA_INFO];
+  if (avoidMainRoads) extras.push("waytype");
+  if (preferAsphalt && !extras.includes("surface")) extras.push("surface");
+  return extras;
+};
 
-const optimizeGeoJsonForMainRoads = (geoJson) => {
+const optimizeGeoJsonForPreferences = (
+  geoJson,
+  { avoidMainRoads = false, preferAsphalt = false } = {},
+) => {
   if (!geoJson?.features?.length) return geoJson;
+  if (!avoidMainRoads && !preferAsphalt) return geoJson;
   return {
     ...geoJson,
-    features: rankFeaturesByMainRoadShare(geoJson.features),
+    features: rankFeaturesByPreferences(geoJson.features, {
+      avoidMainRoads,
+      preferAsphalt,
+    }),
   };
 };
 
@@ -228,7 +250,16 @@ app.post("/api/route", async (req, res) => {
       });
     }
 
-    const { start, end, waypoints, profile, avoidMainRoads } = req.body || {};
+    const {
+      start,
+      end,
+      waypoints,
+      profile,
+      rideStyle,
+      climbPreference,
+      preferAsphalt,
+      avoidMainRoads,
+    } = req.body || {};
 
     let coordinates;
     if (Array.isArray(waypoints) && waypoints.length >= 2) {
@@ -256,13 +287,17 @@ app.post("/api/route", async (req, res) => {
       });
     }
 
+    const style = resolveRideStyle(rideStyle);
+    const climbs = resolveClimbPreference(climbPreference);
+    const wantAsphalt = Boolean(preferAsphalt);
+    const wantQuiet = Boolean(avoidMainRoads);
+
     const requestedProfile = ALLOWED_PROFILES.has(profile)
       ? profile
-      : "cycling-mountain";
-    const profilesToTry =
-      requestedProfile === "cycling-mountain"
-        ? ["cycling-mountain", "cycling-regular"]
-        : [requestedProfile];
+      : resolveOrsProfile(style);
+    const profilesQueue = [
+      ...new Set([requestedProfile, ...profilesToTry(style)]),
+    ];
 
     const routeStart = {
       lat: coordinates[0][1],
@@ -277,14 +312,23 @@ app.post("/api/route", async (req, res) => {
       coordinates.length === 2 &&
       straightLineMeters <= ALTERNATIVE_ROUTES_MAX_METERS;
 
+    const routingOptions = buildOrsRoutingOptions({ climbPreference: climbs });
+
     const routePayload = {
       coordinates,
       elevation: true,
       instructions: true,
       instructions_format: "text",
       language: "pl",
-      extra_info: getExtraInfo(Boolean(avoidMainRoads)),
+      extra_info: getExtraInfo({
+        avoidMainRoads: wantQuiet,
+        preferAsphalt: wantAsphalt,
+      }),
     };
+
+    if (routingOptions) {
+      routePayload.options = routingOptions;
+    }
 
     if (useAlternatives) {
       routePayload.alternative_routes = {
@@ -296,8 +340,9 @@ app.post("/api/route", async (req, res) => {
 
     let orsResponse;
     let lastError;
+    let usedProfile = requestedProfile;
 
-    for (const currentProfile of profilesToTry) {
+    for (const currentProfile of profilesQueue) {
       const orsUrl = `https://api.openrouteservice.org/v2/directions/${currentProfile}/geojson`;
 
       try {
@@ -308,9 +353,10 @@ app.post("/api/route", async (req, res) => {
           },
           timeout: 15000,
         });
+        usedProfile = currentProfile;
         if (currentProfile !== requestedProfile) {
           console.warn(
-            `OpenRouteService fallback used: ${requestedProfile} -> ${currentProfile}`
+            `OpenRouteService fallback used: ${requestedProfile} -> ${currentProfile}`,
           );
         }
         break;
@@ -319,15 +365,16 @@ app.post("/api/route", async (req, res) => {
         const status = error.response?.status;
         const detailsText = JSON.stringify(error.response?.data || "");
         const canFallback =
-          currentProfile === "cycling-mountain" &&
-          (status === 403 || /disallow/i.test(detailsText));
+          status === 403 ||
+          /disallow/i.test(detailsText) ||
+          status === 404;
 
         if (!canFallback) {
           throw error;
         }
 
         console.warn(
-          "cycling-mountain not allowed for this key, retrying with cycling-regular"
+          `${currentProfile} failed (${status}), trying next cycling profile`,
         );
       }
     }
@@ -336,9 +383,20 @@ app.post("/api/route", async (req, res) => {
       throw lastError || new Error("No response from OpenRouteService");
     }
 
-    const responseData = avoidMainRoads
-      ? optimizeGeoJsonForMainRoads(orsResponse.data)
-      : orsResponse.data;
+    const responseData = optimizeGeoJsonForPreferences(orsResponse.data, {
+      avoidMainRoads: wantQuiet,
+      preferAsphalt: wantAsphalt,
+    });
+
+    if (responseData?.features?.[0]?.properties) {
+      responseData.features[0].properties.cyw_prefs = {
+        rideStyle: style,
+        climbPreference: climbs,
+        preferAsphalt: wantAsphalt,
+        avoidMainRoads: wantQuiet,
+        orsProfile: usedProfile,
+      };
+    }
 
     return res.status(200).json(responseData);
   } catch (error) {
@@ -387,7 +445,14 @@ app.post("/api/loop", async (req, res) => {
       });
     }
 
-    const { start, distance, avoidMainRoads } = req.body || {};
+    const {
+      start,
+      distance,
+      avoidMainRoads,
+      rideStyle,
+      climbPreference,
+      preferAsphalt,
+    } = req.body || {};
     const distanceKm = Number(distance);
 
     if (!isValidPoint(start) || !Number.isFinite(distanceKm) || distanceKm <= 0) {
@@ -397,12 +462,21 @@ app.post("/api/loop", async (req, res) => {
       });
     }
 
-    const orsUrl =
-      "https://api.openrouteservice.org/v2/directions/cycling-mountain/geojson";
+    const style = resolveRideStyle(rideStyle);
+    const climbs = resolveClimbPreference(climbPreference);
+    const wantAsphalt = Boolean(preferAsphalt);
+    const wantQuiet = Boolean(avoidMainRoads);
+    const profileQueue = profilesToTry(style);
     const loopLengthMeters = Math.round(distanceKm * 1000);
-    const extraInfo = getExtraInfo(Boolean(avoidMainRoads));
+    const extraInfo = getExtraInfo({
+      avoidMainRoads: wantQuiet,
+      preferAsphalt: wantAsphalt,
+    });
+    const preferenceOptions = buildOrsRoutingOptions({
+      climbPreference: climbs,
+    });
 
-    const requestLoop = async (seed) => {
+    const requestLoop = async (seed, profileName) => {
       const routePayload = {
         coordinates: [[start.lng, start.lat]],
         options: {
@@ -411,6 +485,9 @@ app.post("/api/loop", async (req, res) => {
             points: 3,
             seed,
           },
+          ...(preferenceOptions?.profile_params
+            ? { profile_params: preferenceOptions.profile_params }
+            : {}),
         },
         elevation: true,
         instructions: true,
@@ -419,36 +496,77 @@ app.post("/api/loop", async (req, res) => {
         extra_info: extraInfo,
       };
 
-      const orsResponse = await axios.post(orsUrl, routePayload, {
-        headers: {
-          Authorization: ORS_API_KEY,
-          "Content-Type": "application/json",
+      const orsResponse = await axios.post(
+        `https://api.openrouteservice.org/v2/directions/${profileName}/geojson`,
+        routePayload,
+        {
+          headers: {
+            Authorization: ORS_API_KEY,
+            "Content-Type": "application/json",
+          },
+          timeout: 20000,
         },
-        timeout: 20000,
-      });
+      );
 
       return orsResponse.data?.features?.[0] || null;
     };
 
+    const requestLoopWithFallback = async (seed) => {
+      let lastError;
+      for (const profileName of profileQueue) {
+        try {
+          const feature = await requestLoop(seed, profileName);
+          if (feature) return feature;
+        } catch (error) {
+          lastError = error;
+          const status = error.response?.status;
+          const detailsText = JSON.stringify(error.response?.data || "");
+          if (
+            status !== 403 &&
+            status !== 404 &&
+            !/disallow/i.test(detailsText)
+          ) {
+            throw error;
+          }
+        }
+      }
+      if (lastError) throw lastError;
+      return null;
+    };
+
     let bestFeature;
-    if (avoidMainRoads) {
-      const seeds = Array.from({ length: 5 }, () => Math.floor(Math.random() * 90));
+    if (wantQuiet || wantAsphalt) {
+      const seeds = Array.from({ length: 5 }, () =>
+        Math.floor(Math.random() * 90),
+      );
       const candidates = (
-        await Promise.all(seeds.map((seed) => requestLoop(seed)))
+        await Promise.all(seeds.map((seed) => requestLoopWithFallback(seed)))
       ).filter(Boolean);
 
       if (candidates.length === 0) {
         throw new Error("No loop route candidates returned by OpenRouteService.");
       }
 
-      const rankedCandidates = rankFeaturesByMainRoadShare(candidates);
+      const rankedCandidates = rankFeaturesByPreferences(candidates, {
+        avoidMainRoads: wantQuiet,
+        preferAsphalt: wantAsphalt,
+      });
       bestFeature = rankedCandidates[0];
     } else {
-      bestFeature = await requestLoop(Math.floor(Math.random() * 90));
+      bestFeature = await requestLoopWithFallback(Math.floor(Math.random() * 90));
     }
 
     if (!bestFeature) {
       throw new Error("No loop route returned by OpenRouteService.");
+    }
+
+    if (bestFeature.properties) {
+      bestFeature.properties.cyw_prefs = {
+        rideStyle: style,
+        climbPreference: climbs,
+        preferAsphalt: wantAsphalt,
+        avoidMainRoads: wantQuiet,
+      };
     }
 
     return res.status(200).json({
