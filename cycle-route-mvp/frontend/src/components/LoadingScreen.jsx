@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import LoadingCyclist from './LoadingCyclist'
 
-const MIN_MS = 3000
+const MIN_MS = 2000
 const FADE_MS = 700
 
 function LoadingScreen({ onComplete }) {
