@@ -77,7 +77,11 @@ function LandingPage({ onStartPlanning }) {
           </div>
         </section>
 
-        <section id="about" className="relative border-y border-burnt-orange/15 bg-vanilla/85 py-20 backdrop-blur-sm md:py-28">
+        <section
+          id="about"
+          className="relative bg-vanilla/82 py-20 backdrop-blur-sm md:py-28"
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#3d2a20]/22 to-transparent" />
           <div className="mx-auto max-w-7xl px-6 md:px-10">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-burnt-orange">

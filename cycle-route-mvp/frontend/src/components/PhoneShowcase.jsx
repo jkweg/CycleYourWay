@@ -78,8 +78,11 @@ function PhoneShowcase({ onStartPlanning }) {
   return (
     <section
       ref={ref}
-      className="relative overflow-hidden border-y border-burnt-orange/20 bg-[#3d2a20] py-24 text-vanilla"
+      className="relative overflow-hidden bg-[#3d2a20] py-24 text-vanilla"
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-10 bg-gradient-to-b from-vanilla/10 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-10 bg-gradient-to-t from-vanilla/10 to-transparent" />
+
       <motion.div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(252,108,38,0.45),transparent_65%)]"
         style={{ opacity: glow }}

@@ -188,7 +188,11 @@ function ScrollJourney({ onStartPlanning }) {
   const isLast = active === STEPS.length - 1
 
   return (
-    <section ref={ref} className="relative h-[240vh] md:h-[250vh]">
+    <section
+      ref={ref}
+      className="relative h-[240vh] bg-[linear-gradient(180deg,rgba(255,244,214,0.72)_0%,rgba(255,244,214,0.56)_18%,rgba(255,244,214,0.56)_82%,rgba(255,244,214,0.72)_100%)] md:h-[250vh]"
+    >
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(255,244,214,0.18)_100%)]" />
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto w-full max-w-7xl px-6 md:px-10">
           <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">

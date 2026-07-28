@@ -1,0 +1,36 @@
+.circular-text {
+  margin: 0 auto;
+  border-radius: 50%;
+  width: 200px;
+  position: relative;
+  height: 200px;
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+  transform-origin: 50% 50%;
+  -webkit-transform-origin: 50% 50%;
+}
+
+.circular-text span {
+  position: absolute;
+  display: inline-block;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  font-size: 24px;
+  transition: all 0.5s cubic-bezier(0, 0, 0, 1);
+}
+
+.navbar-circular-text {
+  width: 56px;
+  height: 56px;
+  color: rgba(255, 244, 214, 0.88);
+  font-weight: 700;
+}
+
+.navbar-circular-text span {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}

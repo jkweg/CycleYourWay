@@ -1362,7 +1362,10 @@ function App() {
           />
         </>
       ) : (
-        <section ref={plannerSectionRef} className="relative z-10 px-3 pb-3 md:px-5 md:pb-5">
+        <section
+          ref={plannerSectionRef}
+          className="relative z-10 px-3 pb-3 pt-3 md:px-5 md:pb-5 md:pt-4"
+        >
           <div className="mx-auto flex max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row">
             <PlannerSidebar
               open={sidebarOpen}

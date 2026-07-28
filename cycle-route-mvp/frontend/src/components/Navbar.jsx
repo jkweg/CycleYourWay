@@ -1,3 +1,5 @@
+import CircularText from './CircularText'
+
 function Navbar({
   view,
   onGoHome,
@@ -19,17 +21,17 @@ function Navbar({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-burnt-orange/15 bg-vanilla/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-burnt-orange/25 bg-[#4a3226]/95 text-vanilla/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 md:px-10">
         <button
           type="button"
           onClick={onGoHome}
-          className="text-left text-sm font-semibold uppercase tracking-[0.18em] text-burnt-orange transition hover:text-burnt-orange-dark"
+          className="text-left text-sm font-semibold uppercase tracking-[0.18em] text-vanilla/90 transition hover:text-burnt-orange"
         >
           Cycle Your Way
         </button>
 
-        <nav className="hidden items-center gap-8 text-sm font-medium text-ink-muted md:flex">
+        <nav className="hidden items-center gap-8 text-sm font-medium text-vanilla/80 md:flex">
           <button
             type="button"
             onClick={() => scrollToSection('about')}
@@ -57,7 +59,7 @@ function Navbar({
           {isAuthenticated ? (
             <>
               <span
-                className="hidden max-w-[10rem] truncate text-xs text-ink-muted sm:inline"
+                className="hidden max-w-[10rem] truncate text-xs text-vanilla/70 sm:inline"
                 title={userEmail}
               >
                 {userEmail}
@@ -97,6 +99,20 @@ function Navbar({
               Strona główna
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={onGoHome}
+            aria-label="Przejdź do strony głównej"
+            className="hidden items-center pl-1 lg:flex"
+          >
+            <CircularText
+              text="CYCLE*YOUR*WAY*"
+              onHover="speedUp"
+              spinDuration={18}
+              className="navbar-circular-text"
+            />
+          </button>
         </div>
       </div>
     </header>
