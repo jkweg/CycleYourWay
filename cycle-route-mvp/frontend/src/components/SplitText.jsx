@@ -49,11 +49,14 @@ const SplitText = ({
 
   const [fontsLoaded, setFontsLoaded] = useState(false)
   useEffect(() => {
-    if (document.fonts?.status === 'loaded') {
-      setFontsLoaded(true)
+    const fontsReady = document.fonts?.ready
+    if (!fontsReady) {
+      // Defer to avoid synchronous setState within the effect.
+      Promise.resolve().then(() => setFontsLoaded(true))
       return
     }
-    document.fonts?.ready?.then(() => setFontsLoaded(true))
+
+    fontsReady.then(() => setFontsLoaded(true))
   }, [])
 
   useGSAP(
@@ -66,7 +69,7 @@ const SplitText = ({
       if (el._rbsplitInstance) {
         try {
           el._rbsplitInstance.revert()
-        } catch (_) {
+        } catch {
           /* noop */
         }
         el._rbsplitInstance = null
@@ -145,7 +148,7 @@ const SplitText = ({
         })
         try {
           splitInstance.revert()
-        } catch (_) {
+        } catch {
           /* noop */
         }
         el._rbsplitInstance = null

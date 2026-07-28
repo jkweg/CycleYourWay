@@ -6,20 +6,8 @@ const BRAND_TITLE = 'Cycle Your Way'
 /** Mask stroke thick enough to cover Great Vibes letter bodies while revealing fill. */
 const FILLED_MASK_STROKE = 18
 
-function getStrokeState(length, remaining) {
-  if (length <= 0 || remaining <= 0) {
-    return { dasharray: length, dashoffset: length, drawn: 0 }
-  }
-
-  if (remaining >= length) {
-    return { dasharray: length, dashoffset: 0, drawn: length }
-  }
-
-  return {
-    dasharray: length,
-    dashoffset: length - remaining,
-    drawn: remaining,
-  }
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
 }
 
 /**
@@ -34,6 +22,7 @@ function LoadingHandwritingTitle({
 }) {
   const pathRefs = useRef([])
   const [pathLengths, setPathLengths] = useState([])
+  const [penPoint, setPenPoint] = useState(null)
 
   const glyphs = useMemo(
     () => brandTitle.glyphs.filter((glyph) => glyph.d),
@@ -48,24 +37,19 @@ function LoadingHandwritingTitle({
 
   const ratio = Math.min(1, Math.max(0, progress / 100))
   const totalLength = pathLengths.reduce((sum, length) => sum + length, 0)
-  let remaining = totalLength * ratio
+  const totalDraw = totalLength * ratio
 
-  let penGlyphIndex = -1
-  let penPoint = null
+  const prefixSumFor = (index) =>
+    pathLengths.slice(0, index).reduce((sum, length) => sum + length, 0)
 
   const strokeStates = pathLengths.map((length, index) => {
-    const state = getStrokeState(length, remaining)
-    remaining -= state.drawn
-
-    if (state.drawn > 0) {
-      penGlyphIndex = index
-      const node = pathRefs.current[index]
-      if (node) {
-        penPoint = node.getPointAtLength(state.drawn)
-      }
+    const start = prefixSumFor(index)
+    const drawn = clamp(totalDraw - start, 0, length)
+    return {
+      dasharray: length,
+      dashoffset: length - drawn,
+      drawn,
     }
-
-    return state
   })
 
   const isOutline = variant === 'outline'
@@ -75,7 +59,22 @@ function LoadingHandwritingTitle({
       : 0
     : 1
   const strokeOpacity = isOutline ? 1 - fillOpacity * 0.85 : 0
-  const showPen = penPoint && ratio > 0.01 && ratio < 0.995
+
+  const shouldShowPen = ratio > 0.01 && ratio < 0.995
+  const penGlyphIndex = shouldShowPen
+    ? strokeStates.findIndex((s) => s.drawn > 0)
+    : -1
+
+  useLayoutEffect(() => {
+    if (!shouldShowPen) return
+
+    const node = penGlyphIndex >= 0 ? pathRefs.current[penGlyphIndex] : null
+    if (!node) return
+
+    const drawn = penGlyphIndex >= 0 ? strokeStates[penGlyphIndex]?.drawn : 0
+    const point = node.getPointAtLength(drawn)
+    setPenPoint(point)
+  }, [penGlyphIndex, shouldShowPen, strokeStates])
 
   return (
     <div className={className}>
@@ -159,7 +158,7 @@ function LoadingHandwritingTitle({
                 />
               )}
 
-              {showPen && penGlyphIndex === index && penPoint ? (
+              {shouldShowPen && penGlyphIndex === index && penPoint ? (
                 <circle
                   className="loading-screen__pen-tip"
                   cx={penPoint.x}
