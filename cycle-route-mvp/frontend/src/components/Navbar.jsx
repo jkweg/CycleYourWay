@@ -5,6 +5,7 @@ function Navbar({
   onGoHome,
   onStartPlanning,
   onOpenAuth,
+  onOpenProfile,
   onLogout,
   isAuthenticated,
   userEmail,
@@ -59,11 +60,18 @@ function Navbar({
           {isAuthenticated ? (
             <>
               <span
-                className="hidden max-w-[10rem] truncate text-xs text-vanilla/70 sm:inline"
+                className="hidden max-w-[8rem] truncate text-xs text-vanilla/70 lg:inline"
                 title={userEmail}
               >
                 {userEmail}
               </span>
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                className="rounded-lg border border-burnt-orange/25 bg-burnt-orange px-3 py-2 text-xs font-semibold text-vanilla transition hover:bg-burnt-orange-dark"
+              >
+                Moje konto
+              </button>
               <button
                 type="button"
                 onClick={onLogout}

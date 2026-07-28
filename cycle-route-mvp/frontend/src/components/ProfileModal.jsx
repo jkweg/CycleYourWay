@@ -93,12 +93,16 @@ function StatCard({ label, value, hint }) {
   )
 }
 
+function findLabel(items, id, fallback) {
+  return items.find((item) => item.id === id)?.label || fallback
+}
+
 function ProfileModal({ isOpen, onClose, onApplied }) {
   const { user, isAuthenticated, logout } = useAuth()
   const [profile, setProfile] = useState(() => defaultProfile(user))
   const [routes, setRoutes] = useState([])
   const [rides, setRides] = useState([])
-  const [activeTab, setActiveTab] = useState('profile')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -509,6 +513,76 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
                     <StatCard label="Dystans" value={`${stats.rideDistanceKm.toFixed(1)} km`} />
                     <StatCard label="Czas" value={stats.rideTime} />
                   </div>
+
+                  <section className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FC6C26]">
+                          Twoje preferencje
+                        </h3>
+                        <p className="mt-1 text-sm text-stone-600">
+                          Te ustawienia są automatycznie używane przy planowaniu tras.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('profile')}
+                        className="rounded-lg border border-[#E08A50] bg-white px-3 py-1.5 text-xs font-semibold text-[#E05518]"
+                      >
+                        Edytuj
+                      </button>
+                    </div>
+                    <dl className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Styl jazdy
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {findLabel(RIDE_STYLES, profile.ride_style, 'Gravel')}
+                        </dd>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Nawierzchnia
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {findLabel(SURFACE_PREFERENCES, profile.surface_preference, 'Mieszana')}
+                        </dd>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Podjazdy
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {findLabel(CLIMB_PREFERENCES, profile.climb_preference, 'Normalne')}
+                        </dd>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Dystans pętli
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {profile.default_loop_distance_km} km
+                        </dd>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Typowy dystans
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {profile.preferred_distance_km} km
+                        </dd>
+                      </div>
+                      <div className="rounded-lg bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Czas jazdy
+                        </dt>
+                        <dd className="mt-1 font-bold text-stone-800">
+                          {profile.preferred_duration_min} min
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
 
                   <section>
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FC6C26]">Ostatnie jazdy</h3>

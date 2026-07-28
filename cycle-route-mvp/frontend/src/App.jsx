@@ -33,8 +33,10 @@ import {
 } from './lib/routeStats'
 import { pushAddressHistory } from './lib/addressHistory'
 import {
+  CLIMB_PREFERENCES,
   DEFAULT_CLIMB_PREFERENCE,
   DEFAULT_RIDE_STYLE,
+  RIDE_STYLES,
   buildRoutePreferencePayload,
   getAsphaltSharePercent,
 } from './lib/routePreferences'
@@ -246,6 +248,18 @@ function App() {
   const asphaltSharePercent = useMemo(
     () => getAsphaltSharePercent(selectedFeature),
     [selectedFeature],
+  )
+
+  const rideStyleLabel = useMemo(
+    () => RIDE_STYLES.find((style) => style.id === rideStyle)?.label || 'Gravel',
+    [rideStyle],
+  )
+
+  const climbPreferenceLabel = useMemo(
+    () =>
+      CLIMB_PREFERENCES.find((preference) => preference.id === climbPreference)?.label ||
+      'Normalne',
+    [climbPreference],
   )
 
   const clearPlannedRoute = () => {
@@ -1334,31 +1348,71 @@ function App() {
   }
 
   const accountBar = (
-    <div className="soft-panel flex items-center justify-between gap-3 rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm">
+    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm">
       {isAuthenticated ? (
-        <>
-          <p className="min-w-0 truncate text-stone-700" title={user?.email}>
-            <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
-          </p>
-          <div className="flex shrink-0 gap-2">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-stone-700" title={user?.email}>
+              <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(true)}
+                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+              >
+                Moje konto
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+              >
+                Wyloguj
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
             >
-              Profil
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                Styl
+              </span>
+              <span className="block truncate text-xs font-bold text-[#E05518]">
+                {rideStyleLabel}
+              </span>
             </button>
             <button
               type="button"
-              onClick={logout}
-              className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+              onClick={() => setShowProfileModal(true)}
+              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
             >
-              Wyloguj
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                Podjazdy
+              </span>
+              <span className="block truncate text-xs font-bold text-[#E05518]">
+                {climbPreferenceLabel}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowProfileModal(true)}
+              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
+            >
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                Pętla
+              </span>
+              <span className="block truncate text-xs font-bold text-[#E05518]">
+                {loopDistanceKm} km
+              </span>
             </button>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="flex items-center justify-between gap-3">
           <p className="text-xs leading-5 text-stone-700">
             Zaloguj się, aby zapisywać trasy.
           </p>
@@ -1369,7 +1423,7 @@ function App() {
           >
             Konto
           </button>
-        </>
+        </div>
       )}
     </div>
   )
@@ -1400,6 +1454,7 @@ function App() {
         onGoHome={goToHome}
         onStartPlanning={goToPlanner}
         onOpenAuth={() => setShowAuthModal(true)}
+        onOpenProfile={() => setShowProfileModal(true)}
         onLogout={logout}
         isAuthenticated={isAuthenticated}
         userEmail={user?.email}
