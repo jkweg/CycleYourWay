@@ -17,7 +17,7 @@ const formatDate = (value) => {
 }
 
 const SELECT_FIELDS =
-  'id, name, mode, geojson, distance_km, duration_seconds, is_public, created_at, user_id'
+  'id, name, mode, geojson, distance_km, duration_seconds, is_public, is_favorite, tags, created_at, user_id'
 const SELECT_FIELDS_LEGACY =
   'id, name, mode, geojson, distance_km, duration_seconds, created_at, user_id'
 
@@ -47,6 +47,11 @@ function SavedRoutes({
   const [error, setError] = useState('')
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
+  const [tagEditingId, setTagEditingId] = useState(null)
+  const [tagValue, setTagValue] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterMode, setFilterMode] = useState('all')
+  const [sortMode, setSortMode] = useState('newest')
   const [shareInfo, setShareInfo] = useState('')
 
   const applyRoutes = useCallback((data) => {
@@ -246,6 +251,65 @@ function SavedRoutes({
     }
   }
 
+  const handleToggleFavorite = async (route) => {
+    const nextFavorite = !route.isFavorite
+    try {
+      const { data, error: updateError } = await supabase
+        .from('saved_routes')
+        .update({ is_favorite: nextFavorite })
+        .eq('id', route.id)
+        .eq('user_id', user.id)
+        .select('id')
+
+      if (updateError) throw new Error(updateError.message)
+      if (!data?.length) throw new Error('Nie zmieniono ulubionej trasy.')
+
+      setRoutes((current) =>
+        current.map((item) =>
+          item.id === route.id ? { ...item, isFavorite: nextFavorite } : item,
+        ),
+      )
+    } catch (favoriteError) {
+      setError(
+        favoriteError.message.includes('is_favorite') || favoriteError.message.includes('column')
+          ? 'Brak kolumny is_favorite — uruchom zaktualizowany supabase/schema.sql.'
+          : favoriteError.message || 'Nie udało się zmienić ulubionej trasy.',
+      )
+    }
+  }
+
+  const handleTagsSave = async (routeId) => {
+    const tags = tagValue
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+
+    try {
+      const { data, error: updateError } = await supabase
+        .from('saved_routes')
+        .update({ tags })
+        .eq('id', routeId)
+        .eq('user_id', user.id)
+        .select('id')
+
+      if (updateError) throw new Error(updateError.message)
+      if (!data?.length) throw new Error('Nie zapisano tagów trasy.')
+
+      setRoutes((current) =>
+        current.map((route) => (route.id === routeId ? { ...route, tags } : route)),
+      )
+      setTagEditingId(null)
+      setTagValue('')
+    } catch (tagError) {
+      setError(
+        tagError.message.includes('tags') || tagError.message.includes('column')
+          ? 'Brak kolumny tags — uruchom zaktualizowany supabase/schema.sql.'
+          : tagError.message || 'Nie udało się zapisać tagów.',
+      )
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-4 text-sm text-stone-700">
@@ -257,9 +321,27 @@ function SavedRoutes({
     )
   }
 
-  const visibleRoutes = detailMode
+  const visibleRoutes = (detailMode
     ? routes.filter((route) => route.id === activeRouteId)
     : routes
+  )
+    .filter((route) => {
+      if (filterMode === 'favorite' && !route.isFavorite) return false
+      if (filterMode === 'public' && !route.isPublic) return false
+      if (filterMode === 'loop' && route.mode !== 'Loop') return false
+      if (filterMode === 'atob' && route.mode !== 'AtoB') return false
+      const query = searchTerm.trim().toLowerCase()
+      if (!query) return true
+      return (
+        route.name.toLowerCase().includes(query) ||
+        route.tags.some((tag) => tag.toLowerCase().includes(query))
+      )
+    })
+    .sort((a, b) => {
+      if (sortMode === 'distance') return (b.distanceKm || 0) - (a.distanceKm || 0)
+      if (sortMode === 'favorite') return Number(b.isFavorite) - Number(a.isFavorite)
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    })
 
   return (
     <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-4 text-sm text-stone-800">
@@ -288,6 +370,39 @@ function SavedRoutes({
           )}
         </div>
       </div>
+
+      {!detailMode && routes.length > 0 && (
+        <div className="mt-3 space-y-2 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-3">
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Szukaj po nazwie lub tagu"
+            className="w-full rounded-lg border border-[#C4A574] bg-white px-3 py-2 text-sm outline-none ring-[#FC6C26]/30 focus:ring-2"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={filterMode}
+              onChange={(event) => setFilterMode(event.target.value)}
+              className="rounded-lg border border-[#C4A574] bg-white px-2 py-2 text-xs font-semibold text-stone-700"
+            >
+              <option value="all">Wszystkie</option>
+              <option value="favorite">Ulubione</option>
+              <option value="public">Publiczne</option>
+              <option value="loop">Pętle</option>
+              <option value="atob">A → B</option>
+            </select>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value)}
+              className="rounded-lg border border-[#C4A574] bg-white px-2 py-2 text-xs font-semibold text-stone-700"
+            >
+              <option value="newest">Najnowsze</option>
+              <option value="favorite">Ulubione najpierw</option>
+              <option value="distance">Najdłuższe</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {isLoading && <p className="mt-3 text-stone-700">Ładowanie...</p>}
       {error && <p className="mt-3 font-medium text-rose-800">{error}</p>}
@@ -343,12 +458,22 @@ function SavedRoutes({
                 </div>
               ) : (
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-[#E05518]">{route.name}</p>
-                  {route.isPublic && (
-                    <span className="shrink-0 rounded-md border border-sky-400 bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-900">
-                      Publiczna
-                    </span>
-                  )}
+                  <p className="font-semibold text-[#E05518]">
+                    {route.isFavorite ? '* ' : ''}
+                    {route.name}
+                  </p>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {route.isFavorite && (
+                      <span className="rounded-md border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
+                        Ulubiona
+                      </span>
+                    )}
+                    {route.isPublic && (
+                      <span className="rounded-md border border-sky-400 bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-900">
+                        Publiczna
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -362,6 +487,31 @@ function SavedRoutes({
                   Stara trasa — przy „Jedź” odświeżymy instrukcje nawigacji automatycznie.
                 </p>
               )}
+              {tagEditingId === route.id ? (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={tagValue}
+                    onChange={(event) => setTagValue(event.target.value)}
+                    placeholder="tagi po przecinku"
+                    className="min-w-0 flex-1 rounded-lg border border-[#C4A574] px-2 py-1.5 text-xs text-stone-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleTagsSave(route.id)}
+                    className="rounded-lg bg-[#FC6C26] px-2 py-1 text-xs font-semibold text-white"
+                  >
+                    OK
+                  </button>
+                </div>
+              ) : route.tags.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {route.tags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-900">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-2 space-y-2">
                 <div className="flex gap-2">
                   {onRideRoute && (
@@ -414,6 +564,23 @@ function SavedRoutes({
                     className="soft-button rounded-lg border border-sky-400 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-950 hover:bg-sky-100"
                   >
                     {route.isPublic ? 'Prywatna' : 'Udostępnij'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFavorite(route)}
+                    className="soft-button rounded-lg border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    {route.isFavorite ? 'Odznacz' : 'Ulubiona'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTagEditingId(route.id)
+                      setTagValue(route.tags.join(', '))
+                    }}
+                    className="soft-button rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-[#F5E6C0]"
+                  >
+                    Tagi
                   </button>
                   <button
                     type="button"

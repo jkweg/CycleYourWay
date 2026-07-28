@@ -24,9 +24,9 @@ import {
 } from './lib/navigation'
 import { getRouteDestination, buildRejoinWaypoints, rerouteFromPosition } from './lib/offRouteRecalc'
 
-const OFF_ROUTE_TRIGGER_MS = 10_000
-const OFF_ROUTE_MIN_DISTANCE_M = 50
-const RECALC_COOLDOWN_MS = 45_000
+const OFF_ROUTE_TRIGGER_MS = 15_000
+const OFF_ROUTE_MIN_DISTANCE_M = 90
+const RECALC_COOLDOWN_MS = 60_000
 
 // Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
 // czy znamy kierunek). Obrót strzałki ustawiamy potem bezpośrednio na
@@ -121,6 +121,7 @@ function RideView({
   rideStyle = 'gravel',
   climbPreference = 'normal',
   onExit,
+  onRideComplete,
 }) {
   const [routeFeature, setRouteFeature] = useState(feature)
   const [isRecalculating, setIsRecalculating] = useState(false)
@@ -176,7 +177,7 @@ function RideView({
     isPausedRef.current = isPaused
   }, [isPaused])
 
-  const handleRecalculateRoute = useCallback(async () => {
+  const handleRecalculateRoute = useCallback(async ({ silent = false } = {}) => {
     if (!userPos || recalcInFlightRef.current) return
 
     const sourceFeature = originalFeatureRef.current || routeFeature
@@ -190,6 +191,10 @@ function RideView({
     recalcInFlightRef.current = true
     setIsRecalculating(true)
     setRecalcError('')
+
+    if (voiceOn && !silent) {
+      speak('Zjechałeś z trasy. Przeliczam nową drogę.')
+    }
 
     try {
       const refreshed = await rerouteFromPosition({
@@ -227,7 +232,8 @@ function RideView({
       return
     }
 
-    if (navState.offRouteDistance < OFF_ROUTE_MIN_DISTANCE_M) {
+    const triggerDistance = Math.max(OFF_ROUTE_MIN_DISTANCE_M, navState.offRouteThreshold || 0)
+    if (navState.offRouteDistance < triggerDistance) {
       offRouteSinceRef.current = null
       return
     }
@@ -242,7 +248,7 @@ function RideView({
     const sinceLastRecalc = now - lastRecalcAtRef.current
 
     if (offRouteDuration >= OFF_ROUTE_TRIGGER_MS && sinceLastRecalc >= RECALC_COOLDOWN_MS) {
-      handleRecalculateRoute()
+      handleRecalculateRoute({ silent: false })
     }
   }, [navState, userPos, isRecalculating, isPaused, handleRecalculateRoute])
 
@@ -304,12 +310,13 @@ function RideView({
       user: userPos,
       hintIndex: hintRef.current,
       averageSpeedMps: speed,
+      accuracyMeters: accuracy,
     })
     if (state) {
       hintRef.current = state.nearestIndex
       setNavState(state)
     }
-  }, [userPos, gpsSpeed, coordinates, cumulative, maneuvers, isPaused])
+  }, [userPos, gpsSpeed, accuracy, coordinates, cumulative, maneuvers, isPaused])
 
   useEffect(() => {
     let wakeLock = null
@@ -328,6 +335,33 @@ function RideView({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
       wakeLock?.release?.().catch(() => undefined)
+    }
+  }, [])
+
+  useEffect(() => {
+    let locked = false
+
+    const lockPortrait = async () => {
+      try {
+        const orientation = window.screen?.orientation
+        if (orientation?.lock) {
+          await orientation.lock('portrait')
+          locked = true
+        }
+      } catch {
+        // Część przeglądarek pozwala blokować orientację tylko w PWA/fullscreen.
+      }
+    }
+
+    lockPortrait()
+
+    return () => {
+      if (!locked) return
+      try {
+        window.screen?.orientation?.unlock?.()
+      } catch {
+        // ignore
+      }
     }
   }, [])
 
@@ -424,6 +458,11 @@ function RideView({
     onExit()
   }
 
+  const handleCloseSummary = () => {
+    onRideComplete?.(rideSummary)
+    onExit()
+  }
+
   const routeLine = useMemo(() => {
     if (!routeFeature) return null
     return { type: 'FeatureCollection', features: [routeFeature] }
@@ -484,7 +523,7 @@ function RideView({
           </dl>
           <button
             type="button"
-            onClick={onExit}
+            onClick={handleCloseSummary}
             className="mt-6 w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-orange-400"
           >
             Zamknij

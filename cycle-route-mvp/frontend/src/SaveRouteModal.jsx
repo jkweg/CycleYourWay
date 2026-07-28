@@ -9,6 +9,8 @@ function SaveRouteModal({
   onSave,
 }) {
   const [name, setName] = useState(defaultName)
+  const [tagsText, setTagsText] = useState('')
+  const [isFavorite, setIsFavorite] = useState(false)
 
   if (!isOpen) return null
 
@@ -16,7 +18,12 @@ function SaveRouteModal({
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave(trimmed, mode)
+    const tags = tagsText
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+    onSave({ name: trimmed, tags, isFavorite }, mode)
   }
 
   return (
@@ -63,6 +70,32 @@ function SaveRouteModal({
               className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
             />
           </div>
+
+          <div>
+            <label htmlFor="route-tags" className="mb-1 block text-sm font-medium text-stone-700">
+              Tagi
+            </label>
+            <input
+              id="route-tags"
+              type="text"
+              maxLength={160}
+              value={tagsText}
+              onChange={(event) => setTagsText(event.target.value)}
+              placeholder="np. gravel, trening, rodzina"
+              className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
+            />
+            <p className="mt-1 text-xs text-stone-500">Oddziel tagi przecinkami.</p>
+          </div>
+
+          <label className="flex items-start gap-3 rounded-xl border border-burnt-orange/20 bg-vanilla-deep p-3 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={isFavorite}
+              onChange={(event) => setIsFavorite(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>Dodaj do ulubionych tras.</span>
+          </label>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <button

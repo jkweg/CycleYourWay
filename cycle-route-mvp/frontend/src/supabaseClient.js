@@ -43,6 +43,8 @@ export function mapSavedRouteRow(row) {
     distanceKm: row.distance_km != null ? Number(row.distance_km) : null,
     durationSeconds: row.duration_seconds,
     isPublic: Boolean(row.is_public),
+    isFavorite: Boolean(row.is_favorite),
+    tags: Array.isArray(row.tags) ? row.tags.filter(Boolean) : [],
     createdAt: row.created_at,
   }
 }

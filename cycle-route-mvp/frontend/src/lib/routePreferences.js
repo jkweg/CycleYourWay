@@ -14,6 +14,16 @@ export const RIDE_STYLES = [
     label: 'MTB',
     hint: 'Większa tolerancja na ścieżki i teren.',
   },
+  {
+    id: 'city',
+    label: 'Miejski',
+    hint: 'Spokojne trasy użytkowe i dojazdowe.',
+  },
+  {
+    id: 'trekking',
+    label: 'Trekking',
+    hint: 'Dłuższe wycieczki z mieszanym komfortem nawierzchni.',
+  },
 ]
 
 export const CLIMB_PREFERENCES = [
@@ -36,6 +46,22 @@ export const CLIMB_PREFERENCES = [
 
 export const DEFAULT_RIDE_STYLE = 'gravel'
 export const DEFAULT_CLIMB_PREFERENCE = 'normal'
+
+export const FITNESS_LEVELS = [
+  { id: 'beginner', label: 'Początkujący' },
+  { id: 'regular', label: 'Regularny' },
+  { id: 'advanced', label: 'Zaawansowany' },
+]
+
+export const SURFACE_PREFERENCES = [
+  { id: 'asphalt', label: 'Asfalt' },
+  { id: 'mixed', label: 'Mieszana' },
+  { id: 'gravel', label: 'Gravel' },
+  { id: 'offroad', label: 'Teren' },
+]
+
+export const DEFAULT_FITNESS_LEVEL = 'regular'
+export const DEFAULT_SURFACE_PREFERENCE = 'mixed'
 
 /** Surface codes treated as asphalt-like for “prefer asphalt”. */
 export const ASPHALT_SURFACE_CODES = new Set([1, 3])

@@ -3,7 +3,7 @@ const PRIVACY = {
   sections: [
     {
       heading: 'Jakie dane zbieramy',
-      body: 'Adres e-mail i hasło (przez Supabase Auth), zapisane trasy (geometria, nazwa, metadane) oraz opcjonalnie preferencje profilu. Lokalizacja GPS jest używana tylko w trybie jazdy w Twojej przeglądarce i nie jest wysyłana na nasze serwery poza zapytaniami o trasę.',
+      body: 'Adres e-mail i hasło (przez Supabase Auth), profil rowerzysty, preferencje planowania, zapisane trasy, tagi tras oraz historię zakończonych jazd. Lokalizacja GPS jest używana w trybie jazdy i może być zapisana w historii tylko wtedy, gdy aplikacja włączy taki zapis.',
     },
     {
       heading: 'Do czego używamy danych',
@@ -11,11 +11,15 @@ const PRIVACY = {
     },
     {
       heading: 'Udostępnianie',
-      body: 'Dane konta i tras przechowuje Supabase. Punkty start/koniec i geometria tras są przekazywane do OpenRouteService w celu wyznaczenia trasy. Publiczne linki share pokazują trasę osobom, które mają link.',
+      body: 'Dane konta, tras i jazd przechowuje Supabase. Punkty start/koniec i geometria tras są przekazywane do OpenRouteService w celu wyznaczenia trasy. Publiczne linki share pokazują trasę osobom, które mają link.',
     },
     {
       heading: 'Twoje prawa',
-      body: 'Możesz usunąć zapisane trasy w aplikacji. Aby usunąć konto, skontaktuj się z właścicielem projektu lub usuń użytkownika w panelu Supabase (środowisko demonstracyjne / portfolio).',
+      body: 'Możesz usuwać zapisane trasy, eksportować dane konta oraz usunąć konto w panelu profilu. Usunięcie konta usuwa profil, trasy i historię jazd powiązane z użytkownikiem.',
+    },
+    {
+      heading: 'Prywatność tras',
+      body: 'Trasy są domyślnie prywatne. Oznaczenie trasy jako publicznej powoduje, że każdy posiadacz linku może zobaczyć jej przebieg.',
     },
   ],
 }
@@ -25,7 +29,7 @@ const TERMS = {
   sections: [
     {
       heading: 'Charakter usługi',
-      body: 'Cycle Your Way to aplikacja demonstracyjna / portfolio do planowania tras rowerowych. Nie gwarantujemy ciągłej dostępności ani bezpieczeństwa na drodze — zawsze stosuj się do przepisów i warunków terenowych.',
+      body: 'Cycle Your Way pomaga planować i zapisywać trasy rowerowe. Nie gwarantujemy ciągłej dostępności ani bezpieczeństwa na drodze — zawsze stosuj się do przepisów, oznakowania i warunków terenowych.',
     },
     {
       heading: 'Dane map i routingu',

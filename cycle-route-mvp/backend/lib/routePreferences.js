@@ -6,6 +6,8 @@ const RIDE_STYLE_TO_PROFILE = {
   road: "cycling-road",
   gravel: "cycling-regular",
   mtb: "cycling-mountain",
+  city: "cycling-regular",
+  trekking: "cycling-regular",
 };
 
 const PROFILE_FALLBACKS = {

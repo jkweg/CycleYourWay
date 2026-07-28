@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCumulativeDistances,
+  computeNavState,
+  findNearestIndex,
   sampleWaypointsFromCoordinates,
 } from './navigation'
 import { buildRejoinWaypoints } from './offRouteRecalc'
@@ -31,5 +34,44 @@ describe('navigation waypoints', () => {
     expect(waypoints.length).toBeGreaterThanOrEqual(2)
     expect(waypoints[0]).toEqual({ lat: 0, lng: 0.015 })
     expect(waypoints[waypoints.length - 1]).toEqual({ lat: 0, lng: 0.04 })
+  })
+
+  it('keeps nearest matching near the current route progress', () => {
+    const coordinates = [
+      [0, 0],
+      [0.001, 0],
+      [0.002, 0],
+      [0.003, 0],
+      [0.004, 0],
+      [0.004, 0.001],
+      [0.003, 0.001],
+      [0.002, 0.001],
+      [0.001, 0.001],
+      [0, 0.001],
+    ]
+
+    const nearest = findNearestIndex(coordinates, { lat: 0.001, lng: 0.002 }, 7)
+
+    expect(nearest.index).toBeGreaterThanOrEqual(5)
+  })
+
+  it('uses GPS accuracy when deciding off-route state', () => {
+    const coordinates = [
+      [0, 0],
+      [0.001, 0],
+      [0.002, 0],
+    ]
+    const cumulative = buildCumulativeDistances(coordinates)
+
+    const state = computeNavState({
+      coordinates,
+      cumulative,
+      maneuvers: [],
+      user: { lat: 0.00045, lng: 0.001 },
+      accuracyMeters: 40,
+    })
+
+    expect(state.isOffRoute).toBe(false)
+    expect(state.offRouteThreshold).toBeGreaterThanOrEqual(70)
   })
 })

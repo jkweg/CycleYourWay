@@ -153,7 +153,9 @@ function App() {
     const loadProfilePreferences = async () => {
       const { data, error: profileError } = await supabase
         .from('profiles')
-        .select('prefer_avoid_main_roads, default_loop_distance_km')
+        .select(
+          'prefer_avoid_main_roads, default_loop_distance_km, ride_style, climb_preference, prefer_asphalt, surface_preference, preferred_distance_km',
+        )
         .eq('id', user.id)
         .maybeSingle()
 
@@ -162,12 +164,27 @@ function App() {
       if (typeof data.prefer_avoid_main_roads === 'boolean') {
         setAvoidMainRoads(data.prefer_avoid_main_roads)
       }
+      if (typeof data.prefer_asphalt === 'boolean' || data.surface_preference === 'asphalt') {
+        setPreferAsphalt(Boolean(data.prefer_asphalt) || data.surface_preference === 'asphalt')
+      }
+      if (typeof data.ride_style === 'string') {
+        setRideStyle(data.ride_style)
+      }
+      if (typeof data.climb_preference === 'string') {
+        setClimbPreference(data.climb_preference)
+      }
       if (
         Number.isFinite(data.default_loop_distance_km) &&
         data.default_loop_distance_km >= 5 &&
         data.default_loop_distance_km <= 100
       ) {
         setLoopDistanceKm(data.default_loop_distance_km)
+      } else if (
+        Number.isFinite(data.preferred_distance_km) &&
+        data.preferred_distance_km >= 5 &&
+        data.preferred_distance_km <= 100
+      ) {
+        setLoopDistanceKm(data.preferred_distance_km)
       }
     }
 
@@ -641,10 +658,15 @@ function App() {
     setShowSaveRouteModal(true)
   }
 
-  const handleSaveRouteConfirm = async (name, saveMode = 'insert') => {
+  const handleSaveRouteConfirm = async (routeDraft, saveMode = 'insert') => {
     setIsSavingRoute(true)
     setError('')
     setSaveSuccessMessage('')
+
+    const draft =
+      typeof routeDraft === 'string'
+        ? { name: routeDraft, tags: [], isFavorite: false }
+        : routeDraft || { name: '', tags: [], isFavorite: false }
 
     try {
       const {
@@ -687,7 +709,7 @@ function App() {
             : null
 
       const payload = {
-        name: name.trim(),
+        name: draft.name.trim(),
         mode: routeMode,
         geojson: geojsonToSave,
         distance_km:
@@ -696,6 +718,8 @@ function App() {
             : null,
         duration_seconds:
           durationSeconds != null ? Math.round(durationSeconds) : null,
+        tags: Array.isArray(draft.tags) ? draft.tags : [],
+        is_favorite: Boolean(draft.isFavorite),
       }
 
       const shouldUpdate =
@@ -852,7 +876,7 @@ function App() {
     ? `${window.location.origin}/?ride=${loadedSavedRouteId}`
     : ''
 
-  const startRideWithFeature = async ({ feature, name, mode, distanceKm }) => {
+  const startRideWithFeature = async ({ feature, name, mode, distanceKm, routeId = null }) => {
     setIsPreparingRide(true)
     setError('')
     setSaveSuccessMessage('')
@@ -876,6 +900,7 @@ function App() {
         feature: navigableFeature,
         name,
         mode,
+        routeId,
         ...routePreferencePayload,
       })
     } catch (prepareError) {
@@ -898,6 +923,7 @@ function App() {
       name: currentRouteName,
       mode: routeMode,
       distanceKm: routeMode === 'Loop' ? loopDistanceKm : undefined,
+      routeId: loadedSavedRouteId,
     })
   }
 
@@ -1029,6 +1055,7 @@ function App() {
       name: savedRoute.name || (savedRoute.mode === 'Loop' ? 'Pętla treningowa' : 'Trasa A → B'),
       mode: savedRoute.mode,
       distanceKm: savedRoute.distanceKm,
+      routeId: savedRoute.id,
     })
   }
 
@@ -1046,6 +1073,32 @@ function App() {
       routeName: savedRoute.name || 'Trasa',
     })
     setShowOpenOnPhone(true)
+  }
+
+  const handleRideComplete = async (summary) => {
+    if (!summary || !isAuthenticated || !user?.id || !rideRoute) return
+
+    try {
+      const { error: rideError } = await supabase.from('rides').insert({
+        user_id: user.id,
+        route_id: rideRoute.routeId || null,
+        route_name: rideRoute.name || null,
+        mode: rideRoute.mode || null,
+        status: 'completed',
+        distance_meters: Math.round(summary.distanceMeters || 0),
+        duration_seconds: Math.round(summary.durationSeconds || 0),
+        avg_speed_kmh: Number.isFinite(summary.avgSpeedKmh)
+          ? Math.round(summary.avgSpeedKmh * 100) / 100
+          : null,
+        completed_at: new Date().toISOString(),
+      })
+
+      if (rideError && !isMissingColumnError(rideError.message)) {
+        setError(rideError.message || 'Nie udało się zapisać historii jazdy.')
+      }
+    } catch {
+      // Historia jazd nie powinna blokować zamknięcia nawigacji.
+    }
   }
 
   useEffect(() => {
@@ -1150,6 +1203,7 @@ function App() {
         name: data.name,
         mode: data.mode,
         distanceKm: data.distance_km,
+        routeId: data.id,
       })
       setPendingRideId(null)
       window.history.replaceState({}, '', window.location.pathname)
@@ -1333,6 +1387,7 @@ function App() {
           rideStyle={rideRoute.rideStyle || DEFAULT_RIDE_STYLE}
           climbPreference={rideRoute.climbPreference || DEFAULT_CLIMB_PREFERENCE}
           onExit={() => setRideRoute(null)}
+          onRideComplete={handleRideComplete}
         />
       </Suspense>
     )
@@ -1861,6 +1916,15 @@ function App() {
         onApplied={(profile) => {
           if (typeof profile.prefer_avoid_main_roads === 'boolean') {
             setAvoidMainRoads(profile.prefer_avoid_main_roads)
+          }
+          if (typeof profile.prefer_asphalt === 'boolean' || profile.surface_preference === 'asphalt') {
+            setPreferAsphalt(Boolean(profile.prefer_asphalt) || profile.surface_preference === 'asphalt')
+          }
+          if (typeof profile.ride_style === 'string') {
+            setRideStyle(profile.ride_style)
+          }
+          if (typeof profile.climb_preference === 'string') {
+            setClimbPreference(profile.climb_preference)
           }
           if (Number.isFinite(profile.default_loop_distance_km)) {
             setLoopDistanceKm(profile.default_loop_distance_km)

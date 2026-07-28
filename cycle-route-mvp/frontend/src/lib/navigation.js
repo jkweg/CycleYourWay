@@ -183,10 +183,11 @@ export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
   let bestIndex = 0
   let bestDistance = Number.POSITIVE_INFINITY
 
-  // Szukamy w oknie wokół ostatniej pozycji, aby uniknąć "przeskoków"
-  // na trasach, które zbliżają się do siebie (pętle).
-  const windowRadius = 400
-  const start = Math.max(0, hintIndex - 40)
+  // Szukamy głównie do przodu względem ostatniego indeksu, żeby na trasach
+  // z punktami pośrednimi / pętlami nie przeskakiwać na wcześniejsze fragmenty.
+  const windowRadius = 500
+  const backtrackWindow = 8
+  const start = Math.max(0, hintIndex - backtrackWindow)
   const end = Math.min(coordinates.length, hintIndex + windowRadius)
 
   const scan = (from, to) => {
@@ -202,11 +203,12 @@ export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
 
   scan(start, end)
 
-  // Jeśli wynik w oknie jest podejrzanie daleki, przeszukaj całość.
-  if (bestDistance > 120) {
+  // Jeśli wynik w oknie jest bardzo daleki, szukamy szerzej, ale nadal nie
+  // wracamy daleko za aktualny postęp. To stabilizuje odległość do manewru.
+  if (bestDistance > 220) {
     bestDistance = Number.POSITIVE_INFINITY
-    bestIndex = 0
-    scan(0, coordinates.length)
+    bestIndex = start
+    scan(start, coordinates.length)
   }
 
   return { index: bestIndex, distance: bestDistance }
@@ -235,6 +237,7 @@ export const computeNavState = ({
   user,
   hintIndex = 0,
   averageSpeedMps = 4.5,
+  accuracyMeters = null,
 }) => {
   if (!coordinates.length) return null
 
@@ -258,12 +261,18 @@ export const computeNavState = ({
     ? maneuvers.find((maneuver) => maneuver.coordIndex > nextManeuver.coordIndex) || null
     : null
 
-  const isOffRoute = nearest.distance > 45
+  const offRouteThreshold = Math.max(
+    70,
+    Number.isFinite(accuracyMeters) ? accuracyMeters * 1.8 : 0,
+  )
+  const hasUsableAccuracy = !Number.isFinite(accuracyMeters) || accuracyMeters <= 85
+  const isOffRoute = hasUsableAccuracy && nearest.distance > offRouteThreshold
   const remainingSeconds = remainingDistance / averageSpeedMps
 
   return {
     nearestIndex: nearest.index,
     offRouteDistance: nearest.distance,
+    offRouteThreshold,
     isOffRoute,
     remainingDistance,
     remainingSeconds,
