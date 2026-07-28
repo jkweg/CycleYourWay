@@ -27,31 +27,31 @@ function ElevationChart({ routeData, compact = false }) {
     Math.ceil(maxElev + padding),
   ]
 
-  const chartHeight = compact ? 'h-full min-h-[120px] md:min-h-[96px]' : 'h-48'
+  const chartHeight = compact ? 'h-full min-h-0' : 'h-48'
   const gradientId = compact ? 'elevationGradientCompact' : 'elevationGradient'
 
   return (
     <div
       className={
         compact
-          ? 'flex h-full flex-col p-3'
+          ? 'flex h-full min-h-0 flex-col px-2 py-1'
           : 'soft-panel rounded-xl border border-orange-100 bg-[#FFF4D6] p-4'
       }
     >
       <p
-        className={`text-xs font-semibold uppercase tracking-wide text-orange-800 ${
-          compact ? 'mb-1' : ''
+        className={`font-semibold uppercase tracking-wide text-orange-800 ${
+          compact ? 'mb-0.5 text-[9px]' : 'text-xs'
         }`}
       >
         Profil wysokościowy
       </p>
-      <div className={`mt-1 w-full ${chartHeight} ${compact ? 'flex-1' : 'mt-3'}`}>
+      <div className={`w-full ${chartHeight} ${compact ? 'min-h-0 flex-1' : 'mt-3'}`}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
             margin={
               compact
-                ? { top: 4, right: 4, bottom: 0, left: 0 }
+                ? { top: 2, right: 2, bottom: -4, left: 0 }
                 : { top: 8, right: 8, bottom: 8, left: 0 }
             }
           >
@@ -64,15 +64,16 @@ function ElevationChart({ routeData, compact = false }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ddcf" />
             <XAxis
               dataKey="distance"
-              tick={{ fontSize: compact ? 11 : 12, fill: '#4c4338' }}
+              tick={{ fontSize: compact ? 9 : 12, fill: '#4c4338' }}
               tickFormatter={(value) => `${value} km`}
-              height={compact ? 28 : undefined}
+              height={compact ? 18 : undefined}
+              interval="preserveStartEnd"
             />
             <YAxis
               domain={yDomain}
-              tick={{ fontSize: compact ? 11 : 12, fill: '#4c4338' }}
-              tickFormatter={(value) => `${value} m`}
-              width={compact ? 44 : 52}
+              tick={{ fontSize: compact ? 9 : 12, fill: '#4c4338' }}
+              tickFormatter={(value) => `${value}`}
+              width={compact ? 32 : 52}
             />
             <Tooltip
               isAnimationActive={false}

@@ -6,9 +6,11 @@ import {
 function PreferenceSegment({ label, options, value, onChange, name }) {
   return (
     <div>
-      <p className="mb-1.5 text-sm font-semibold text-stone-800">{label}</p>
+      <p className="mb-1 text-xs font-semibold text-stone-800">{label}</p>
       <div
-        className="grid grid-cols-3 gap-1 rounded-xl border border-[#C4A574] bg-[#EFE0C4] p-1"
+        className={`grid gap-1 rounded-xl border border-[#C4A574] bg-[#EFE0C4] p-1 ${
+          options.length > 3 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-3'
+        }`}
         role="radiogroup"
         aria-label={label}
       >
@@ -22,7 +24,7 @@ function PreferenceSegment({ label, options, value, onChange, name }) {
               aria-checked={selected}
               title={option.hint}
               onClick={() => onChange(option.id)}
-              className={`rounded-lg px-2 py-2 text-center text-xs font-semibold transition ${
+              className={`rounded-lg px-1.5 py-1.5 text-center text-[11px] font-semibold transition ${
                 selected
                   ? 'bg-[#FFF4D6] text-[#E05518] shadow-sm ring-1 ring-[#FC6C26]/50'
                   : 'text-stone-700 hover:bg-[#FFF4D6]/80'
@@ -33,7 +35,7 @@ function PreferenceSegment({ label, options, value, onChange, name }) {
           )
         })}
       </div>
-      <p className="mt-1.5 text-[11px] leading-4 text-stone-600">
+      <p className="mt-1 text-[10px] leading-4 text-stone-600">
         {options.find((option) => option.id === value)?.hint}
       </p>
       <input type="hidden" name={name} value={value} readOnly />
@@ -52,8 +54,8 @@ function RoutePreferencesPanel({
   onAvoidMainRoadsChange,
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">
+    <div className="space-y-2 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[#E05518]">
         Preferencje trasy
       </p>
 
@@ -73,34 +75,32 @@ function RoutePreferencesPanel({
         onChange={onClimbPreferenceChange}
       />
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-3 py-2 text-sm font-medium text-stone-800">
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-2.5 py-1.5 text-xs font-medium text-stone-800">
         <input
           type="checkbox"
           checked={preferAsphalt}
           onChange={(event) => onPreferAsphaltChange(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#FC6C26]"
+          className="mt-0.5 h-3.5 w-3.5 accent-[#FC6C26]"
         />
         <span>
           Preferuj asfalt
-          <span className="mt-1 block text-xs font-normal leading-5 text-stone-600">
-            Wybieramy wariant z większym udziałem asfaltu, gdy to możliwe — nie
-            gwarantuje 100% asfaltu (dane OSM bywają niekompletne).
+          <span className="mt-0.5 block text-[10px] font-normal leading-4 text-stone-600">
+            Wybiera wariant z większym udziałem asfaltu, gdy to możliwe.
           </span>
         </span>
       </label>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-3 py-2 text-sm font-medium text-stone-800">
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-2.5 py-1.5 text-xs font-medium text-stone-800">
         <input
           type="checkbox"
           checked={avoidMainRoads}
           onChange={(event) => onAvoidMainRoadsChange(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#FC6C26]"
+          className="mt-0.5 h-3.5 w-3.5 accent-[#FC6C26]"
         />
         <span>
           Unikaj dróg głównych
-          <span className="mt-1 block text-xs font-normal leading-5 text-stone-600">
-            Wybieramy trasę z najmniejszym udziałem dróg głównych (gdy pełne
-            uniknięcie nie jest możliwe).
+          <span className="mt-0.5 block text-[10px] font-normal leading-4 text-stone-600">
+            Preferuje trasy z mniejszym udziałem dróg głównych.
           </span>
         </span>
       </label>
