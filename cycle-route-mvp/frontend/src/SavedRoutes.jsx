@@ -344,7 +344,7 @@ function SavedRoutes({
     })
 
   return (
-    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-4 text-sm text-stone-800">
+    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF8E8] p-3 text-sm text-stone-800">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">
           {detailMode ? 'Wczytana trasa' : 'Zapisane trasy'}

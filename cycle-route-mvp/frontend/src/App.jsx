@@ -1348,64 +1348,64 @@ function App() {
   }
 
   const accountBar = (
-    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm">
+    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-3 py-2.5 text-sm">
       {isAuthenticated ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-stone-700" title={user?.email}>
+            <p className="min-w-0 truncate text-xs text-stone-700" title={user?.email}>
               <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
             </p>
             <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={() => setShowProfileModal(true)}
-                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-2.5 py-1 text-[11px] font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
               >
                 Moje konto
               </button>
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-1.5 text-xs font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-2.5 py-1 text-[11px] font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
               >
                 Wyloguj
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-3 gap-1.5 text-center">
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
+              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
             >
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
                 Styl
               </span>
-              <span className="block truncate text-xs font-bold text-[#E05518]">
+              <span className="block truncate text-[11px] font-bold text-[#E05518]">
                 {rideStyleLabel}
               </span>
             </button>
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
+              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
             >
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
                 Podjazdy
               </span>
-              <span className="block truncate text-xs font-bold text-[#E05518]">
+              <span className="block truncate text-[11px] font-bold text-[#E05518]">
                 {climbPreferenceLabel}
               </span>
             </button>
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-2 text-left transition hover:bg-white"
+              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
             >
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
                 Pętla
               </span>
-              <span className="block truncate text-xs font-bold text-[#E05518]">
+              <span className="block truncate text-[11px] font-bold text-[#E05518]">
                 {loopDistanceKm} km
               </span>
             </button>
@@ -1493,24 +1493,24 @@ function App() {
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[#F5E6C0] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
-        <div className="shrink-0 space-y-4 border-b border-[#C4A574] p-6 pb-4">
+      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[#F5E6C0] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[22rem] md:shrink-0">
+        <div className="shrink-0 space-y-3 border-b border-[#C4A574] p-4 pb-3 md:p-5 md:pb-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-800">
               {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
                 ? 'Biblioteka tras'
                 : routeMode === 'AtoB'
                   ? 'Tryb: Trasa A → B'
                   : 'Tryb: Pętla treningowa'}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#FC6C26]">
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#FC6C26]">
               {plannerPanel === 'saved'
                 ? 'Zapisane trasy'
                 : plannerPanel === 'savedDetail'
                   ? 'Szczegóły trasy'
                   : 'Planer tras'}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-stone-800">
+            <p className="mt-1.5 text-xs leading-5 text-stone-700">
               {plannerPanel === 'saved'
                 ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
                 : plannerPanel === 'savedDetail'
@@ -1528,7 +1528,7 @@ function App() {
           )}
         </div>
 
-        <div className="p-6 pt-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
+        <div className="p-4 pt-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
           {(plannerPanel === 'saved' || (plannerPanel === 'savedDetail' && isAuthenticated)) && (
             <SavedRoutes
               onLoadRoute={handleLoadSavedRoute}

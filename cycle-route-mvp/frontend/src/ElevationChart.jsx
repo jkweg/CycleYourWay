@@ -27,7 +27,7 @@ function ElevationChart({ routeData, compact = false }) {
     Math.ceil(maxElev + padding),
   ]
 
-  const chartHeight = compact ? 'h-full min-h-[180px] md:min-h-[120px]' : 'h-48'
+  const chartHeight = compact ? 'h-full min-h-[120px] md:min-h-[96px]' : 'h-48'
   const gradientId = compact ? 'elevationGradientCompact' : 'elevationGradient'
 
   return (
