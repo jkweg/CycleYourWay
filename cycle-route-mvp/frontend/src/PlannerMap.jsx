@@ -92,6 +92,8 @@ function PlannerMap({
   onEndDrag,
   onViaDrag,
 }) {
+  const markersLocked = Boolean(selectedRouteGeoJson || routeGeoJson)
+
   return (
     <div className="h-full w-full min-h-[320px]">
       <MapContainer center={[52.0, 19.2]} zoom={6} scrollWheelZoom className="h-full w-full">
@@ -106,7 +108,7 @@ function PlannerMap({
         <DraggableMarker
           point={startPoint}
           icon={plannerMarkerIcon}
-          onDragEnd={onStartDrag}
+          onDragEnd={markersLocked ? undefined : onStartDrag}
         />
         {routeMode === 'AtoB' &&
           viaStops.map((stop, index) => (
@@ -115,7 +117,9 @@ function PlannerMap({
               point={stop.point}
               icon={createViaMarkerIcon(String(index + 1))}
               onDragEnd={
-                onViaDrag ? (point) => onViaDrag(stop.id, point) : undefined
+                markersLocked || !onViaDrag
+                  ? undefined
+                  : (point) => onViaDrag(stop.id, point)
               }
             />
           ))}
@@ -123,7 +127,7 @@ function PlannerMap({
           <DraggableMarker
             point={endPoint}
             icon={plannerMarkerIcon}
-            onDragEnd={onEndDrag}
+            onDragEnd={markersLocked ? undefined : onEndDrag}
           />
         )}
         {routeGeoJson?.features?.map((feature, index) => (

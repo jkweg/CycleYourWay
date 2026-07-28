@@ -22,11 +22,11 @@ function Navbar({
 
   return (
     <header className="sticky top-0 z-50 border-b border-burnt-orange/25 bg-[#4a3226]/95 text-vanilla/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 md:px-10">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 md:px-10">
         <button
           type="button"
           onClick={onGoHome}
-          className="text-left text-sm font-semibold uppercase tracking-[0.18em] text-vanilla/90 transition hover:text-burnt-orange"
+          className="min-w-0 truncate text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-vanilla/90 transition hover:text-burnt-orange sm:text-sm sm:tracking-[0.18em]"
         >
           Cycle Your Way
         </button>
@@ -104,7 +104,7 @@ function Navbar({
             type="button"
             onClick={onGoHome}
             aria-label="Przejdź do strony głównej"
-            className="hidden items-center pl-1 lg:flex"
+            className="flex shrink-0 items-center pl-0.5 sm:pl-1"
           >
             <CircularText
               text="CYCLE*YOUR*WAY*"

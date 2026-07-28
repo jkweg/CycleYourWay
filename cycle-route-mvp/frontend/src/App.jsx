@@ -16,6 +16,7 @@ import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
 import RouteAlternativesCompare from './components/RouteAlternativesCompare'
 import MapRouteDetailsBar from './components/MapRouteDetailsBar'
+import LoopDistanceControl from './components/LoopDistanceControl'
 import RoutePreferencesPanel from './components/RoutePreferencesPanel'
 import PlannerOnboarding from './components/PlannerOnboarding'
 import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
@@ -1366,7 +1367,7 @@ function App() {
           ref={plannerSectionRef}
           className="relative z-10 px-3 pb-3 pt-3 md:px-5 md:pb-5 md:pt-4"
         >
-          <div className="mx-auto flex max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row md:overflow-hidden">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}
@@ -1668,28 +1669,10 @@ function App() {
                   </button>
                 </div>
 
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-sm font-semibold text-stone-800">
-                    <label htmlFor="loop-distance-range">Dystans pętli</label>
-                    <span className="rounded-md bg-[#FFF4D6] px-2 py-1 text-[#FC6C26] shadow-sm">
-                      {loopDistanceKm} km
-                    </span>
-                  </div>
-                  <input
-                    id="loop-distance-range"
-                    type="range"
-                    min={5}
-                    max={100}
-                    step={1}
-                    value={loopDistanceKm}
-                    onChange={(event) => setLoopDistanceKm(Number(event.target.value))}
-                    className="loop-distance-range h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#f5d0b8]"
-                  />
-                  <div className="mt-1 flex justify-between text-xs text-stone-700">
-                    <span>5 km</span>
-                    <span>100 km</span>
-                  </div>
-                </div>
+                <LoopDistanceControl
+                  value={loopDistanceKm}
+                  onChange={setLoopDistanceKm}
+                />
 
                 <RoutePreferencesPanel
                   rideStyle={rideStyle}
@@ -1828,8 +1811,8 @@ function App() {
         )}
       </aside>
 
-      <div className="relative flex h-[60vh] min-h-[320px] w-full shrink-0 flex-col md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
-        <div className="relative min-h-0 flex-1">
+      <div className="relative flex w-full shrink-0 flex-col md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
+        <div className="relative m-3 h-[42vh] min-h-[260px] overflow-hidden rounded-2xl border-2 border-[#C4A574] bg-[#FFF4D6] shadow-[0_8px_24px_rgba(95,74,53,0.12)] md:m-0 md:h-auto md:min-h-0 md:flex-1 md:rounded-none md:border-0 md:border-l md:border-[#C4A574] md:shadow-none">
           <Suspense
             fallback={
               <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#FFF4D6]" />

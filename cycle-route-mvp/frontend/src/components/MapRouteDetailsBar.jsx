@@ -30,7 +30,7 @@ function MapRouteDetailsBar({
     asphaltSharePercent < 85
 
   return (
-    <div className="shrink-0 border-t border-[#f0d4b8] bg-[#F5E6C0]/95 backdrop-blur-sm">
+    <div className="shrink-0 border-t-2 border-[#C4A574] bg-[#F5E6C0]">
       {showAsphaltWarning && (
         <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:px-4">
           Preferujesz asfalt, a wybrana trasa ma ok. {asphaltSharePercent}% asfaltu
@@ -43,12 +43,12 @@ function MapRouteDetailsBar({
         </p>
       )}
       <div className="grid gap-3 p-3 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,14rem)] md:items-stretch md:gap-4 md:p-4">
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-100 bg-[#FFF4D6] px-3 py-3 md:flex-col md:items-stretch md:justify-center">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border border-orange-100 bg-[#FFF4D6] px-3 py-3 sm:grid-cols-4 md:flex md:flex-col md:items-stretch md:justify-center md:gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-800">
               Dystans
             </p>
-            <p className="text-lg font-semibold text-[#FC6C26]">
+            <p className="text-xl font-semibold text-[#FC6C26] md:text-lg">
               {routeStats.distanceKm} km
             </p>
           </div>
@@ -56,7 +56,7 @@ function MapRouteDetailsBar({
             <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-800">
               Czas
             </p>
-            <p className="text-lg font-semibold text-[#FC6C26]">
+            <p className="text-xl font-semibold text-[#FC6C26] md:text-lg">
               {routeStats.hours > 0
                 ? `${routeStats.hours} h ${routeStats.minutes} min`
                 : `${routeStats.minutes} min`}
@@ -66,7 +66,7 @@ function MapRouteDetailsBar({
             <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-800">
               Wznios
             </p>
-            <p className="text-lg font-semibold text-[#FC6C26]">
+            <p className="text-xl font-semibold text-[#FC6C26] md:text-lg">
               {elevationGain == null ? '—' : `${Math.round(elevationGain)} m`}
             </p>
           </div>
@@ -75,19 +75,19 @@ function MapRouteDetailsBar({
               <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-800">
                 Podjazdy
               </p>
-              <p className="text-lg font-semibold text-[#FC6C26]">
+              <p className="text-xl font-semibold text-[#FC6C26] md:text-lg">
                 {steepness.totalClimbPercent}%
               </p>
             </div>
           )}
         </div>
 
-        <div className="min-h-[140px] overflow-hidden rounded-xl border border-[#f0d4b8] bg-[#FFF4D6] md:min-h-[160px]">
+        <div className="min-h-[200px] overflow-hidden rounded-xl border border-[#C4A574] bg-[#FFF4D6] md:min-h-[160px]">
           <Suspense
             fallback={
               <ChunkFallback
                 label="Profil wysokości…"
-                className="min-h-[140px] bg-transparent md:min-h-[160px]"
+                className="min-h-[200px] bg-transparent md:min-h-[160px]"
               />
             }
           >
@@ -99,22 +99,24 @@ function MapRouteDetailsBar({
           </Suspense>
         </div>
 
-        <div className="max-h-[160px] space-y-3 overflow-y-auto">
+        <div className="space-y-3">
           {hasSurfaceInfo ? (
-            <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF4D6] p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7a6248]">
+            <div className="rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-3 md:p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6248]">
                 Nawierzchnia
               </p>
-              <div className="mt-2 space-y-2">
-                {knownSurfaces.slice(0, 3).map((surface) => (
+              <div className="mt-3 space-y-3">
+                {knownSurfaces.slice(0, 6).map((surface) => (
                   <div key={`${surface.code}-${surface.label}`}>
-                    <div className="mb-0.5 flex justify-between gap-2 text-[11px] text-stone-700">
+                    <div className="mb-1 flex justify-between gap-2 text-sm text-stone-700">
                       <span className="truncate font-medium">{surface.label}</span>
-                      <span className="shrink-0">{surface.percentage}%</span>
+                      <span className="shrink-0 tabular-nums font-semibold text-[#FC6C26]">
+                        {surface.percentage}%
+                      </span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-[#f5e6c0]">
+                    <div className="h-2.5 w-full rounded-full bg-[#f5e6c0]">
                       <div
-                        className={`h-1.5 rounded-full ${surface.colorClass}`}
+                        className={`h-2.5 rounded-full ${surface.colorClass}`}
                         style={{ width: `${surface.percentage}%` }}
                       />
                     </div>
@@ -122,7 +124,7 @@ function MapRouteDetailsBar({
                 ))}
               </div>
               {unknownPercent != null && unknownPercent > 0 && (
-                <p className="mt-2 border-t border-[#f0d4b8] pt-2 text-[10px] leading-4 text-stone-500">
+                <p className="mt-3 border-t border-[#f0d4b8] pt-2 text-xs leading-5 text-stone-600">
                   {unknownPercent}% trasy bez tagu nawierzchni w OSM.
                 </p>
               )}
@@ -130,18 +132,18 @@ function MapRouteDetailsBar({
           ) : null}
 
           {hasSteepness ? (
-            <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF4D6] p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7a6248]">
+            <div className="rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6248]">
                 Stromizny
               </p>
-              <ul className="mt-2 space-y-1.5">
-                {climbs.slice(0, 4).map((climb) => (
+              <ul className="mt-3 space-y-2">
+                {climbs.slice(0, 6).map((climb) => (
                   <li
                     key={`${climb.code}-${climb.label}`}
-                    className="flex justify-between gap-2 text-[11px] text-stone-700"
+                    className="flex justify-between gap-2 text-sm text-stone-700"
                   >
                     <span className="truncate font-medium">{climb.label}</span>
-                    <span className="shrink-0 tabular-nums">
+                    <span className="shrink-0 tabular-nums text-[#FC6C26]">
                       {climb.percentage}% · {climb.distanceKm} km
                     </span>
                   </li>

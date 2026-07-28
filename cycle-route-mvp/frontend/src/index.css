@@ -250,38 +250,53 @@ h2 {
 /* Loop distance slider — brand thumb instead of browser blue */
 .loop-distance-range {
   accent-color: var(--color-burnt-orange);
+  height: 0.7rem;
 }
 
 .loop-distance-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-top: -0.4rem;
   border-radius: 999px;
   background: var(--color-burnt-orange);
-  border: 2px solid #fff4d6;
-  box-shadow: 0 1px 3px rgba(42, 26, 18, 0.25);
-  cursor: pointer;
+  border: 3px solid #fff4d6;
+  box-shadow:
+    0 0 0 2px rgba(252, 108, 38, 0.28),
+    0 2px 6px rgba(42, 26, 18, 0.28);
+  cursor: grab;
+}
+
+.loop-distance-range::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.06);
 }
 
 .loop-distance-range::-moz-range-thumb {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.45rem;
+  height: 1.45rem;
   border-radius: 999px;
   background: var(--color-burnt-orange);
-  border: 2px solid #fff4d6;
-  box-shadow: 0 1px 3px rgba(42, 26, 18, 0.25);
-  cursor: pointer;
+  border: 3px solid #fff4d6;
+  box-shadow:
+    0 0 0 2px rgba(252, 108, 38, 0.28),
+    0 2px 6px rgba(42, 26, 18, 0.28);
+  cursor: grab;
+}
+
+.loop-distance-range::-moz-range-thumb:active {
+  cursor: grabbing;
 }
 
 .loop-distance-range::-webkit-slider-runnable-track {
-  height: 0.5rem;
+  height: 0.7rem;
   border-radius: 999px;
   background: #f5d0b8;
 }
 
 .loop-distance-range::-moz-range-track {
-  height: 0.5rem;
+  height: 0.7rem;
   border-radius: 999px;
   background: #f5d0b8;
 }

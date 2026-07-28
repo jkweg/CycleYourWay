@@ -24,13 +24,25 @@
 }
 
 .navbar-circular-text {
-  width: 56px;
-  height: 56px;
-  color: rgba(255, 244, 214, 0.88);
+  width: 44px;
+  height: 44px;
+  color: rgba(255, 244, 214, 0.92);
   font-weight: 700;
 }
 
 .navbar-circular-text span {
-  font-size: 8px;
-  letter-spacing: 0.08em;
+  font-size: 6.5px;
+  letter-spacing: 0.06em;
+}
+
+@media (min-width: 640px) {
+  .navbar-circular-text {
+    width: 56px;
+    height: 56px;
+  }
+
+  .navbar-circular-text span {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
 }

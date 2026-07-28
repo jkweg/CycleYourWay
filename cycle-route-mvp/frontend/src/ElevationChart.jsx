@@ -27,7 +27,7 @@ function ElevationChart({ routeData, compact = false }) {
     Math.ceil(maxElev + padding),
   ]
 
-  const chartHeight = compact ? 'h-full min-h-[120px]' : 'h-48'
+  const chartHeight = compact ? 'h-full min-h-[180px] md:min-h-[120px]' : 'h-48'
   const gradientId = compact ? 'elevationGradientCompact' : 'elevationGradient'
 
   return (
@@ -64,15 +64,15 @@ function ElevationChart({ routeData, compact = false }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#d9ddcf" />
             <XAxis
               dataKey="distance"
-              tick={{ fontSize: compact ? 10 : 12, fill: '#4c4338' }}
+              tick={{ fontSize: compact ? 11 : 12, fill: '#4c4338' }}
               tickFormatter={(value) => `${value} km`}
-              height={compact ? 24 : undefined}
+              height={compact ? 28 : undefined}
             />
             <YAxis
               domain={yDomain}
-              tick={{ fontSize: compact ? 10 : 12, fill: '#4c4338' }}
+              tick={{ fontSize: compact ? 11 : 12, fill: '#4c4338' }}
               tickFormatter={(value) => `${value} m`}
-              width={compact ? 40 : 52}
+              width={compact ? 44 : 52}
             />
             <Tooltip
               isAnimationActive={false}
