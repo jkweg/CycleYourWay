@@ -123,7 +123,38 @@ body {
 }
 
 .loading-screen__bar {
+  transform-origin: left center;
   transform: scaleX(var(--loading-progress, 0));
+}
+
+.loading-screen__title {
+  font-family: 'Great Vibes', 'Segoe Script', cursive;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.loading-screen__title-svg {
+  display: block;
+  margin-inline: auto;
+}
+
+.loading-screen__pen-tip {
+  filter: drop-shadow(0 0 4px rgba(252, 108, 38, 0.35));
+}
+
+.split-parent {
+  margin: 0;
+}
+
+.split-char {
+  display: inline-block;
+  white-space: pre;
+}
+
+.split-line {
+  display: block;
 }
 
 .font-serif,

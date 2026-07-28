@@ -12,9 +12,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@supabase/supabase-js": "^2.106.2",
     "@tabler/icons-react": "^3.44.0",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "leaflet": "^1.9.4",
     "motion": "^12.40.0",
     "qrcode.react": "^4.2.0",

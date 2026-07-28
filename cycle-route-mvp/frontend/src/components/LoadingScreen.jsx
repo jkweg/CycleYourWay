@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import LoadingCyclist from './LoadingCyclist'
+import LoadingHandwritingTitle from './LoadingHandwritingTitle'
+import SplitText from './SplitText'
 
-const MIN_MS = 2000
+const PROGRESS_MS = 2500
+const TITLE_MS = 2000
 const FADE_MS = 700
+const BRAND_TITLE = 'Cycle Your Way'
+/** 'filled' = solid letters while drawing; 'outline' = previous contour-first version */
+const TITLE_DRAW_VARIANT = 'filled'
+const TITLE_ANIMATION_MODE = 'split' // 'handwriting' to revert to SVG "pen" version
 
 function LoadingScreen({ onComplete }) {
   const [progress, setProgress] = useState(0)
+  const [titleProgress, setTitleProgress] = useState(0)
   const [isExiting, setIsExiting] = useState(false)
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
@@ -35,6 +43,7 @@ function LoadingScreen({ onComplete }) {
       if (completedRef.current) return
       completedRef.current = true
       setProgress(100)
+      setTitleProgress(100)
       setIsExiting(true)
       fadeTimer = window.setTimeout(() => {
         onCompleteRef.current?.()
@@ -50,11 +59,13 @@ function LoadingScreen({ onComplete }) {
 
       const duration =
         readyElapsed === null
-          ? Math.max(MIN_MS, elapsed / 0.9)
-          : Math.max(MIN_MS, readyElapsed)
+          ? Math.max(PROGRESS_MS, elapsed / 0.9)
+          : Math.max(PROGRESS_MS, readyElapsed)
 
       const next = Math.min(100, (elapsed / duration) * 100)
+      const nextTitle = Math.min(100, (elapsed / TITLE_MS) * 100)
       setProgress(next)
+      setTitleProgress(nextTitle)
 
       if (readyElapsed !== null && elapsed >= duration) {
         finish()
@@ -74,7 +85,6 @@ function LoadingScreen({ onComplete }) {
   }, [])
 
   const percent = Math.round(progress)
-  const progressRatio = progress / 100
 
   return (
     <div
@@ -84,12 +94,12 @@ function LoadingScreen({ onComplete }) {
       style={{
         backgroundColor: 'var(--color-vanilla)',
         color: 'var(--color-burnt-orange)',
-        '--loading-progress': String(progressRatio),
+        '--loading-progress': String(progress / 100),
       }}
       role="status"
       aria-live="polite"
       aria-busy={!isExiting}
-      aria-label={`Ładowanie Cycle Your Way, ${percent}%`}
+      aria-label={`Ładowanie ${BRAND_TITLE}, ${percent}%`}
     >
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -106,9 +116,29 @@ function LoadingScreen({ onComplete }) {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--color-burnt-orange)]/70">
           Witaj
         </p>
-        <h1 className="mt-3 text-center font-serif text-5xl font-semibold tracking-tight text-[color:var(--color-burnt-orange)] md:text-7xl">
-          Cycle Your Way
-        </h1>
+        {TITLE_ANIMATION_MODE === 'handwriting' ? (
+          <LoadingHandwritingTitle
+            progress={titleProgress}
+            variant={TITLE_DRAW_VARIANT}
+            className="loading-screen__title mt-3 h-[clamp(4.5rem,15vw,7.75rem)] w-full max-w-[min(96vw,44rem)] text-[color:var(--color-burnt-orange)]"
+          />
+        ) : (
+          <SplitText
+            tag="h1"
+            text={BRAND_TITLE}
+            className="loading-screen__title mt-3 w-full max-w-[min(96vw,56rem)] px-2 text-[color:var(--color-burnt-orange)] text-center text-[clamp(3.5rem,11vw,6.5rem)]"
+            splitType="chars"
+            delay={130}
+            duration={1.2}
+            ease="elastic.out"
+            from={{ opacity: 0, y: 36 }}
+            to={{ opacity: 1, y: 0 }}
+            threshold={1}
+            rootMargin="0px"
+            textAlign="center"
+            useScrollTrigger={false}
+          />
+        )}
         <p className="mt-4 max-w-sm text-center text-base leading-6 text-[color:var(--color-burnt-orange)]/75 md:text-lg">
           Planer i nawigacja rowerowa
         </p>
@@ -143,7 +173,7 @@ function LoadingScreen({ onComplete }) {
           style={{ background: 'rgba(252, 108, 38, 0.18)' }}
         >
           <div
-            className="loading-screen__bar h-full origin-right rounded-full will-change-transform"
+            className="loading-screen__bar h-full rounded-full will-change-transform"
             style={{ backgroundColor: 'var(--color-burnt-orange)' }}
           />
         </div>
