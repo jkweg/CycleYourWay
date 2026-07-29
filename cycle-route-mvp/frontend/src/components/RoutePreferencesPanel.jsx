@@ -4,13 +4,18 @@ import {
 } from '../lib/routePreferences'
 
 function PreferenceSegment({ label, options, value, onChange, name }) {
+  const columnsClass =
+    options.length <= 3
+      ? 'grid-cols-3'
+      : options.length === 4
+        ? 'grid-cols-2'
+        : 'grid-cols-3'
+
   return (
     <div>
-      <p className="mb-1 text-xs font-semibold text-stone-800">{label}</p>
+      <p className="mb-1.5 text-sm font-semibold text-stone-800">{label}</p>
       <div
-        className={`grid gap-1 rounded-xl border border-[#C4A574] bg-[#EFE0C4] p-1 ${
-          options.length > 3 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-3'
-        }`}
+        className={`grid gap-1 rounded-xl border border-[#C4A574]/80 bg-[#E9D8B8]/70 p-1 ${columnsClass}`}
         role="radiogroup"
         aria-label={label}
       >
@@ -24,10 +29,10 @@ function PreferenceSegment({ label, options, value, onChange, name }) {
               aria-checked={selected}
               title={option.hint}
               onClick={() => onChange(option.id)}
-              className={`rounded-lg px-1.5 py-1.5 text-center text-[11px] font-semibold transition ${
+              className={`rounded-lg px-2 py-2 text-center text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 ${
                 selected
-                  ? 'bg-[#FFF4D6] text-[#E05518] shadow-sm ring-1 ring-[#FC6C26]/50'
-                  : 'text-stone-700 hover:bg-[#FFF4D6]/80'
+                  ? 'bg-white text-[#E05518] shadow-sm ring-1 ring-[#FC6C26]/45'
+                  : 'text-stone-700 hover:bg-[#FFF8E8]/90'
               }`}
             >
               {option.label}
@@ -35,7 +40,7 @@ function PreferenceSegment({ label, options, value, onChange, name }) {
           )
         })}
       </div>
-      <p className="mt-1 text-[10px] leading-4 text-stone-600">
+      <p className="mt-1.5 text-[11px] leading-4 text-stone-600">
         {options.find((option) => option.id === value)?.hint}
       </p>
       <input type="hidden" name={name} value={value} readOnly />
@@ -54,10 +59,18 @@ function RoutePreferencesPanel({
   onAvoidMainRoadsChange,
 }) {
   return (
-    <div className="space-y-2 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-2.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-[#E05518]">
-        Preferencje trasy
-      </p>
+    <div className="space-y-3.5 rounded-2xl border border-[#C4A574]/80 bg-[linear-gradient(145deg,rgba(255,248,232,0.96),rgba(255,244,214,0.88))] p-3.5 shadow-[0_12px_30px_-26px_rgba(74,43,32,0.55)]">
+      <div className="flex items-start gap-2.5 border-b border-[#C4A574]/35 pb-3">
+        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FC6C26]" />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">
+            Preferencje trasy
+          </p>
+          <p className="mt-0.5 text-[11px] leading-4 text-stone-600">
+            Dopasuj charakter przejazdu bez zmiany punktów.
+          </p>
+        </div>
+      </div>
 
       <PreferenceSegment
         name="rideStyle"
@@ -75,31 +88,31 @@ function RoutePreferencesPanel({
         onChange={onClimbPreferenceChange}
       />
 
-      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-2.5 py-1.5 text-xs font-medium text-stone-800">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#C4A574]/70 bg-white/55 px-3 py-2.5 text-sm font-medium text-stone-800 transition hover:border-[#E08A50] hover:bg-white/80">
         <input
           type="checkbox"
           checked={preferAsphalt}
           onChange={(event) => onPreferAsphaltChange(event.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 accent-[#FC6C26]"
+          className="mt-0.5 h-4 w-4 accent-[#FC6C26]"
         />
         <span>
           Preferuj asfalt
-          <span className="mt-0.5 block text-[10px] font-normal leading-4 text-stone-600">
+          <span className="mt-1 block text-xs font-normal leading-5 text-stone-600">
             Wybiera wariant z większym udziałem asfaltu, gdy to możliwe.
           </span>
         </span>
       </label>
 
-      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#C4A574] bg-[#FFF8E8] px-2.5 py-1.5 text-xs font-medium text-stone-800">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#C4A574]/70 bg-white/55 px-3 py-2.5 text-sm font-medium text-stone-800 transition hover:border-[#E08A50] hover:bg-white/80">
         <input
           type="checkbox"
           checked={avoidMainRoads}
           onChange={(event) => onAvoidMainRoadsChange(event.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 accent-[#FC6C26]"
+          className="mt-0.5 h-4 w-4 accent-[#FC6C26]"
         />
         <span>
           Unikaj dróg głównych
-          <span className="mt-0.5 block text-[10px] font-normal leading-4 text-stone-600">
+          <span className="mt-1 block text-xs font-normal leading-5 text-stone-600">
             Preferuje trasy z mniejszym udziałem dróg głównych.
           </span>
         </span>

@@ -146,7 +146,7 @@ function AddressAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-3 py-2 text-sm text-stone-800 outline-none ring-[#FC6C26]/40 transition placeholder:text-stone-500 focus:ring-2 disabled:bg-[#F5E6C0]"
+        className="w-full rounded-xl border border-[#C4A574]/80 bg-white/65 px-3.5 py-2.5 text-sm text-stone-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] outline-none ring-[#FC6C26]/35 transition placeholder:text-stone-500 hover:border-[#E08A50] focus:border-[#FC6C26] focus:bg-white focus:ring-2 disabled:bg-[#F5E6C0]"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
         aria-controls={showDropdown ? `${id}-suggestions` : undefined}
@@ -162,7 +162,7 @@ function AddressAutocomplete({
         <ul
           id={`${id}-suggestions`}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[#C4A574] bg-[#FFF4D6] py-1 shadow-lg"
+          className="absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-[#C4A574]/80 bg-[#FFF8E8]/98 py-1.5 shadow-[0_18px_45px_-18px_rgba(74,43,32,0.45)] backdrop-blur"
         >
           {showHistoryDropdown && (
             <li className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
@@ -179,10 +179,10 @@ function AddressAutocomplete({
                 aria-selected={index === activeIndex}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSelect(suggestion)}
-                className={`block w-full px-3 py-2 text-left text-sm transition ${
+                className={`block w-full px-3.5 py-2.5 text-left text-sm transition ${
                   index === activeIndex
-                    ? 'bg-[#FFE8D6] text-[#FC6C26]'
-                    : 'text-stone-700 hover:bg-[#F5E6C0]'
+                    ? 'bg-[#FFE8D6] font-medium text-[#E05518]'
+                    : 'text-stone-700 hover:bg-[#F5E6C0]/80'
                 }`}
               >
                 {suggestion.name}
