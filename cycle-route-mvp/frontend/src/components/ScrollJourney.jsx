@@ -166,6 +166,8 @@ function ScrollJourney({ onStartPlanning }) {
   const offsetDistance = useTransform(progress, [0, 1], ['0%', '100%'])
   const mapScale = useTransform(progress, [0, 0.5, 1], [0.97, 1, 0.98])
   const mapY = useTransform(progress, [0, 0.5, 1], [10, 0, -8])
+  const railY = useTransform(progress, [0, 1], ['0%', '100%'])
+  const scrollHintOpacity = useTransform(progress, [0, 0.12, 0.84, 1], [1, 0.55, 0.55, 0])
 
   const [active, setActive] = useState(0)
   const [direction, setDirection] = useState(1)
@@ -189,8 +191,9 @@ function ScrollJourney({ onStartPlanning }) {
 
   return (
     <section
+      id="journey"
       ref={ref}
-      className="relative h-[240vh] bg-[linear-gradient(180deg,rgba(255,244,214,0.72)_0%,rgba(255,244,214,0.56)_18%,rgba(255,244,214,0.56)_82%,rgba(255,244,214,0.72)_100%)] md:h-[250vh]"
+      className="relative h-[240vh] scroll-mt-20 bg-[linear-gradient(180deg,rgba(255,244,214,0.72)_0%,rgba(255,244,214,0.56)_18%,rgba(255,244,214,0.56)_82%,rgba(255,244,214,0.72)_100%)] md:h-[250vh]"
     >
       <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(255,244,214,0.18)_100%)]" />
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
@@ -213,59 +216,81 @@ function ScrollJourney({ onStartPlanning }) {
                 Jak to działa.
               </h2>
 
-              <div className="relative mt-6 min-h-[220px] md:min-h-[240px]">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={active}
-                    initial={{ opacity: 0, y: direction > 0 ? 30 : -30, scale: 0.985 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: direction > 0 ? -22 : 22, scale: 0.99 }}
-                    transition={{ duration: 0.36, ease: 'easeOut' }}
-                    className="rounded-3xl border border-burnt-orange/25 bg-vanilla/95 p-7 shadow-[0_24px_60px_-32px_rgba(252,108,38,0.45)] backdrop-blur md:p-9"
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-burnt-orange text-lg font-bold text-vanilla">
-                        {step.n}
-                      </span>
-                      <h3 className="text-xl font-semibold text-ink md:text-2xl">
-                        {step.title}
-                      </h3>
-                    </div>
-                    <p className="mt-4 text-base leading-8 text-ink-muted">{step.text}</p>
-
-                    {isLast && (
-                      <button
-                        type="button"
-                        onClick={onStartPlanning}
-                        className="soft-button mt-6 rounded-full bg-burnt-orange px-7 py-3 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
-                      >
-                        Rozpocznij planowanie
-                      </button>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              <div className="mt-7 flex items-center gap-2">
-                {STEPS.map((s, index) => (
-                  <button
-                    key={s.n}
-                    type="button"
-                    aria-label={`Krok ${s.n}`}
-                    className="group flex-1"
-                  >
-                    <span
-                      className={`block h-1.5 rounded-full transition-all duration-500 ${
-                        index <= active ? 'bg-burnt-orange' : 'bg-burnt-orange/20'
-                      }`}
+              <div className="mt-6 grid grid-cols-[2.25rem_minmax(0,1fr)] gap-4 md:grid-cols-[2.75rem_minmax(0,1fr)] md:gap-5">
+                <div className="flex min-h-[236px] flex-col items-center py-1" aria-hidden="true">
+                  <span className="text-[9px] font-bold tabular-nums tracking-wider text-burnt-orange">
+                    01
+                  </span>
+                  <div className="relative my-2 w-px flex-1 bg-burnt-orange/20">
+                    <motion.div
+                      style={{ scaleY: progress }}
+                      className="absolute inset-x-0 top-0 h-full origin-top bg-burnt-orange"
                     />
-                  </button>
-                ))}
-              </div>
+                    <motion.span
+                      style={{ top: railY }}
+                      className="absolute left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-vanilla bg-burnt-orange shadow-[0_0_0_5px_rgba(252,108,38,0.14)]"
+                    />
+                  </div>
+                  <span className="text-[9px] font-bold tabular-nums tracking-wider text-burnt-orange">
+                    04
+                  </span>
+                </div>
 
-              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-ink-muted/70">
-                Przewiń, aby przejść dalej · {step.n} / 04
-              </p>
+                <div>
+                  <div className="relative min-h-[220px] md:min-h-[240px]">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={active}
+                        initial={{ opacity: 0, y: direction > 0 ? 30 : -30, scale: 0.985 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: direction > 0 ? -22 : 22, scale: 0.99 }}
+                        transition={{ duration: 0.36, ease: 'easeOut' }}
+                        className="rounded-3xl border border-burnt-orange/25 bg-vanilla/95 p-6 shadow-[0_24px_60px_-32px_rgba(252,108,38,0.45)] backdrop-blur md:p-9"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-burnt-orange text-lg font-bold text-vanilla">
+                            {step.n}
+                          </span>
+                          <h3 className="text-xl font-semibold text-ink md:text-2xl">
+                            {step.title}
+                          </h3>
+                        </div>
+                        <p className="mt-4 text-base leading-8 text-ink-muted">{step.text}</p>
+
+                        {isLast && (
+                          <button
+                            type="button"
+                            onClick={onStartPlanning}
+                            className="soft-button mt-6 rounded-full bg-burnt-orange px-7 py-3 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
+                          >
+                            Rozpocznij planowanie
+                          </button>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+
+                  <motion.div
+                    style={{ opacity: scrollHintOpacity }}
+                    className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted/70"
+                    aria-hidden="true"
+                  >
+                    <span>Scroll down</span>
+                    <span className="h-px flex-1 bg-gradient-to-r from-burnt-orange/45 to-transparent" />
+                    <motion.span
+                      animate={{ y: [0, 5, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                      className="text-base leading-none text-burnt-orange"
+                    >
+                      ↓
+                    </motion.span>
+                  </motion.div>
+
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-ink-muted/70">
+                    Krok {step.n} / 04
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
