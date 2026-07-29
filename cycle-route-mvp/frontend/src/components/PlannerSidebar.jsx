@@ -58,7 +58,10 @@ function MobilePlannerNav({
   ]
 
   return (
-    <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-[#f0d4b8] bg-[#FFF8E8] px-2 py-2 md:hidden">
+    <nav
+      className="flex shrink-0 gap-1 overflow-x-auto border-b border-burnt-orange/15 bg-[#FFF8E8]/95 px-2 py-2 shadow-[0_6px_20px_-18px_rgba(74,43,32,0.65)] backdrop-blur md:hidden"
+      aria-label="Nawigacja planera"
+    >
       {items.map((item) => {
         const Icon = item.icon
         return (
@@ -66,14 +69,18 @@ function MobilePlannerNav({
             key={item.id}
             type="button"
             onClick={item.onClick}
-            className={`flex min-w-[4.5rem] flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium transition ${
+            className={`relative flex min-w-[4.5rem] flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burnt-orange/40 ${
               item.active
-                ? 'bg-[#FFE8D6] text-[#FC6C26]'
-                : 'text-stone-600 hover:bg-[#FFF4D6]'
+                ? 'bg-white font-bold text-burnt-orange shadow-sm ring-1 ring-burnt-orange/15'
+                : 'font-medium text-stone-600 hover:bg-vanilla'
             }`}
+            aria-current={item.active ? 'page' : undefined}
           >
             <Icon className="h-5 w-5" stroke={1.75} />
             {item.label}
+            {item.active && (
+              <span className="absolute inset-x-3 -bottom-2 h-0.5 rounded-full bg-burnt-orange" />
+            )}
           </button>
         )
       })}

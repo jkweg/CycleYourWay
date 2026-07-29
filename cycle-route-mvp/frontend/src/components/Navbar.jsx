@@ -49,7 +49,7 @@ function Navbar({
           </button>
           <button
             type="button"
-            onClick={() => scrollToSection('how-it-works')}
+            onClick={() => scrollToSection('journey')}
             className="transition hover:text-burnt-orange"
           >
             Jak to działa

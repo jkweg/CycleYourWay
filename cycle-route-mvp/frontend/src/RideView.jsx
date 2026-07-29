@@ -1,4 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  IconAlertTriangle,
+  IconCurrentLocation,
+  IconList,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconVolume,
+  IconVolumeOff,
+  IconX,
+} from '@tabler/icons-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
@@ -592,58 +602,87 @@ function RideView({
         </MapContainer>
       </div>
 
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[3000] h-52 bg-gradient-to-b from-[#2c1e16]/55 via-[#2c1e16]/15 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[3000] h-48 bg-gradient-to-t from-[#2c1e16]/45 to-transparent" />
+      {isPaused && (
+        <div className="pointer-events-none absolute inset-0 z-[3000] bg-[#2c1e16]/25 backdrop-saturate-50" />
+      )}
+
       <div
         className="pointer-events-none relative z-[3001] flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="pointer-events-auto m-3 rounded-2xl bg-[#3d2a20]/95 p-4 shadow-xl ring-1 ring-white/10 backdrop-blur">
-          <div className="flex items-center justify-between gap-3">
+        <div className="pointer-events-auto m-3 rounded-[1.35rem] bg-[#3d2a20]/94 p-3.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.12] backdrop-blur-xl">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleExitRequest}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60"
+              aria-label="Zakończ nawigację"
+              title="Zakończ nawigację"
             >
-              ← Zakończ
+              <IconX className="h-5 w-5" stroke={2} />
             </button>
-            <p className="min-w-0 flex-1 truncate text-center text-sm font-medium text-orange-100">
-              {routeName || 'Trasa'}
-              {isPaused ? ' · Pauza' : ''}
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowManeuverList((value) => !value)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                showManeuverList
-                  ? 'bg-orange-500 text-[#10231a]'
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-              aria-pressed={showManeuverList}
-              title="Lista manewrów"
-            >
-              ☰
-            </button>
-            <button
-              type="button"
-              onClick={togglePause}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                isPaused
-                  ? 'bg-amber-400 text-[#2a1f05]'
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-              aria-pressed={isPaused}
-            >
-              {isPaused ? '▶' : '⏸'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setVoiceOn((value) => !value)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                voiceOn ? 'bg-orange-500 text-[#10231a]' : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-              aria-pressed={voiceOn}
-            >
-              {voiceOn ? '🔊' : '🔈'}
-            </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-orange-50">
+                {routeName || 'Trasa'}
+              </p>
+              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-orange-100/55">
+                {isPaused ? 'Nawigacja wstrzymana' : mode === 'Loop' ? 'Pętla' : 'Trasa A → B'}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowManeuverList((value) => !value)}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
+                  showManeuverList
+                    ? 'bg-orange-500 text-[#2c1e16]'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+                aria-pressed={showManeuverList}
+                aria-label="Lista manewrów"
+                title="Lista manewrów"
+              >
+                <IconList className="h-5 w-5" stroke={2} />
+              </button>
+              <button
+                type="button"
+                onClick={togglePause}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
+                  isPaused
+                    ? 'bg-amber-400 text-[#2a1f05]'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+                aria-pressed={isPaused}
+                aria-label={isPaused ? 'Wznów jazdę' : 'Wstrzymaj jazdę'}
+                title={isPaused ? 'Wznów jazdę' : 'Wstrzymaj jazdę'}
+              >
+                {isPaused ? (
+                  <IconPlayerPlay className="h-5 w-5" fill="currentColor" stroke={1.8} />
+                ) : (
+                  <IconPlayerPause className="h-5 w-5" fill="currentColor" stroke={1.8} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceOn((value) => !value)}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
+                  voiceOn
+                    ? 'bg-orange-500 text-[#2c1e16]'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+                aria-pressed={voiceOn}
+                aria-label={voiceOn ? 'Wyłącz komunikaty głosowe' : 'Włącz komunikaty głosowe'}
+                title={voiceOn ? 'Wyłącz komunikaty głosowe' : 'Włącz komunikaty głosowe'}
+              >
+                {voiceOn ? (
+                  <IconVolume className="h-5 w-5" stroke={2} />
+                ) : (
+                  <IconVolumeOff className="h-5 w-5" stroke={2} />
+                )}
+              </button>
+            </div>
           </div>
 
           {showManeuverList && (
@@ -693,11 +732,18 @@ function RideView({
               {geoError}
             </p>
           ) : !userPos ? (
-            <p className="mt-3 text-sm text-orange-100/80">Ustalanie pozycji GPS…</p>
+            <div className="mt-3 flex items-center gap-2 text-sm text-orange-100/80">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
+              Ustalanie pozycji GPS…
+            </div>
           ) : navState?.isOffRoute ? (
             <div className="mt-3 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">⚠️</span>
+              <div className="flex items-center gap-3 rounded-xl border-l-4 border-amber-400 bg-amber-400/10 px-3 py-2.5">
+                {isRecalculating ? (
+                  <span className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-amber-200/35 border-t-amber-300" />
+                ) : (
+                  <IconAlertTriangle className="h-7 w-7 shrink-0 text-amber-300" stroke={1.8} />
+                )}
                 <div>
                   <p className="text-base font-semibold text-amber-200">
                     {isRecalculating ? 'Przeliczanie trasy…' : 'Poza trasą'}
@@ -730,21 +776,29 @@ function RideView({
               <p className="text-lg font-semibold text-orange-100">Dojeżdżasz do celu</p>
             </div>
           ) : nextManeuver ? (
-            <div className="mt-3 flex items-center gap-4">
-              <span className="text-4xl leading-none text-orange-300">
+            <div className="mt-3 flex items-center gap-3.5">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-500/[0.18] text-4xl leading-none text-orange-300 ring-1 ring-orange-300/10">
                 {maneuverVisual?.icon}
               </span>
-              <div className="min-w-0">
-                <p className="text-2xl font-bold tabular-nums text-white">
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex items-center justify-between gap-2">
+                  <p className="text-3xl font-bold leading-none tabular-nums text-white">
                   {formatDistance(navState.distanceToManeuver)}
-                </p>
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-orange-100/65">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                    GPS{accuracy ? ` ±${Math.round(accuracy)} m` : ''}
+                  </span>
+                </div>
                 <p className="truncate text-sm text-orange-100/90">
                   {nextManeuver.instruction || maneuverVisual?.label}
                 </p>
                 {followingManeuver && (
-                  <p className="mt-0.5 truncate text-xs text-orange-100/60">
+                  <p className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/[0.08] px-2 py-0.5 text-xs text-orange-100/65">
+                    <span className="truncate">
                     potem {getManeuverVisual(followingManeuver.type).icon}{' '}
                     {followingManeuver.instruction}
+                    </span>
                   </p>
                 )}
               </div>
@@ -767,22 +821,23 @@ function RideView({
           <button
             type="button"
             onClick={() => setFollow(true)}
-            className="pointer-events-auto self-end rounded-full bg-[#FFF8E8] px-4 py-2 text-sm font-semibold text-[#2c1e16] shadow-lg"
+            className="pointer-events-auto flex items-center gap-2 self-end rounded-full bg-[#FFF8E8] px-4 py-2 text-sm font-semibold text-[#2c1e16] shadow-lg ring-2 ring-white/35 transition hover:bg-white"
           >
-            ◎ Wyśrodkuj
+            <IconCurrentLocation className="h-4 w-4 text-[#E05518]" stroke={2} />
+            Wyśrodkuj
           </button>
         )}
 
-        <div className="pointer-events-auto rounded-2xl bg-[#3d2a20]/95 px-4 py-3 shadow-xl ring-1 ring-white/10 backdrop-blur">
-          <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+        <div className="pointer-events-auto rounded-[1.35rem] bg-[#3d2a20]/94 px-4 py-3 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.12] backdrop-blur-xl">
+          <div className="mb-2.5 h-2 w-full overflow-hidden rounded-full bg-white/[0.12]">
             <div
-              className="h-full rounded-full bg-orange-400 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-[#FC6C26] via-orange-400 to-[#ffc08b] transition-[width] duration-500 ease-out"
               style={{ width: `${Math.round((navState?.progress || 0) * 100)}%` }}
             />
           </div>
           <div className="flex items-center justify-between text-center">
             <div className="flex-1">
-              <p className="text-lg font-bold tabular-nums text-white">
+              <p className="text-xl font-bold tabular-nums text-white">
                 {formatDistance(navState ? navState.remainingDistance : totalDistance)}
               </p>
               <p className="text-[11px] uppercase tracking-wide text-orange-100/60">Pozostało</p>

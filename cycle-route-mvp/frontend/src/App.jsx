@@ -1477,7 +1477,7 @@ function App() {
           ref={plannerSectionRef}
           className="relative z-10 px-3 pb-3 pt-3 md:px-5 md:pb-5 md:pt-4"
         >
-          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] text-stone-800 shadow-[0_10px_28px_rgba(95,74,53,0.12)] md:h-[calc(100vh-4.5rem)] md:min-h-[680px] md:flex-row md:overflow-hidden">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-[1.5rem] border border-[#C4A574]/90 bg-[#FFF4D6] text-stone-800 shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)] md:h-[calc(100dvh-7.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}
@@ -1493,24 +1493,25 @@ function App() {
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[#F5E6C0] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[22rem] md:shrink-0">
-        <div className="shrink-0 space-y-3 border-b border-[#C4A574] p-4 pb-3 md:p-5 md:pb-3">
+      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[linear-gradient(180deg,#F8EBCF_0%,#F2DFC0_100%)] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
+        <div className="shrink-0 space-y-4 border-b border-[#C4A574]/80 bg-white/20 p-5 pb-4 backdrop-blur-sm md:p-6 md:pb-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-800">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[#E08A50]/35 bg-[#FFF8E8]/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FC6C26]" />
               {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
                 ? 'Biblioteka tras'
                 : routeMode === 'AtoB'
                   ? 'Tryb: Trasa A → B'
                   : 'Tryb: Pętla treningowa'}
             </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#FC6C26]">
+            <h1 className="mt-2.5 text-2xl font-semibold tracking-tight text-[#E05518]">
               {plannerPanel === 'saved'
                 ? 'Zapisane trasy'
                 : plannerPanel === 'savedDetail'
                   ? 'Szczegóły trasy'
                   : 'Planer tras'}
             </h1>
-            <p className="mt-1.5 text-xs leading-5 text-stone-700">
+            <p className="mt-2 text-sm leading-6 text-stone-800">
               {plannerPanel === 'saved'
                 ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
                 : plannerPanel === 'savedDetail'
@@ -1528,7 +1529,7 @@ function App() {
           )}
         </div>
 
-        <div className="p-4 pt-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
+        <div className="min-h-0 p-5 pt-4 md:flex-1 md:overflow-y-auto md:p-6 md:pt-4">
           {(plannerPanel === 'saved' || (plannerPanel === 'savedDetail' && isAuthenticated)) && (
             <SavedRoutes
               onLoadRoute={handleLoadSavedRoute}
@@ -1570,7 +1571,7 @@ function App() {
           )}
 
           {plannerPanel === 'plan' && (
-          <div className="soft-panel space-y-4 rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-4">
+          <div className="space-y-4 rounded-2xl border border-[#C4A574]/80 bg-[#FFF8E8]/65 p-4 shadow-[0_16px_35px_-30px_rgba(74,43,32,0.55)]">
             {routeMode === 'AtoB' ? (
               <>
                 <div>
@@ -1598,7 +1599,7 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('start')}
                       disabled={isSearchingStart}
-                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                      className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
@@ -1651,7 +1652,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => geocodeAddress('via', stop.id)}
-                        className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518]"
+                        className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40"
                       >
                         Szukaj
                       </button>
@@ -1703,7 +1704,7 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('end')}
                       disabled={isSearchingEnd}
-                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                      className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingEnd ? '...' : 'Szukaj'}
                     </button>
@@ -1725,14 +1726,14 @@ function App() {
                   type="button"
                   onClick={handleRouteSubmit}
                   disabled={!startPoint || !endPoint || isLoadingRoute}
-                  className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                  className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-none disabled:bg-[#f0b090] disabled:shadow-none"
                 >
                   {isLoadingRoute ? 'Wyznaczanie trasy...' : 'Wyznacz trasę'}
                 </button>
                 <button
                   type="button"
                   onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-white/45 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-white/75"
                 >
                   Wyczyść
                 </button>
@@ -1764,7 +1765,7 @@ function App() {
                       type="button"
                       onClick={() => geocodeAddress('start')}
                       disabled={isSearchingStart}
-                      className="soft-button rounded-lg bg-[#FC6C26] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                    className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
                     >
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
@@ -1799,14 +1800,14 @@ function App() {
                   type="button"
                   onClick={handleLoopSubmit}
                   disabled={!startPoint || isLoadingRoute}
-                  className="soft-button w-full rounded-xl bg-[#7a6248] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6c563f] disabled:cursor-not-allowed disabled:bg-[#b8a493]"
+                  className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-none disabled:bg-[#f0b090] disabled:shadow-none"
                 >
                   {isLoadingRoute ? 'Generowanie pętli...' : 'Wygeneruj pętlę'}
                 </button>
                 <button
                   type="button"
                   onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
+                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-white/45 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-white/75"
                 >
                   Wyczyść
                 </button>
@@ -1822,7 +1823,7 @@ function App() {
             )}
 
             {routeStats && (
-              <div className="soft-panel rounded-xl border border-[#E08A50] bg-[#FFF4D6] p-4 text-sm text-stone-800">
+              <div className="rounded-2xl border border-[#E08A50]/80 bg-[linear-gradient(145deg,rgba(255,248,232,0.96),rgba(255,244,214,0.9))] p-4 text-sm text-stone-800 shadow-[0_16px_34px_-28px_rgba(224,85,24,0.55)]">
                 <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
                   Akcje
                 </p>
@@ -1834,7 +1835,7 @@ function App() {
                     type="button"
                     onClick={handleStartRide}
                     disabled={isPreparingRide}
-                    className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#E05518] disabled:opacity-60"
+                    className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 disabled:opacity-60"
                   >
                     {isPreparingRide ? 'Przygotowywanie nawigacji…' : 'Nawiguj (tryb jazdy)'}
                   </button>
@@ -1883,8 +1884,8 @@ function App() {
         </div>
 
         {plannerPanel === 'plan' && (
-        <div className="shrink-0 p-6 pt-0">
-          <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] p-4 text-sm font-medium text-stone-800">
+        <div className="shrink-0 p-5 pb-5 pt-0 md:p-6 md:pb-5 md:pt-0">
+          <div className="rounded-xl border border-[#C4A574]/75 bg-[#FFF8E8]/70 p-3.5 text-sm font-medium leading-5 text-stone-700 shadow-[0_10px_24px_-24px_rgba(74,43,32,0.5)]">
             {isLoadingRoute && <p className="font-medium">Wyznaczanie trasy...</p>}
             {!isLoadingRoute && !startPoint && routeMode === 'AtoB' && (
               <p>Kliknij mapę, aby wybrać punkt startowy.</p>
@@ -1922,7 +1923,7 @@ function App() {
       </aside>
 
       <div className="relative flex w-full shrink-0 flex-col md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
-        <div className="relative m-3 h-[42vh] min-h-[260px] overflow-hidden rounded-2xl border-2 border-[#C4A574] bg-[#FFF4D6] shadow-[0_8px_24px_rgba(95,74,53,0.12)] md:m-0 md:h-auto md:min-h-0 md:flex-1 md:rounded-none md:border-0 md:border-l md:border-[#C4A574] md:shadow-none">
+        <div className="relative m-3 h-[44vh] min-h-[280px] overflow-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] shadow-[0_16px_38px_-24px_rgba(74,43,32,0.5)] ring-1 ring-white/60 md:m-0 md:h-auto md:min-h-0 md:flex-1 md:rounded-none md:border-0 md:border-l md:border-[#C4A574] md:shadow-none md:ring-0">
           <Suspense
             fallback={
               <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#FFF4D6]" />
