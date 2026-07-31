@@ -59,7 +59,7 @@ function StepCard({ step, active, onStartPlanning, compact = false }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4a3226] text-sm font-bold text-vanilla">
             {step.n}
           </span>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
             {step.eyebrow}
           </p>
         </div>
@@ -71,14 +71,14 @@ function StepCard({ step, active, onStartPlanning, compact = false }) {
           {step.title}
         </h3>
         <p
-          className={`text-[#4a3226]/80 ${
+          className={`text-[#4a3226]/85 ${
             compact ? 'mt-3 text-xs leading-5' : 'mt-6 text-base leading-8 md:text-lg'
           }`}
         >
           {step.text}
         </p>
         {!compact && (
-          <p className="mt-4 max-w-lg text-sm leading-7 text-[#4a3226]/60">
+          <p className="mt-4 max-w-lg text-[15px] leading-7 text-ink-muted">
             {step.detail}
           </p>
         )}
@@ -177,10 +177,10 @@ function ScrollJourney({ onStartPlanning }) {
       ref={sectionRef}
       className="relative h-[500vh] scroll-mt-20 bg-vanilla"
     >
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden border-y border-[#4a3226]/10">
+      <div className="sticky top-0 flex h-screen items-center overflow-hidden border-y border-[#4a3226]/18">
         <div className="mx-auto w-full max-w-7xl px-5 md:px-10">
           <div className="mb-5 text-center lg:mb-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-burnt-orange">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-burnt-orange">
               Od pomysłu do przejazdu
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold text-[#4a3226] md:text-4xl">

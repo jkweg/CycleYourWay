@@ -15,7 +15,7 @@ export default {
         },
         ink: {
           DEFAULT: '#2A1A12',
-          muted: '#5C4030',
+          muted: '#4F3728',
         },
       },
       backgroundImage: {

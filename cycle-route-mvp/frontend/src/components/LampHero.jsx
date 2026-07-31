@@ -107,7 +107,7 @@ function LampHero({ onStartPlanning }) {
       <LampContainer className="min-h-[min(92vh,760px)]">
         <div
           data-hero-reveal
-          className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#4a3226]/25 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4a3226]"
+          className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#4a3226]/30 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4a3226]"
         >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-burnt-orange opacity-35" />
@@ -176,7 +176,7 @@ function LampHero({ onStartPlanning }) {
         </p>
         <p
           data-hero-reveal
-          className="mt-4 max-w-xl text-sm leading-7 text-ink-muted md:text-base"
+          className="mt-4 max-w-xl text-[15px] leading-7 text-ink-muted md:text-base"
         >
           Od spokojnej pętli po ambitny wyjazd — planowanie, analiza i nawigacja
           spotykają się w jednym eleganckim narzędziu.
@@ -189,13 +189,13 @@ function LampHero({ onStartPlanning }) {
           <button
             type="button"
             onClick={onStartPlanning}
-            className="soft-button rounded-full bg-[#4a3226] px-8 py-3.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219]"
+            className="soft-button rounded-full bg-burnt-orange px-8 py-3.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
           >
             Rozpocznij planowanie
           </button>
           <a
             href="#journey"
-            className="soft-button rounded-full border border-burnt-orange px-8 py-3.5 text-sm font-semibold text-burnt-orange transition hover:bg-burnt-orange hover:text-vanilla"
+            className="soft-button rounded-full border border-[#4a3226]/40 px-8 py-3.5 text-sm font-semibold text-[#4a3226] transition hover:border-[#4a3226] hover:bg-[#4a3226]/5"
           >
             Zobacz, jak to działa
           </a>
@@ -203,18 +203,18 @@ function LampHero({ onStartPlanning }) {
 
         <div
           data-hero-reveal
-          className="mt-9 grid w-full max-w-4xl gap-2 pb-2 sm:grid-cols-3"
+          className="mt-9 grid w-full max-w-4xl gap-2.5 pb-2 sm:grid-cols-3"
         >
           {HERO_POINTS.map((point, index) => (
             <div
               key={point.label}
               data-hero-point
-              className="rounded-2xl border border-[#4a3226]/15 bg-vanilla px-4 py-3 text-left"
+              className="rounded-2xl border border-[#4a3226]/25 bg-[#FFFBF1] px-4 py-3.5 text-left"
             >
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-burnt-orange">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
                 0{index + 1} · {point.label}
               </p>
-              <p className="mt-1 text-xs font-medium text-ink-muted md:text-sm">
+              <p className="mt-1.5 text-sm font-medium text-ink-muted">
                 {point.value}
               </p>
             </div>

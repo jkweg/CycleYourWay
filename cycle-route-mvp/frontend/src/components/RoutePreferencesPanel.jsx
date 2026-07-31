@@ -59,8 +59,8 @@ function RoutePreferencesPanel({
   onAvoidMainRoadsChange,
 }) {
   return (
-    <div className="space-y-3.5 rounded-2xl border border-[#C4A574]/80 bg-[linear-gradient(145deg,rgba(255,248,232,0.96),rgba(255,244,214,0.88))] p-3.5 shadow-[0_12px_30px_-26px_rgba(74,43,32,0.55)]">
-      <div className="flex items-start gap-2.5 border-b border-[#C4A574]/35 pb-3">
+    <div className="space-y-3.5 rounded-2xl border border-[#C4A574] bg-[linear-gradient(145deg,rgba(255,248,232,0.98),rgba(255,244,214,0.92))] p-3.5 shadow-[0_12px_30px_-26px_rgba(74,43,32,0.55)]">
+      <div className="flex items-start gap-2.5 border-b border-[#C4A574]/50 pb-3">
         <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FC6C26]" />
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[#E05518]">

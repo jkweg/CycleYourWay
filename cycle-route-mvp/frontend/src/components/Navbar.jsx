@@ -22,35 +22,35 @@ function Navbar({
   }
 
   return (
-    <header className="absolute inset-x-0 top-0 z-50 border-b border-[#4a3226]/10 bg-transparent text-[#4a3226]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 md:px-10">
+    <header className="absolute inset-x-0 top-0 z-50 border-b border-[#4a3226]/15 bg-transparent text-[#4a3226]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3.5 sm:gap-4 sm:px-6 sm:py-5 md:px-10">
         <button
           type="button"
           onClick={onGoHome}
-          className="min-w-0 truncate text-left text-[11px] font-bold uppercase tracking-[0.14em] text-[#4a3226] transition hover:text-burnt-orange sm:text-sm sm:tracking-[0.18em]"
+          className="min-w-0 truncate text-left text-xs font-bold uppercase tracking-[0.16em] text-[#4a3226] transition hover:text-burnt-orange sm:text-sm sm:tracking-[0.18em]"
         >
           Cycle Your Way
         </button>
 
-        <nav className="hidden items-center gap-8 text-sm font-medium text-[#4a3226]/75 md:flex">
+        <nav className="hidden items-center gap-8 text-[15px] font-medium text-[#4a3226]/90 md:flex">
           <button
             type="button"
             onClick={() => scrollToSection('about')}
-            className="transition hover:text-burnt-orange"
+            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
           >
             O aplikacji
           </button>
           <button
             type="button"
             onClick={() => scrollToSection('features')}
-            className="transition hover:text-burnt-orange"
+            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
           >
             Funkcje
           </button>
           <button
             type="button"
             onClick={() => scrollToSection('journey')}
-            className="transition hover:text-burnt-orange"
+            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
           >
             Jak to działa
           </button>
@@ -60,7 +60,7 @@ function Navbar({
           {isAuthenticated ? (
             <>
               <span
-                className="hidden max-w-[8rem] truncate text-xs text-[#4a3226]/65 lg:inline"
+                className="hidden max-w-[8rem] truncate text-sm text-[#4a3226]/70 lg:inline"
                 title={userEmail}
               >
                 {userEmail}
@@ -68,14 +68,14 @@ function Navbar({
               <button
                 type="button"
                 onClick={onOpenProfile}
-                className="rounded-lg border border-[#4a3226] bg-[#4a3226] px-3 py-2 text-xs font-semibold text-vanilla transition hover:bg-[#352219]"
+                className="rounded-lg border border-[#4a3226] bg-[#4a3226] px-3.5 py-2.5 text-sm font-semibold text-vanilla transition hover:bg-[#352219]"
               >
                 Moje konto
               </button>
               <button
                 type="button"
                 onClick={onLogout}
-                className="rounded-lg border border-[#4a3226]/35 bg-vanilla px-3 py-2 text-xs font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
+                className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
               >
                 Wyloguj
               </button>
@@ -84,7 +84,7 @@ function Navbar({
             <button
               type="button"
               onClick={onOpenAuth}
-              className="rounded-lg border border-[#4a3226]/35 bg-vanilla px-3 py-2 text-xs font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
+              className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
             >
               Konto
             </button>
@@ -94,7 +94,7 @@ function Navbar({
             <button
               type="button"
               onClick={onStartPlanning}
-              className="soft-button rounded-lg bg-burnt-orange px-4 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
+              className="soft-button rounded-lg bg-burnt-orange px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
             >
               Planer
             </button>
@@ -102,7 +102,7 @@ function Navbar({
             <button
               type="button"
               onClick={onGoHome}
-              className="soft-button rounded-lg border border-[#4a3226] bg-[#4a3226] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219]"
+              className="soft-button rounded-lg border border-[#4a3226] bg-[#4a3226] px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219]"
             >
               Strona główna
             </button>

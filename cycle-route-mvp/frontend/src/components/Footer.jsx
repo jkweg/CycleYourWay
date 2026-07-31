@@ -7,17 +7,17 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-burnt-orange">
               Cycle Your Way
             </p>
-            <p className="mt-4 max-w-md text-sm leading-7 text-vanilla/60">
+            <p className="mt-4 max-w-md text-[15px] leading-7 text-[#E8D5B5]">
               Planer tras rowerowych z analizą wysokości, nawierzchni i eksportem do nawigacji.
               Twórz trasy dopasowane do Twojego stylu jazdy.
             </p>
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-burnt-orange/70">
+            <p className="text-xs font-semibold uppercase tracking-wide text-burnt-orange">
               Nawigacja
             </p>
-            <ul className="mt-4 space-y-2 text-sm">
+            <ul className="mt-4 space-y-2 text-sm text-vanilla/85">
               <li>
                 <button
                   type="button"
@@ -40,10 +40,10 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-burnt-orange/70">
+            <p className="text-xs font-semibold uppercase tracking-wide text-burnt-orange">
               Informacje
             </p>
-            <ul className="mt-4 space-y-2 text-sm">
+            <ul className="mt-4 space-y-2 text-sm text-vanilla/85">
               <li>
                 <button
                   type="button"
@@ -66,7 +66,7 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-vanilla/15 pt-8 text-xs text-vanilla/55 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-vanilla/20 pt-8 text-xs text-[#E8D5B5]/80 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Cycle Your Way. Projekt portfolio / edukacyjny.</p>
           <p>Dane map: OpenStreetMap · Routing: OpenRouteService</p>
         </div>
