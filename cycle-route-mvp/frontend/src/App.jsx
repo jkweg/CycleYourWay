@@ -1449,16 +1449,18 @@ function App() {
 
   return (
     <div className="relative min-h-full w-full overflow-x-clip bg-vanilla text-ink">
-      <Navbar
-        view={view}
-        onGoHome={goToHome}
-        onStartPlanning={goToPlanner}
-        onOpenAuth={() => setShowAuthModal(true)}
-        onOpenProfile={() => setShowProfileModal(true)}
-        onLogout={logout}
-        isAuthenticated={isAuthenticated}
-        userEmail={user?.email}
-      />
+      {view === 'landing' && (
+        <Navbar
+          view={view}
+          onGoHome={goToHome}
+          onStartPlanning={goToPlanner}
+          onOpenAuth={() => setShowAuthModal(true)}
+          onOpenProfile={() => setShowProfileModal(true)}
+          onLogout={logout}
+          isAuthenticated={isAuthenticated}
+          userEmail={user?.email}
+        />
+      )}
 
       {view === 'landing' ? (
         <>
@@ -1477,7 +1479,7 @@ function App() {
           ref={plannerSectionRef}
           className="relative z-10 px-3 pb-3 pt-3 md:px-5 md:pb-5 md:pt-4"
         >
-          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-[1.5rem] border border-[#C4A574]/90 bg-[#FFF4D6] text-stone-800 shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)] md:h-[calc(100dvh-7.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-[1.5rem] border border-[#C4A574]/90 bg-[#FFF4D6] text-stone-800 shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)] md:h-[calc(100dvh-2.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}

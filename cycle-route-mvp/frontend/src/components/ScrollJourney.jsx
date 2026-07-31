@@ -4,294 +4,240 @@ import {
   motion,
   useMotionValueEvent,
   useScroll,
-  useSpring,
   useTransform,
 } from 'motion/react'
+import PhoneShowcase from './PhoneShowcase'
 
-const ROUTE_D =
-  'M 60 384 C 132 384 150 300 220 288 C 292 276 300 196 362 198 C 424 200 430 126 500 72'
+const RAIL_PATH =
+  'M 50 0 C 12 70 88 125 48 195 C 12 260 90 320 52 390 C 18 452 84 510 48 575 C 22 622 66 662 50 700'
 
 const STEPS = [
   {
     n: '01',
-    title: 'Wybierz tryb jazdy',
-    text: 'Trasa A → B prosto do celu albo pętla treningowa o zadanym dystansie — wszystko z bocznego panelu.',
-    at: 0,
-    point: { x: 60, y: 384 },
+    eyebrow: 'Zacznij od pomysłu',
+    title: 'Wybierz, dokąd jedziesz.',
+    text: 'Trasa A → B albo pętla o konkretnym dystansie. Wpisz adresy, kliknij mapę i dopasuj styl jazdy.',
+    detail: 'Planer prowadzi od wyboru trybu do gotowego zapytania bez zbędnych ekranów.',
   },
   {
     n: '02',
-    title: 'Wyznacz trasę na mapie',
-    text: 'Kliknij punkty albo wpisz adresy z podpowiedziami. Liczymy rowerowy routing i pokazujemy warianty.',
-    at: 0.36,
-    point: { x: 220, y: 288 },
+    eyebrow: 'Zobacz możliwości',
+    title: 'Porównaj realne warianty.',
+    text: 'Rowerowy routing wyznacza trasę, a Ty od razu widzisz dystans, czas i przebieg na mapie.',
+    detail: 'Punkty pośrednie i preferencje pozwalają dopracować przejazd przed wyjazdem.',
   },
   {
     n: '03',
-    title: 'Sprawdź szczegóły',
-    text: 'Profil wysokości, dystans, szacowany czas i nawierzchnia — zanim wyjedziesz z domu.',
-    at: 0.66,
-    point: { x: 362, y: 198 },
+    eyebrow: 'Poznaj trasę',
+    title: 'Sprawdź, co czeka po drodze.',
+    text: 'Profil wysokości, przewyższenia, stromizny i nawierzchnia pokazują charakter przejazdu.',
+    detail: 'Podejmujesz świadomą decyzję, zanim pierwszy raz zakręcisz korbą.',
   },
   {
     n: '04',
-    title: 'Zabierz w teren',
-    text: 'Zapisz trasę na koncie, pobierz GPX albo odpal nawigację głosową na telefonie.',
-    at: 1,
-    point: { x: 500, y: 72 },
+    eyebrow: 'Jedź po swojemu',
+    title: 'Zabierz trasę w teren.',
+    text: 'Uruchom nawigację na telefonie, słuchaj wskazówek i wróć na trasę po przypadkowym zjechaniu.',
+    detail: 'Po jeździe trasa i historia przejazdu zostają zapisane na Twoim koncie.',
   },
 ]
 
-const STEP_BREAKPOINTS = [0, 0.22, 0.47, 0.72, 1]
+const BREAKPOINTS = [0, 0.25, 0.5, 0.75]
 
-function StepDot({ point, at, progress }) {
-  const scale = useTransform(progress, [at - 0.16, at], [0.55, 1])
-  const fill = useTransform(progress, [at - 0.06, at], ['#f5e6c0', '#FC6C26'])
-  const pulse = useTransform(progress, [at - 0.14, at - 0.02, at + 0.22], [0, 0.55, 0])
-  const labelOpacity = useTransform(
-    progress,
-    [at - 0.1, at, Math.min(1, at + 0.28), Math.min(1, at + 0.42)],
-    [0, 1, 1, 0.35],
-  )
-
+function StepCard({ step, active, onStartPlanning, compact = false }) {
   return (
-    <g transform={`translate(${point.x} ${point.y})`}>
-      <motion.circle r="22" fill="#FC6C26" style={{ opacity: pulse }} />
-      <motion.circle
-        r="10"
-        stroke="#ffffff"
-        strokeWidth="3"
-        style={{ scale, fill }}
-      />
-      <motion.text
-        x="0"
-        y="-26"
-        textAnchor="middle"
-        className="fill-burnt-orange text-[15px] font-bold"
-        style={{ opacity: labelOpacity }}
+    <AnimatePresence mode="wait">
+      <motion.article
+        key={active}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -24 }}
+        transition={{ duration: 0.34, ease: 'easeOut' }}
+        className="max-w-xl"
       >
-        {STEPS.find((s) => s.point === point)?.n}
-      </motion.text>
-    </g>
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4a3226] text-sm font-bold text-vanilla">
+            {step.n}
+          </span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
+            {step.eyebrow}
+          </p>
+        </div>
+        <h3
+          className={`font-serif font-semibold leading-[1.05] tracking-tight text-[#4a3226] ${
+            compact ? 'mt-3 text-2xl' : 'mt-6 text-4xl md:text-6xl'
+          }`}
+        >
+          {step.title}
+        </h3>
+        <p
+          className={`text-[#4a3226]/80 ${
+            compact ? 'mt-3 text-xs leading-5' : 'mt-6 text-base leading-8 md:text-lg'
+          }`}
+        >
+          {step.text}
+        </p>
+        {!compact && (
+          <p className="mt-4 max-w-lg text-sm leading-7 text-[#4a3226]/60">
+            {step.detail}
+          </p>
+        )}
+        {active === STEPS.length - 1 && (
+          <button
+            type="button"
+            onClick={onStartPlanning}
+            className={`soft-button rounded-full bg-burnt-orange font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark ${
+              compact ? 'mt-3 px-4 py-2 text-[10px]' : 'mt-7 px-7 py-3 text-sm'
+            }`}
+          >
+            Rozpocznij planowanie
+          </button>
+        )}
+      </motion.article>
+    </AnimatePresence>
   )
 }
 
-function MapStage({ progress, offsetDistance }) {
+function ProgressRail({ progress, active, compact = false }) {
   return (
-    <div className="relative w-full overflow-hidden rounded-[2rem] border border-burnt-orange/25 bg-gradient-to-br from-vanilla via-[#fff8e8] to-vanilla-deep p-4 shadow-[0_30px_70px_-30px_rgba(252,108,38,0.4)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.45] [background-image:linear-gradient(rgba(252,108,38,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(252,108,38,0.12)_1px,transparent_1px)] [background-size:34px_34px]" />
-
-      <svg
-        viewBox="0 0 560 440"
-        className="relative h-auto w-full"
-        role="img"
-        aria-label="Animowana mapa z trasą rowerową"
-      >
+    <div
+      className={
+        compact
+          ? 'relative h-[70vh] w-10 shrink-0'
+          : 'relative mx-auto h-[78vh] w-24'
+      }
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 100 700" className="h-full w-full overflow-visible">
         <path
-          d="M 40 60 Q 110 30 180 70 Q 200 130 130 150 Q 60 140 40 90 Z"
-          fill="#FC6C26"
-          opacity="0.12"
-        />
-        <ellipse cx="450" cy="330" rx="95" ry="60" fill="#FC6C26" opacity="0.1" />
-        <path
-          d="M -10 250 C 120 230 160 320 300 300 C 420 284 470 360 580 330"
+          d={RAIL_PATH}
           fill="none"
-          stroke="#e8c9a0"
-          strokeWidth="14"
+          stroke="#4a3226"
+          strokeWidth="3"
+          strokeDasharray="4 11"
+          opacity="0.18"
           strokeLinecap="round"
-          opacity="0.7"
-        />
-
-        <path
-          d={ROUTE_D}
-          fill="none"
-          stroke="#f0d9b0"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray="1 12"
         />
         <motion.path
-          d={ROUTE_D}
+          d={RAIL_PATH}
           fill="none"
           stroke="#FC6C26"
-          strokeWidth="6"
+          strokeWidth="5"
           strokeLinecap="round"
           style={{ pathLength: progress }}
         />
-
-        {STEPS.map((step) => (
-          <StepDot key={step.n} point={step.point} at={step.at} progress={progress} />
+        {BREAKPOINTS.map((point, index) => (
+          <motion.circle
+            key={point}
+            initial={false}
+            animate={{
+              r: index === active ? 11 : 7,
+              fill: index <= active ? '#FC6C26' : '#fff4d6',
+            }}
+            stroke="#4a3226"
+            strokeWidth={index === active ? 4 : 3}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            style={{
+              offsetPath: `path('${RAIL_PATH}')`,
+              offsetDistance: `${point * 100}%`,
+              offsetRotate: '0deg',
+            }}
+          />
         ))}
-
-        <g transform="translate(500 72)">
-          <circle r="13" fill="#ffffff" stroke="#FC6C26" strokeWidth="3" />
-          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="14">
-            🏁
-          </text>
-        </g>
-
-        <motion.g
-          style={{
-            offsetPath: `path('${ROUTE_D}')`,
-            offsetDistance,
-            offsetRotate: '0deg',
-          }}
-        >
-          <circle r="20" fill="#FC6C26" opacity="0.18" />
-          <circle r="15" fill="#FC6C26" stroke="#ffffff" strokeWidth="3" />
-          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="16">
-            🚴
-          </text>
-        </motion.g>
       </svg>
-
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-full bg-vanilla/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-burnt-orange shadow-sm backdrop-blur">
-        Cycle Your Way · podgląd trasy
-      </div>
+      <motion.p
+        style={{ opacity: useTransform(progress, [0, 0.12, 0.86, 1], [1, 0.45, 0.45, 0]) }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 rotate-90 whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.24em] text-[#4a3226]/45"
+      >
+        Scroll down
+      </motion.p>
     </div>
   )
 }
 
 function ScrollJourney({ onStartPlanning }) {
-  const ref = useRef(null)
+  const sectionRef = useRef(null)
+  const [active, setActive] = useState(0)
   const { scrollYProgress } = useScroll({
-    target: ref,
+    target: sectionRef,
     offset: ['start start', 'end end'],
   })
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 90,
-    damping: 26,
-    mass: 0.4,
-  })
-  const offsetDistance = useTransform(progress, [0, 1], ['0%', '100%'])
-  const mapScale = useTransform(progress, [0, 0.5, 1], [0.97, 1, 0.98])
-  const mapY = useTransform(progress, [0, 0.5, 1], [10, 0, -8])
-  const railY = useTransform(progress, [0, 1], ['0%', '100%'])
-  const scrollHintOpacity = useTransform(progress, [0, 0.12, 0.84, 1], [1, 0.55, 0.55, 0])
 
-  const [active, setActive] = useState(0)
-  const [direction, setDirection] = useState(1)
-  useMotionValueEvent(progress, 'change', (value) => {
-    const index = STEP_BREAKPOINTS.findIndex((point, idx) => {
-      const next = STEP_BREAKPOINTS[idx + 1]
-      if (next == null) return false
-      return value >= point && value < next
-    })
-
-    const normalized = index === -1 ? STEPS.length - 1 : index
-    setActive((current) => {
-      if (current === normalized) return current
-      setDirection(normalized > current ? 1 : -1)
-      return normalized
-    })
+  useMotionValueEvent(scrollYProgress, 'change', (value) => {
+    const next = Math.min(STEPS.length - 1, Math.floor(value * STEPS.length))
+    setActive((current) => (current === next ? current : next))
   })
 
   const step = STEPS[active]
-  const isLast = active === STEPS.length - 1
+  const copyOnLeft = active % 2 === 0
 
   return (
     <section
       id="journey"
-      ref={ref}
-      className="relative h-[240vh] scroll-mt-20 bg-[linear-gradient(180deg,rgba(255,244,214,0.72)_0%,rgba(255,244,214,0.56)_18%,rgba(255,244,214,0.56)_82%,rgba(255,244,214,0.72)_100%)] md:h-[250vh]"
+      ref={sectionRef}
+      className="relative h-[500vh] scroll-mt-20 bg-vanilla"
     >
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(255,244,214,0.18)_100%)]" />
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden">
-        <div className="mx-auto w-full max-w-7xl px-6 md:px-10">
-          <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-            <div className="order-2 lg:order-1">
-              <motion.div
-                style={{ scale: mapScale, y: mapY }}
-                className="mx-auto w-full max-w-[22rem] sm:max-w-md lg:max-w-xl"
-              >
-                <MapStage progress={progress} offsetDistance={offsetDistance} />
-              </motion.div>
+      <div className="sticky top-0 flex h-screen items-center overflow-hidden border-y border-[#4a3226]/10">
+        <div className="mx-auto w-full max-w-7xl px-5 md:px-10">
+          <div className="mb-5 text-center lg:mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-burnt-orange">
+              Od pomysłu do przejazdu
+            </p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold text-[#4a3226] md:text-4xl">
+              Jak to działa
+            </h2>
+          </div>
+
+          <div className="hidden min-h-[78vh] grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)] items-center gap-5 lg:grid">
+            <motion.div
+              layout
+              style={{ gridColumn: copyOnLeft ? '1' : '3', gridRow: '1' }}
+              transition={{ layout: { type: 'spring', stiffness: 115, damping: 24, mass: 0.9 } }}
+              className={copyOnLeft ? 'flex justify-end' : 'flex justify-start'}
+            >
+              <StepCard step={step} active={active} onStartPlanning={onStartPlanning} />
+            </motion.div>
+            <div style={{ gridColumn: '2', gridRow: '1' }}>
+              <ProgressRail progress={scrollYProgress} active={active} />
             </div>
+            <motion.div
+              layout
+              style={{ gridColumn: copyOnLeft ? '3' : '1', gridRow: '1' }}
+              transition={{ layout: { type: 'spring', stiffness: 105, damping: 25, mass: 1 } }}
+              className={copyOnLeft ? 'flex justify-start' : 'flex justify-end'}
+            >
+              <PhoneShowcase activeStep={active} />
+            </motion.div>
+          </div>
 
-            <div className="order-1 lg:order-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-burnt-orange">
-                Od pomysłu do trasy
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold leading-tight text-ink md:text-4xl">
-                Jak to działa.
-              </h2>
-
-              <div className="mt-6 grid grid-cols-[2.25rem_minmax(0,1fr)] gap-4 md:grid-cols-[2.75rem_minmax(0,1fr)] md:gap-5">
-                <div className="flex min-h-[236px] flex-col items-center py-1" aria-hidden="true">
-                  <span className="text-[9px] font-bold tabular-nums tracking-wider text-burnt-orange">
-                    01
-                  </span>
-                  <div className="relative my-2 w-px flex-1 bg-burnt-orange/20">
-                    <motion.div
-                      style={{ scaleY: progress }}
-                      className="absolute inset-x-0 top-0 h-full origin-top bg-burnt-orange"
-                    />
-                    <motion.span
-                      style={{ top: railY }}
-                      className="absolute left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-vanilla bg-burnt-orange shadow-[0_0_0_5px_rgba(252,108,38,0.14)]"
-                    />
-                  </div>
-                  <span className="text-[9px] font-bold tabular-nums tracking-wider text-burnt-orange">
-                    04
-                  </span>
-                </div>
-
-                <div>
-                  <div className="relative min-h-[220px] md:min-h-[240px]">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={active}
-                        initial={{ opacity: 0, y: direction > 0 ? 30 : -30, scale: 0.985 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: direction > 0 ? -22 : 22, scale: 0.99 }}
-                        transition={{ duration: 0.36, ease: 'easeOut' }}
-                        className="rounded-3xl border border-burnt-orange/25 bg-vanilla/95 p-6 shadow-[0_24px_60px_-32px_rgba(252,108,38,0.45)] backdrop-blur md:p-9"
-                      >
-                        <div className="flex items-center gap-4">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-burnt-orange text-lg font-bold text-vanilla">
-                            {step.n}
-                          </span>
-                          <h3 className="text-xl font-semibold text-ink md:text-2xl">
-                            {step.title}
-                          </h3>
-                        </div>
-                        <p className="mt-4 text-base leading-8 text-ink-muted">{step.text}</p>
-
-                        {isLast && (
-                          <button
-                            type="button"
-                            onClick={onStartPlanning}
-                            className="soft-button mt-6 rounded-full bg-burnt-orange px-7 py-3 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
-                          >
-                            Rozpocznij planowanie
-                          </button>
-                        )}
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-
-                  <motion.div
-                    style={{ opacity: scrollHintOpacity }}
-                    className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted/70"
-                    aria-hidden="true"
-                  >
-                    <span>Scroll down</span>
-                    <span className="h-px flex-1 bg-gradient-to-r from-burnt-orange/45 to-transparent" />
-                    <motion.span
-                      animate={{ y: [0, 5, 0] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                      className="text-base leading-none text-burnt-orange"
-                    >
-                      ↓
-                    </motion.span>
-                  </motion.div>
-
-                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-ink-muted/70">
-                    Krok {step.n} / 04
-                  </p>
-                </div>
+          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 lg:hidden">
+            <ProgressRail
+              progress={scrollYProgress}
+              active={active}
+              compact
+            />
+            <div className="py-1">
+              <StepCard
+                step={step}
+                active={active}
+                onStartPlanning={onStartPlanning}
+                compact
+              />
+              <div className="mt-3">
+                <PhoneShowcase activeStep={active} compact />
               </div>
             </div>
+          </div>
+
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {STEPS.map((item, index) => (
+              <span
+                key={item.n}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === active ? 'w-8 bg-burnt-orange' : 'w-1.5 bg-[#4a3226]/20'
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
