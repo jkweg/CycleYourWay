@@ -77,7 +77,7 @@ create table if not exists public.profiles (
   display_name text,
   prefer_avoid_main_roads boolean not null default false,
   default_loop_distance_km integer not null default 30
-    check (default_loop_distance_km between 5 and 100),
+    check (default_loop_distance_km between 5 and 200),
   ride_style text not null default 'gravel'
     check (ride_style in ('road', 'gravel', 'mtb', 'city', 'trekking')),
   fitness_level text not null default 'regular'
@@ -258,3 +258,16 @@ create policy "Users can delete own rides"
   on public.rides
   for delete
   using (auth.uid() = user_id);
+
+-- Allow longer training loops (ORS waypoint-ellipse path for 101–200 km)
+do $$
+begin
+  alter table public.profiles
+    drop constraint if exists profiles_default_loop_distance_km_check;
+exception
+  when undefined_object then null;
+end $$;
+
+alter table public.profiles
+  add constraint profiles_default_loop_distance_km_check
+  check (default_loop_distance_km between 5 and 200);

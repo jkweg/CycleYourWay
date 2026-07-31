@@ -7,7 +7,10 @@ const escapeXml = (value) =>
     .replace(/'/g, '&apos;')
 
 export const buildGpxFromRouteFeature = (routeFeature, options = {}) => {
-  const coordinates = routeFeature?.geometry?.coordinates
+  const coordinates =
+    (Array.isArray(routeFeature?.properties?.cyw_full_coordinates) &&
+      routeFeature.properties.cyw_full_coordinates) ||
+    routeFeature?.geometry?.coordinates
   if (!Array.isArray(coordinates) || coordinates.length < 2) {
     throw new Error('Brak współrzędnych trasy do eksportu GPX.')
   }

@@ -5,8 +5,32 @@ const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 const {
   rankFeaturesByPreferences,
+  featurePreferenceScore,
 } = require("./lib/routeRanking");
 const { geocodePolishAddress, reverseGeocodePolish } = require("./lib/geocode");
+const { directionsGeoJsonUrl } = require("./lib/orsConfig");
+const { isAlternativesLimitError } = require("./lib/orsErrors");
+const { uniqueLoopSeeds } = require("./lib/loopSeeds");
+const {
+  TtlCache,
+  buildLoopCacheKey,
+  buildRouteCacheKey,
+} = require("./lib/orsCache");
+const {
+  featureDistanceMeters,
+  lengthDeviationRatio,
+  rankLoopFeatures,
+  roundTripPointsForDistanceKm,
+} = require("./lib/loopGeometry");
+const {
+  LOOP_MAX_KM,
+  LOOP_MIN_KM,
+  ORS_ROUND_TRIP_MAX_KM,
+  bearingFromSeed,
+  buildEllipseLoopCoordinates,
+  waypointCountForDistanceKm,
+} = require("./lib/loopWaypoints");
+const { withDisplaySimplifiedGeometry } = require("./lib/geoSimplify");
 const {
   buildOrsRoutingOptions,
   profilesToTry,
@@ -20,6 +44,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
+const orsResponseCache = new TtlCache({ ttlMs: 5 * 60 * 1000, maxSize: 80 });
 const ALLOWED_PROFILES = new Set([
   "cycling-mountain",
   "cycling-regular",
@@ -259,6 +284,7 @@ app.post("/api/route", async (req, res) => {
       climbPreference,
       preferAsphalt,
       avoidMainRoads,
+      includeAlternatives,
     } = req.body || {};
 
     let coordinates;
@@ -308,11 +334,17 @@ app.post("/api/route", async (req, res) => {
       lng: coordinates[coordinates.length - 1][0],
     };
     const straightLineMeters = haversineMeters(routeStart, routeEnd);
+    // Fast-first: alternatives only when the client explicitly asks for them.
     const useAlternatives =
+      Boolean(includeAlternatives) &&
       coordinates.length === 2 &&
       straightLineMeters <= ALTERNATIVE_ROUTES_MAX_METERS;
 
     const routingOptions = buildOrsRoutingOptions({ climbPreference: climbs });
+    const routeTimeoutMs = Math.min(
+      45000,
+      Math.max(15000, 10000 + straightLineMeters / 8),
+    );
 
     const routePayload = {
       coordinates,
@@ -338,21 +370,36 @@ app.post("/api/route", async (req, res) => {
       };
     }
 
+    const cacheKey = buildRouteCacheKey({
+      coordinates,
+      profile: requestedProfile,
+      rideStyle: style,
+      climbPreference: climbs,
+      preferAsphalt: wantAsphalt,
+      avoidMainRoads: wantQuiet,
+      includeAlternatives: useAlternatives,
+    });
+    const cached = orsResponseCache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
     let orsResponse;
     let lastError;
     let usedProfile = requestedProfile;
 
-    for (const currentProfile of profilesQueue) {
-      const orsUrl = `https://api.openrouteservice.org/v2/directions/${currentProfile}/geojson`;
+    const postDirections = async (profileName, payload) =>
+      axios.post(directionsGeoJsonUrl(profileName), payload, {
+        headers: {
+          Authorization: ORS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        timeout: routeTimeoutMs,
+      });
 
+    for (const currentProfile of profilesQueue) {
       try {
-        orsResponse = await axios.post(orsUrl, routePayload, {
-          headers: {
-            Authorization: ORS_API_KEY,
-            "Content-Type": "application/json",
-          },
-          timeout: 15000,
-        });
+        orsResponse = await postDirections(currentProfile, routePayload);
         usedProfile = currentProfile;
         if (currentProfile !== requestedProfile) {
           console.warn(
@@ -361,16 +408,38 @@ app.post("/api/route", async (req, res) => {
         }
         break;
       } catch (error) {
-        lastError = error;
-        const status = error.response?.status;
-        const detailsText = JSON.stringify(error.response?.data || "");
+        let failure = error;
+        lastError = failure;
+
+        if (
+          useAlternatives &&
+          routePayload.alternative_routes &&
+          isAlternativesLimitError(failure)
+        ) {
+          const singlePayload = { ...routePayload };
+          delete singlePayload.alternative_routes;
+          try {
+            orsResponse = await postDirections(currentProfile, singlePayload);
+            usedProfile = currentProfile;
+            console.warn(
+              `OpenRouteService alternatives rejected; retried single route on ${currentProfile}`,
+            );
+            break;
+          } catch (retryError) {
+            failure = retryError;
+            lastError = retryError;
+          }
+        }
+
+        const status = failure.response?.status;
+        const detailsText = JSON.stringify(failure.response?.data || "");
         const canFallback =
           status === 403 ||
           /disallow/i.test(detailsText) ||
           status === 404;
 
         if (!canFallback) {
-          throw error;
+          throw failure;
         }
 
         console.warn(
@@ -395,9 +464,17 @@ app.post("/api/route", async (req, res) => {
         preferAsphalt: wantAsphalt,
         avoidMainRoads: wantQuiet,
         orsProfile: usedProfile,
+        includeAlternatives: useAlternatives,
       };
     }
 
+    if (Array.isArray(responseData?.features)) {
+      responseData.features = responseData.features.map((feature) =>
+        withDisplaySimplifiedGeometry(feature),
+      );
+    }
+
+    orsResponseCache.set(cacheKey, responseData);
     return res.status(200).json(responseData);
   } catch (error) {
     const status = error.response?.status || 500;
@@ -437,6 +514,7 @@ app.post("/api/route", async (req, res) => {
 });
 
 app.post("/api/loop", async (req, res) => {
+  const startedAt = Date.now();
   try {
     if (!ORS_API_KEY) {
       console.error("ORS_API_KEY is missing in environment variables.");
@@ -455,10 +533,14 @@ app.post("/api/loop", async (req, res) => {
     } = req.body || {};
     const distanceKm = Number(distance);
 
-    if (!isValidPoint(start) || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+    if (
+      !isValidPoint(start) ||
+      !Number.isFinite(distanceKm) ||
+      distanceKm < LOOP_MIN_KM ||
+      distanceKm > LOOP_MAX_KM
+    ) {
       return res.status(400).json({
-        error:
-          "Invalid payload. Expected: { start: { lat, lng }, distance: number_in_km }",
+        error: `Invalid payload. Expected: { start: { lat, lng }, distance: ${LOOP_MIN_KM}-${LOOP_MAX_KM} km }`,
       });
     }
 
@@ -468,6 +550,7 @@ app.post("/api/loop", async (req, res) => {
     const wantQuiet = Boolean(avoidMainRoads);
     const profileQueue = profilesToTry(style);
     const loopLengthMeters = Math.round(distanceKm * 1000);
+    const roundTripPoints = roundTripPointsForDistanceKm(distanceKm);
     const extraInfo = getExtraInfo({
       avoidMainRoads: wantQuiet,
       preferAsphalt: wantAsphalt,
@@ -475,14 +558,41 @@ app.post("/api/loop", async (req, res) => {
     const preferenceOptions = buildOrsRoutingOptions({
       climbPreference: climbs,
     });
+    const loopTimeoutMs = Math.min(
+      60000,
+      Math.max(20000, 12000 + loopLengthMeters / 5),
+    );
+    const useWaypointLoop = distanceKm > ORS_ROUND_TRIP_MAX_KM;
 
-    const requestLoop = async (seed, profileName) => {
+    const postDirectionsPayload = async (profileName, routePayload) =>
+      axios.post(directionsGeoJsonUrl(profileName), routePayload, {
+        headers: {
+          Authorization: ORS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        timeout: loopTimeoutMs,
+      });
+
+    const requestNativeLoop = async (seed, profileName, points) => {
+      const cacheKey = buildLoopCacheKey({
+        start,
+        distanceKm,
+        rideStyle: style,
+        climbPreference: climbs,
+        preferAsphalt: wantAsphalt,
+        avoidMainRoads: wantQuiet,
+        seed,
+        points,
+      });
+      const cachedFeature = orsResponseCache.get(cacheKey);
+      if (cachedFeature) return cachedFeature;
+
       const routePayload = {
         coordinates: [[start.lng, start.lat]],
         options: {
           round_trip: {
             length: loopLengthMeters,
-            points: 3,
+            points,
             seed,
           },
           ...(preferenceOptions?.profile_params
@@ -496,26 +606,87 @@ app.post("/api/loop", async (req, res) => {
         extra_info: extraInfo,
       };
 
-      const orsResponse = await axios.post(
-        `https://api.openrouteservice.org/v2/directions/${profileName}/geojson`,
-        routePayload,
-        {
-          headers: {
-            Authorization: ORS_API_KEY,
-            "Content-Type": "application/json",
-          },
-          timeout: 20000,
-        },
-      );
-
-      return orsResponse.data?.features?.[0] || null;
+      const orsResponse = await postDirectionsPayload(profileName, routePayload);
+      const feature = orsResponse.data?.features?.[0] || null;
+      if (feature) orsResponseCache.set(cacheKey, feature);
+      return feature;
     };
 
-    const requestLoopWithFallback = async (seed) => {
+    const requestWaypointLoop = async (seed, profileName, radiusScale = 1) => {
+      const points = waypointCountForDistanceKm(distanceKm);
+
+      const fetchOnce = async (scale) => {
+        const cacheKey = buildLoopCacheKey({
+          start,
+          distanceKm,
+          rideStyle: style,
+          climbPreference: climbs,
+          preferAsphalt: wantAsphalt,
+          avoidMainRoads: wantQuiet,
+          seed: `wp:${seed}:${scale.toFixed(2)}`,
+          points,
+        });
+        const cachedFeature = orsResponseCache.get(cacheKey);
+        if (cachedFeature) return cachedFeature;
+
+        const coordinates = buildEllipseLoopCoordinates(start, {
+          lengthMeters: loopLengthMeters,
+          bearingDeg: bearingFromSeed(seed),
+          waypointCount: points,
+          radiusScale: scale,
+        });
+
+        const routePayload = {
+          coordinates,
+          elevation: true,
+          instructions: true,
+          instructions_format: "text",
+          language: "pl",
+          extra_info: extraInfo,
+        };
+        if (preferenceOptions) {
+          routePayload.options = preferenceOptions;
+        }
+
+        const orsResponse = await postDirectionsPayload(
+          profileName,
+          routePayload,
+        );
+        const feature = orsResponse.data?.features?.[0] || null;
+        if (feature) orsResponseCache.set(cacheKey, feature);
+        return feature;
+      };
+
+      let feature = await fetchOnce(radiusScale);
+      if (!feature) return null;
+
+      const actual = featureDistanceMeters(feature);
+      const deviation = lengthDeviationRatio(actual, loopLengthMeters);
+      if (Number.isFinite(actual) && deviation > 0.12) {
+        const nextScale = Math.max(
+          0.55,
+          Math.min(1.55, radiusScale * (loopLengthMeters / actual)),
+        );
+        if (Math.abs(nextScale - radiusScale) > 0.04) {
+          const corrected = await fetchOnce(nextScale);
+          if (corrected) feature = corrected;
+        }
+      }
+
+      return feature;
+    };
+
+    const requestLoopWithFallback = async (seed, pointsOrScale) => {
       let lastError;
       for (const profileName of profileQueue) {
         try {
-          const feature = await requestLoop(seed, profileName);
+          const feature = useWaypointLoop
+            ? await requestWaypointLoop(seed, profileName, pointsOrScale ?? 1)
+            : await requestNativeLoop(
+                seed,
+                profileName,
+                pointsOrScale ?? roundTripPoints,
+              );
           if (feature) return feature;
         } catch (error) {
           lastError = error;
@@ -534,26 +705,84 @@ app.post("/api/loop", async (req, res) => {
       return null;
     };
 
+    const pickBestFeature = (candidates) => {
+      const ranked = rankLoopFeatures(candidates, {
+        targetMeters: loopLengthMeters,
+        avoidMainRoads: wantQuiet,
+        preferAsphalt: wantAsphalt,
+        preferenceScore: featurePreferenceScore,
+      });
+      return ranked[0] || null;
+    };
+
     let bestFeature;
-    if (wantQuiet || wantAsphalt) {
-      const seeds = Array.from({ length: 5 }, () =>
-        Math.floor(Math.random() * 90),
-      );
+    let orsCallsEstimate = 0;
+
+    if (useWaypointLoop) {
+      const seedCount = wantQuiet || wantAsphalt ? 3 : 2;
+      const seeds = uniqueLoopSeeds(seedCount);
+      orsCallsEstimate = seeds.length;
       const candidates = (
-        await Promise.all(seeds.map((seed) => requestLoopWithFallback(seed)))
+        await Promise.all(seeds.map((seed) => requestLoopWithFallback(seed, 1)))
+      ).filter(Boolean);
+
+      if (candidates.length === 0) {
+        throw new Error("No loop route candidates returned by OpenRouteService.");
+      }
+      bestFeature = pickBestFeature(candidates);
+    } else if (wantQuiet || wantAsphalt) {
+      const seeds = uniqueLoopSeeds(3);
+      orsCallsEstimate = seeds.length;
+      let candidates = (
+        await Promise.all(
+          seeds.map((seed) => requestLoopWithFallback(seed, roundTripPoints)),
+        )
       ).filter(Boolean);
 
       if (candidates.length === 0) {
         throw new Error("No loop route candidates returned by OpenRouteService.");
       }
 
-      const rankedCandidates = rankFeaturesByPreferences(candidates, {
-        avoidMainRoads: wantQuiet,
-        preferAsphalt: wantAsphalt,
-      });
-      bestFeature = rankedCandidates[0];
+      bestFeature = pickBestFeature(candidates);
+      const bestDeviation = lengthDeviationRatio(
+        featureDistanceMeters(bestFeature),
+        loopLengthMeters,
+      );
+
+      if (bestDeviation > 0.12 && roundTripPoints < 5) {
+        const extraSeed = uniqueLoopSeeds(1)[0];
+        orsCallsEstimate += 1;
+        const extra = await requestLoopWithFallback(
+          extraSeed,
+          Math.min(5, roundTripPoints + 1),
+        );
+        if (extra) {
+          candidates = [...candidates, extra];
+          bestFeature = pickBestFeature(candidates);
+        }
+      }
     } else {
-      bestFeature = await requestLoopWithFallback(Math.floor(Math.random() * 90));
+      orsCallsEstimate = 1;
+      const primarySeed = Math.floor(Math.random() * 90);
+      bestFeature = await requestLoopWithFallback(primarySeed, roundTripPoints);
+      const deviation = lengthDeviationRatio(
+        featureDistanceMeters(bestFeature),
+        loopLengthMeters,
+      );
+      if (deviation > 0.12) {
+        orsCallsEstimate += 1;
+        const retrySeed = (primarySeed + 17) % 90;
+        const retryPoints = Math.min(5, roundTripPoints + 1);
+        const retryFeature = await requestLoopWithFallback(
+          retrySeed,
+          retryPoints,
+        );
+        if (retryFeature) {
+          bestFeature = pickBestFeature(
+            [bestFeature, retryFeature].filter(Boolean),
+          );
+        }
+      }
     }
 
     if (!bestFeature) {
@@ -566,8 +795,26 @@ app.post("/api/loop", async (req, res) => {
         climbPreference: climbs,
         preferAsphalt: wantAsphalt,
         avoidMainRoads: wantQuiet,
+        roundTripPoints: useWaypointLoop
+          ? waypointCountForDistanceKm(distanceKm)
+          : roundTripPoints,
+        loopMode: useWaypointLoop ? "waypoint-ellipse" : "ors-round-trip",
+        lengthDeviation: lengthDeviationRatio(
+          featureDistanceMeters(bestFeature),
+          loopLengthMeters,
+        ),
       };
     }
+
+    bestFeature = withDisplaySimplifiedGeometry(bestFeature);
+
+    console.info("[loop]", {
+      distanceKm,
+      mode: useWaypointLoop ? "waypoint-ellipse" : "ors-round-trip",
+      ms: Date.now() - startedAt,
+      candidatesHint: orsCallsEstimate,
+      lengthDeviation: bestFeature?.properties?.cyw_prefs?.lengthDeviation,
+    });
 
     return res.status(200).json({
       type: "FeatureCollection",
@@ -580,9 +827,13 @@ app.post("/api/loop", async (req, res) => {
       message: error.message,
       status,
       details: apiData,
+      ms: Date.now() - startedAt,
     });
     return res.status(status).json({
-      error: "Failed to generate loop route.",
+      error:
+        status === 400
+          ? friendlyOrsError(apiData)
+          : "Failed to generate loop route.",
     });
   }
 });

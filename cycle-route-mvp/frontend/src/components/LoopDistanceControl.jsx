@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 const MIN_KM = 5
-const MAX_KM = 100
+const MAX_KM = 200
 
 function clampNaturalKm(value) {
   const n = Number.parseInt(String(value), 10)

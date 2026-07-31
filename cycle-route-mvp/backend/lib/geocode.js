@@ -4,12 +4,15 @@
  */
 
 const axios = require("axios");
+const { ORS_AUTOCOMPLETE_URL, ORS_SEARCH_URL } = require("./orsConfig");
+const {
+  cacheGet,
+  cacheSet,
+  withNominatimThrottle,
+} = require("./nominatimThrottle");
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse";
-const ORS_SEARCH_URL = "https://api.openrouteservice.org/geocode/search";
-const ORS_AUTOCOMPLETE_URL =
-  "https://api.openrouteservice.org/geocode/autocomplete";
 
 const CITY_STREET_NUMBER =
   /^([A-Za-ząćęłńóśźżĄĆĘŁŃÓŚŹŻ][A-Za-ząćęłńóśźżĄĆĘŁŃÓŚŹŻ.'\-\s]{1,40}?)\s+([A-Za-ząćęłńóśźżĄĆĘŁŃÓŚŹŻ][A-Za-ząćęłńóśźżĄĆĘŁŃÓŚŹŻ.'\-\s]{1,60}?)\s+(\d+[A-Za-z]?)$/u;
@@ -237,39 +240,48 @@ function nominatimPriority(item) {
 }
 
 async function searchNominatim(text, limit) {
-  const response = await axios.get(NOMINATIM_URL, {
-    params: {
-      q: text,
-      format: "json",
-      addressdetails: 1,
-      countrycodes: "pl",
-      limit: Math.min(limit * 2, 12),
-      "accept-language": "pl",
-    },
-    headers: {
-      "User-Agent": "CycleYourWay/1.0 (https://github.com/jkweg/CycleYourWay)",
-      "Accept-Language": "pl",
-    },
-    timeout: 12000,
+  const cacheKey = `search:${String(text).trim().toLowerCase()}:${limit}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const results = await withNominatimThrottle(async () => {
+    const response = await axios.get(NOMINATIM_URL, {
+      params: {
+        q: text,
+        format: "json",
+        addressdetails: 1,
+        countrycodes: "pl",
+        limit: Math.min(limit * 2, 12),
+        "accept-language": "pl",
+      },
+      headers: {
+        "User-Agent": "CycleYourWay/1.0 (https://github.com/jkweg/CycleYourWay)",
+        "Accept-Language": "pl",
+      },
+      timeout: 12000,
+    });
+
+    const rows = Array.isArray(response.data) ? response.data : [];
+    return rows
+      .map((item) => {
+        const lat = Number(item.lat);
+        const lon = Number(item.lon);
+        const name = formatNominatimLabel(item);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || !name) return null;
+        return {
+          name,
+          lat,
+          lon,
+          source: "nominatim",
+          priority: nominatimPriority(item),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.priority - b.priority);
   });
 
-  const rows = Array.isArray(response.data) ? response.data : [];
-  return rows
-    .map((item) => {
-      const lat = Number(item.lat);
-      const lon = Number(item.lon);
-      const name = formatNominatimLabel(item);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !name) return null;
-      return {
-        name,
-        lat,
-        lon,
-        source: "nominatim",
-        priority: nominatimPriority(item),
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.priority - b.priority);
+  cacheSet(cacheKey, results);
+  return results;
 }
 
 async function searchOrs({ text, limit, apiKey, autocomplete }) {
@@ -403,40 +415,49 @@ async function reverseGeocodePolish({ lat, lng }) {
     throw new Error("Invalid coordinates for reverse geocode.");
   }
 
-  const response = await axios.get(NOMINATIM_REVERSE_URL, {
-    params: {
-      lat: latitude,
-      lon: longitude,
-      format: "jsonv2",
-      addressdetails: 1,
-      "accept-language": "pl",
-      zoom: 18,
-    },
-    headers: {
-      "User-Agent": "CycleYourWay/1.0 (cycle-route-mvp; contact@local)",
-    },
-    timeout: 10000,
-  });
+  const cacheKey = `reverse:${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
 
-  const item = response.data;
-  if (!item || item.error) {
+  const result = await withNominatimThrottle(async () => {
+    const response = await axios.get(NOMINATIM_REVERSE_URL, {
+      params: {
+        lat: latitude,
+        lon: longitude,
+        format: "jsonv2",
+        addressdetails: 1,
+        "accept-language": "pl",
+        zoom: 18,
+      },
+      headers: {
+        "User-Agent": "CycleYourWay/1.0 (cycle-route-mvp; contact@local)",
+      },
+      timeout: 10000,
+    });
+
+    const item = response.data;
+    if (!item || item.error) {
+      return {
+        name: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+        lat: latitude,
+        lon: longitude,
+      };
+    }
+
+    const label =
+      formatNominatimLabel(item) ||
+      polishCountryLabel(item.display_name) ||
+      `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
     return {
-      name: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+      name: label,
       lat: latitude,
       lon: longitude,
     };
-  }
+  });
 
-  const label =
-    formatNominatimLabel(item) ||
-    polishCountryLabel(item.display_name) ||
-    `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-
-  return {
-    name: label,
-    lat: latitude,
-    lon: longitude,
-  };
+  cacheSet(cacheKey, result);
+  return result;
 }
 
 module.exports = {

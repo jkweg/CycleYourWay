@@ -224,7 +224,7 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
       id: user.id,
       display_name: profile.display_name?.trim() || null,
       prefer_avoid_main_roads: Boolean(profile.prefer_avoid_main_roads),
-      default_loop_distance_km: clampNumber(profile.default_loop_distance_km, 5, 100, 30),
+      default_loop_distance_km: clampNumber(profile.default_loop_distance_km, 5, 200, 30),
       ride_style: profile.ride_style || DEFAULT_RIDE_STYLE,
       fitness_level: profile.fitness_level || DEFAULT_FITNESS_LEVEL,
       preferred_distance_km: clampNumber(profile.preferred_distance_km, 5, 250, 30),
@@ -434,7 +434,7 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
                       <input
                         type="number"
                         min={5}
-                        max={100}
+                        max={200}
                         value={profile.default_loop_distance_km}
                         onChange={(event) => updateProfile('default_loop_distance_km', event.target.value)}
                         className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"

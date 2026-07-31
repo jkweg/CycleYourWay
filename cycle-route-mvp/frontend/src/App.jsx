@@ -23,6 +23,7 @@ import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
 import ProfileModal from './components/ProfileModal'
 import LegalPage from './components/LegalPage'
 import { ensureNavigableFeature } from './lib/routeRefresh'
+import { haversineMeters } from './lib/navigation'
 import {
   buildRouteAlternatives,
   getLineCoordinates,
@@ -88,6 +89,10 @@ function App() {
     passwordRecovery,
   } = useAuth()
   const plannerSectionRef = useRef(null)
+  const routeAbortRef = useRef(null)
+  const loopAbortRef = useRef(null)
+  const routeRequestIdRef = useRef(0)
+  const loopRequestIdRef = useRef(0)
   const [routeMode, setRouteMode] = useState('AtoB')
   const [plannerPanel, setPlannerPanel] = useState('plan')
   const [startPoint, setStartPoint] = useState(null)
@@ -98,7 +103,7 @@ function App() {
   const [loopDistanceKm, setLoopDistanceKm] = useState(() => {
     const savedLoopDistance = window.localStorage.getItem('loopDistanceKm')
     const numericValue = Number(savedLoopDistance)
-    if (Number.isFinite(numericValue) && numericValue >= 5 && numericValue <= 100) {
+    if (Number.isFinite(numericValue) && numericValue >= 5 && numericValue <= 200) {
       return numericValue
     }
     return 20
@@ -178,13 +183,13 @@ function App() {
       if (
         Number.isFinite(data.default_loop_distance_km) &&
         data.default_loop_distance_km >= 5 &&
-        data.default_loop_distance_km <= 100
+        data.default_loop_distance_km <= 200
       ) {
         setLoopDistanceKm(data.default_loop_distance_km)
       } else if (
         Number.isFinite(data.preferred_distance_km) &&
         data.preferred_distance_km >= 5 &&
-        data.preferred_distance_km <= 100
+        data.preferred_distance_km <= 200
       ) {
         setLoopDistanceKm(data.preferred_distance_km)
       }
@@ -271,47 +276,81 @@ function App() {
   }
 
   const requestRoute = async (waypoints) => {
+    routeAbortRef.current?.abort()
+    loopAbortRef.current?.abort()
+    const controller = new AbortController()
+    routeAbortRef.current = controller
+    const requestId = ++routeRequestIdRef.current
+
     setIsLoadingRoute(true)
     setError('')
 
-    try {
-      const payload =
-        waypoints.length === 2
-          ? {
-              start: waypoints[0],
-              end: waypoints[1],
-              ...routePreferencePayload,
-            }
-          : {
-              waypoints,
-              ...routePreferencePayload,
-            }
+    const basePayload =
+      waypoints.length === 2
+        ? {
+            start: waypoints[0],
+            end: waypoints[1],
+            ...routePreferencePayload,
+          }
+        : {
+            waypoints,
+            ...routePreferencePayload,
+          }
 
+    const fetchRoute = async (includeAlternatives) => {
       const response = await fetch(`${API_BASE}/api/route`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...basePayload, includeAlternatives }),
+        signal: controller.signal,
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data?.error || 'Route request failed.')
       }
+      return data
+    }
+
+    try {
+      // Fast-first: show a single route ASAP.
+      const primary = await fetchRoute(false)
+      if (requestId !== routeRequestIdRef.current) return
 
       setLoadedSavedRouteId(null)
       setLoadedSavedRouteName('')
-      setRouteGeoJson(data)
+      setRouteGeoJson(primary)
       setSelectedRouteIndex(0)
       bumpRouteDisplay()
+      setIsLoadingRoute(false)
+
+      const canFetchAlternatives =
+        waypoints.length === 2 &&
+        haversineMeters(waypoints[0], waypoints[1]) <= 95000
+
+      if (!canFetchAlternatives) return
+
+      try {
+        const withAlternatives = await fetchRoute(true)
+        if (requestId !== routeRequestIdRef.current) return
+        if ((withAlternatives?.features?.length || 0) > 1) {
+          setRouteGeoJson(withAlternatives)
+          setSelectedRouteIndex(0)
+          bumpRouteDisplay()
+        }
+      } catch (altError) {
+        if (altError?.name === 'AbortError') return
+        // Keep the primary route if alternatives fail.
+        console.warn('Alternatives request failed:', altError.message)
+      }
     } catch (requestError) {
+      if (requestError?.name === 'AbortError') return
+      if (requestId !== routeRequestIdRef.current) return
       setRouteGeoJson(null)
       setSelectedRouteIndex(0)
       setLoadedSavedRouteId(null)
       setLoadedSavedRouteName('')
       bumpRouteDisplay()
       setError(requestError.message || 'Unexpected route error.')
-    } finally {
       setIsLoadingRoute(false)
     }
   }
@@ -597,6 +636,12 @@ function App() {
       return
     }
 
+    loopAbortRef.current?.abort()
+    routeAbortRef.current?.abort()
+    const controller = new AbortController()
+    loopAbortRef.current = controller
+    const requestId = ++loopRequestIdRef.current
+
     setIsLoadingRoute(true)
     setError('')
 
@@ -609,25 +654,31 @@ function App() {
           distance: loopDistanceKm,
           ...routePreferencePayload,
         }),
+        signal: controller.signal,
       })
 
       const data = await response.json()
       if (!response.ok) {
         throw new Error(data?.error || 'Loop generation request failed.')
       }
+      if (requestId !== loopRequestIdRef.current) return
 
       setLoadedSavedRouteId(null)
       setRouteGeoJson(data)
       setSelectedRouteIndex(0)
       bumpRouteDisplay()
     } catch (requestError) {
+      if (requestError?.name === 'AbortError') return
+      if (requestId !== loopRequestIdRef.current) return
       setRouteGeoJson(null)
       setSelectedRouteIndex(0)
       setLoadedSavedRouteId(null)
       bumpRouteDisplay()
       setError(requestError.message || 'Unexpected loop generation error.')
     } finally {
-      setIsLoadingRoute(false)
+      if (requestId === loopRequestIdRef.current) {
+        setIsLoadingRoute(false)
+      }
     }
   }
 
@@ -826,7 +877,7 @@ function App() {
       setEndInput('')
       if (savedRoute.distanceKm != null) {
         const roundedDistance = Math.round(savedRoute.distanceKm)
-        setLoopDistanceKm(Math.min(100, Math.max(5, roundedDistance)))
+        setLoopDistanceKm(Math.min(200, Math.max(5, roundedDistance)))
       }
       if (start) {
         setStartPoint(start)
@@ -1498,7 +1549,7 @@ function App() {
       <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[linear-gradient(180deg,#F8EBCF_0%,#F2DFC0_100%)] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
         <div className="shrink-0 space-y-4 border-b border-[#C4A574]/80 bg-white/20 p-5 pb-4 backdrop-blur-sm md:p-6 md:pb-4">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-[#E08A50]/35 bg-[#FFF8E8]/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[#E08A50]/45 bg-[#FFF8E8]/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-orange-900">
               <span className="h-1.5 w-1.5 rounded-full bg-[#FC6C26]" />
               {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
                 ? 'Biblioteka tras'
@@ -1506,14 +1557,14 @@ function App() {
                   ? 'Tryb: Trasa A → B'
                   : 'Tryb: Pętla treningowa'}
             </p>
-            <h1 className="mt-2.5 text-2xl font-semibold tracking-tight text-[#E05518]">
+            <h1 className="mt-2.5 font-serif text-2xl font-semibold tracking-tight text-[#4a3226]">
               {plannerPanel === 'saved'
                 ? 'Zapisane trasy'
                 : plannerPanel === 'savedDetail'
                   ? 'Szczegóły trasy'
                   : 'Planer tras'}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-stone-800">
+            <p className="mt-2 text-[15px] leading-6 text-stone-800">
               {plannerPanel === 'saved'
                 ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
                 : plannerPanel === 'savedDetail'
@@ -1573,7 +1624,7 @@ function App() {
           )}
 
           {plannerPanel === 'plan' && (
-          <div className="space-y-4 rounded-2xl border border-[#C4A574]/80 bg-[#FFF8E8]/65 p-4 shadow-[0_16px_35px_-30px_rgba(74,43,32,0.55)]">
+          <div className="space-y-4 rounded-2xl border border-[#C4A574] bg-[#FFF8E8]/80 p-4 shadow-[0_16px_35px_-30px_rgba(74,43,32,0.55)]">
             {routeMode === 'AtoB' ? (
               <>
                 <div>

@@ -420,6 +420,9 @@ export function buildRouteAlternatives(routeGeoJson) {
 }
 
 export function getLineCoordinates(feature) {
+  const full = feature?.properties?.cyw_full_coordinates
+  if (Array.isArray(full) && full.length >= 2) return full
+
   const geometry = feature?.geometry
   if (!geometry) return []
   if (geometry.type === 'LineString') return geometry.coordinates
