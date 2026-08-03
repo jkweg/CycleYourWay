@@ -62,6 +62,11 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://*.vercel.app",
+  // Capacitor Android / iOS WebView
+  "capacitor://localhost",
+  "https://localhost",
+  "http://localhost",
+  "ionic://localhost",
 ];
 
 const allowedOriginPatterns = [

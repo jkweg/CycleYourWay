@@ -33,10 +33,18 @@ import {
   toLatLng,
 } from './lib/navigation'
 import { getRouteDestination, buildRejoinWaypoints, rerouteFromPosition } from './lib/offRouteRecalc'
+import { keepAwake, lockPortrait } from './lib/keepAwake'
+import { getMapTileLayer } from './lib/mapTiles'
+import { speakText, cancelSpeech } from './lib/tts'
+import { trackEvent } from './lib/monitoring'
+import { startRideTracking } from './lib/backgroundLocation'
+import { isNativePlatform } from './lib/platform'
 
 const OFF_ROUTE_TRIGGER_MS = 15_000
 const OFF_ROUTE_MIN_DISTANCE_M = 90
 const RECALC_COOLDOWN_MS = 60_000
+const MAX_ACCURACY_M = 45
+const MIN_MOVE_M = 4
 
 // Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
 // czy znamy kierunek). Obrót strzałki ustawiamy potem bezpośrednio na
@@ -67,10 +75,14 @@ const buildUserIcon = (hasHeading) => {
 
 const geoErrorMessage = (error) => {
   if (!error) return 'Nie udało się ustalić lokalizacji.'
-  if (error.code === 1) return 'Brak zgody na lokalizację. Włącz dostęp do GPS w przeglądarce.'
+  if (error.code === 1) {
+    return isNativePlatform()
+      ? 'Brak zgody na lokalizację. Włącz GPS w ustawieniach aplikacji.'
+      : 'Brak zgody na lokalizację. Włącz dostęp do GPS w przeglądarce.'
+  }
   if (error.code === 2) return 'Sygnał GPS niedostępny. Wyjdź na otwartą przestrzeń.'
-  if (error.code === 3) return 'Przekroczono czas oczekiwania na GPS.'
-  return 'Problem z lokalizacją.'
+  if (error.code === 3) return 'Przekroczono czas oczekiwania na GPS. Sprawdź sygnał i spróbuj ponownie.'
+  return error.message || 'Problem z lokalizacją.'
 }
 
 function InitialFit({ coordinates }) {
@@ -110,16 +122,7 @@ function FollowController({ center, follow, onUserDrag }) {
 }
 
 function speak(text) {
-  if (!text || typeof window === 'undefined' || !window.speechSynthesis) return
-  try {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'pl-PL'
-    utterance.rate = 1
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utterance)
-  } catch {
-    // ignore
-  }
+  speakText(text, { lang: 'pl-PL' })
 }
 
 function RideView({
@@ -165,6 +168,9 @@ function RideView({
   const offRouteSinceRef = useRef(null)
   const lastRecalcAtRef = useRef(0)
   const recalcInFlightRef = useRef(false)
+  const offRouteEventsRef = useRef(0)
+  const recalculationsRef = useRef(0)
+  const maxSpeedMpsRef = useRef(0)
   // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
@@ -199,6 +205,7 @@ function RideView({
     }
 
     recalcInFlightRef.current = true
+    recalculationsRef.current += 1
     setIsRecalculating(true)
     setRecalcError('')
 
@@ -258,23 +265,40 @@ function RideView({
     const sinceLastRecalc = now - lastRecalcAtRef.current
 
     if (offRouteDuration >= OFF_ROUTE_TRIGGER_MS && sinceLastRecalc >= RECALC_COOLDOWN_MS) {
+      offRouteEventsRef.current += 1
       handleRecalculateRoute({ silent: false })
     }
   }, [navState, userPos, isRecalculating, isPaused, handleRecalculateRoute])
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      return undefined
-    }
+    let cancelled = false
+    let unsubscribe = () => undefined
+    let lastAccepted = null
 
-    const watchId = navigator.geolocation.watchPosition(
+    startRideTracking(
       (position) => {
+        if (cancelled) return
         const { latitude, longitude, speed, accuracy: acc, heading: gpsHeading } =
           position.coords
         const point = { lat: latitude, lng: longitude }
 
-        // Kierunek: jeśli GPS podaje wiarygodny heading w ruchu, używamy go.
-        // W przeciwnym razie liczymy azymut względem kotwicy oddalonej o >=6 m.
+        // Drop very inaccurate fixes (common indoors / cold start).
+        if (Number.isFinite(acc) && acc > MAX_ACCURACY_M) {
+          setAccuracy(acc)
+          return
+        }
+
+        // Ignore tiny jitter when nearly stationary.
+        if (
+          lastAccepted &&
+          haversineMeters(lastAccepted, point) < MIN_MOVE_M &&
+          !(Number.isFinite(speed) && speed > 1.2)
+        ) {
+          setAccuracy(Number.isFinite(acc) ? acc : null)
+          return
+        }
+        lastAccepted = point
+
         let nextHeading = null
         if (Number.isFinite(gpsHeading) && Number.isFinite(speed) && speed > 1) {
           nextHeading = gpsHeading
@@ -295,6 +319,10 @@ function RideView({
         setAccuracy(Number.isFinite(acc) ? acc : null)
         setGeoError('')
 
+        if (Number.isFinite(speed) && speed > maxSpeedMpsRef.current) {
+          maxSpeedMpsRef.current = speed
+        }
+
         if (!isPausedRef.current) {
           const track = trackRef.current
           const last = track[track.length - 1]
@@ -303,11 +331,18 @@ function RideView({
           }
         }
       },
-      (error) => setGeoError(geoErrorMessage(error)),
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 25000 },
-    )
+      (error) => {
+        if (!cancelled) setGeoError(geoErrorMessage(error))
+      },
+      { preferBackground: true },
+    ).then((stop) => {
+      unsubscribe = typeof stop === 'function' ? stop : () => undefined
+    })
 
-    return () => navigator.geolocation.clearWatch(watchId)
+    return () => {
+      cancelled = true
+      Promise.resolve(unsubscribe()).catch(() => undefined)
+    }
   }, [])
 
   useEffect(() => {
@@ -329,52 +364,17 @@ function RideView({
   }, [userPos, gpsSpeed, accuracy, coordinates, cumulative, maneuvers, isPaused])
 
   useEffect(() => {
-    let wakeLock = null
-    const requestWakeLock = async () => {
-      try {
-        wakeLock = await navigator.wakeLock?.request('screen')
-      } catch {
-        // ignore
-      }
-    }
-    requestWakeLock()
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') requestWakeLock()
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-      wakeLock?.release?.().catch(() => undefined)
-    }
-  }, [])
-
-  useEffect(() => {
-    let locked = false
-
-    const lockPortrait = async () => {
-      try {
-        const orientation = window.screen?.orientation
-        if (orientation?.lock) {
-          await orientation.lock('portrait')
-          locked = true
-        }
-      } catch {
-        // Część przeglądarek pozwala blokować orientację tylko w PWA/fullscreen.
-      }
-    }
-
+    let release = () => undefined
+    keepAwake().then((fn) => {
+      release = fn || (() => undefined)
+    })
     lockPortrait()
-
+    trackEvent('ride_start', { mode: mode || 'unknown' })
     return () => {
-      if (!locked) return
-      try {
-        window.screen?.orientation?.unlock?.()
-      } catch {
-        // ignore
-      }
+      Promise.resolve(release()).catch(() => undefined)
+      cancelSpeech()
     }
-  }, [])
-
+  }, [mode])
   useEffect(() => {
     if (!voiceOn || isPaused || !navState?.nextManeuver) return
     const { nextManeuver, distanceToManeuver } = navState
@@ -413,9 +413,7 @@ function RideView({
 
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-      }
+      cancelSpeech()
     }
   }, [])
 
@@ -436,11 +434,28 @@ function RideView({
     )
     const avgSpeedKmh =
       durationSeconds > 0 ? (distanceMeters / durationSeconds) * 3.6 : 0
+    const maxSpeedKmh = maxSpeedMpsRef.current > 0 ? maxSpeedMpsRef.current * 3.6 : 0
+
+    const trackCoordinates = points.map((point) => [point.lng, point.lat])
+    const trackGeoJson =
+      trackCoordinates.length >= 2
+        ? {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: trackCoordinates },
+          }
+        : null
 
     return {
       distanceMeters,
       durationSeconds,
       avgSpeedKmh,
+      maxSpeedKmh,
+      elevationGainM: null,
+      offRouteEvents: offRouteEventsRef.current,
+      recalculations: recalculationsRef.current,
+      startedAt: new Date(startedAtRef.current).toISOString(),
+      trackGeoJson,
       pointCount: points.length,
     }
   }
@@ -554,8 +569,9 @@ function RideView({
           className="h-full w-full"
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={getMapTileLayer().attribution}
+            url={getMapTileLayer().url}
+            maxZoom={getMapTileLayer().maxZoom}
           />
           {routeLine && (
             <GeoJSON

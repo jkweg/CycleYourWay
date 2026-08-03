@@ -4,6 +4,7 @@ import { useAuth } from './useAuth'
 function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const {
     login,
+    loginWithGoogle,
     register,
     requestPasswordReset,
     updatePassword,
@@ -220,6 +221,32 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     ? 'Wyślij link resetujący'
                     : 'Zapisz nowe hasło'}
           </button>
+
+          {(activeMode === 'login' || activeMode === 'register') && (
+            <>
+              <div className="relative py-1 text-center text-xs font-semibold uppercase tracking-wide text-stone-500">
+                <span className="bg-vanilla px-2">lub</span>
+                <span className="absolute inset-x-0 top-1/2 -z-10 h-px bg-[#4a3226]/15" />
+              </div>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setError('')
+                  setIsSubmitting(true)
+                  try {
+                    await loginWithGoogle()
+                  } catch (oauthError) {
+                    setError(oauthError.message || 'Nie udało się zalogować przez Google.')
+                    setIsSubmitting(false)
+                  }
+                }}
+                className="soft-button w-full rounded-xl border border-[#4a3226]/35 bg-vanilla px-4 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange disabled:opacity-60"
+              >
+                Kontynuuj z Google
+              </button>
+            </>
+          )}
 
           {activeMode === 'forgot' && (
             <button

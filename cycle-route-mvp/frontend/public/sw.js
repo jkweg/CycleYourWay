@@ -1,7 +1,14 @@
 // Minimalny service worker — instalacja PWA + app-shell.
 // NIE cache'ujemy odpowiedzi API / Supabase (dane tras muszą być zawsze świeże).
-const CACHE = 'cyw-shell-v3'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.png', '/favicon.png']
+const CACHE = 'cyw-shell-v4'
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/app-icon.png',
+  '/favicon.png',
+  '/apple-touch-icon.png',
+]
 
 const shouldBypassCache = (request, url) => {
   if (request.method !== 'GET') return true

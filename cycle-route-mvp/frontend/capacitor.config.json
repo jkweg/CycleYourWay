@@ -1,0 +1,15 @@
+{
+  "appId": "com.cycleyourway.app",
+  "appName": "Cycle Your Way",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#FFF4D6",
+      "showSpinner": false
+    }
+  }
+}

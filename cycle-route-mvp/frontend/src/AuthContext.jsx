@@ -107,6 +107,19 @@ export function AuthProvider({ children }) {
     setPasswordRecovery(false)
   }, [])
 
+  const loginWithGoogle = useCallback(async () => {
+    const redirectTo =
+      import.meta.env.VITE_APP_ORIGIN || `${window.location.origin}/`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
+    })
+    if (error) throw new Error(polishAuthError(error.message))
+  }, [])
+
   const clearPasswordRecovery = useCallback(() => {
     setPasswordRecovery(false)
   }, [])
@@ -118,6 +131,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user),
       passwordRecovery,
       login,
+      loginWithGoogle,
       register,
       logout,
       requestPasswordReset,
@@ -129,6 +143,7 @@ export function AuthProvider({ children }) {
       isLoading,
       passwordRecovery,
       login,
+      loginWithGoogle,
       register,
       logout,
       requestPasswordReset,
