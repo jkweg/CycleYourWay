@@ -24,12 +24,14 @@ function CollapsibleSection({
   }
 
   return (
-    <div className={`rounded-xl border border-[#C4A574]/55 ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-[#C4A574]/55 ${className}`}>
       <button
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-[#FFF8E8]/70"
+        className={`flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-[#FFF4D6]/55 ${
+          open ? 'rounded-none' : 'rounded-xl'
+        }`}
       >
         <IconChevronDown
           className={`h-4 w-4 shrink-0 text-[#E05518] transition-transform duration-200 ${
