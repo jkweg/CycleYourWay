@@ -22,9 +22,11 @@ function LoopDistanceControl({ value, onChange }) {
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-3 text-sm font-semibold text-stone-800">
-        <label htmlFor="loop-distance-range">Dystans pętli</label>
-        <div className="flex items-center gap-1 rounded-md border border-[#E08A50]/50 bg-[#FFF4D6] px-2 py-1 shadow-sm focus-within:border-[#FC6C26] focus-within:ring-2 focus-within:ring-[#FC6C26]/25">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <label htmlFor="loop-distance-range" className="text-[15px] font-bold text-[#4a3226]">
+          Dystans
+        </label>
+        <div className="flex items-center gap-1 rounded-xl border-2 border-[#C4A574] bg-white px-2.5 py-1.5 focus-within:border-[#FC6C26] focus-within:ring-2 focus-within:ring-[#FC6C26]/25">
           <input
             id="loop-distance-input"
             type="text"
@@ -47,9 +49,9 @@ function LoopDistanceControl({ value, onChange }) {
                 event.currentTarget.blur()
               }
             }}
-            className="w-10 bg-transparent text-right text-sm font-semibold tabular-nums text-[#FC6C26] outline-none"
+            className="w-12 bg-transparent text-right text-base font-bold tabular-nums text-[#FC6C26] outline-none"
           />
-          <span className="text-sm font-semibold text-[#FC6C26]">km</span>
+          <span className="text-sm font-bold text-[#FC6C26]">km</span>
         </div>
       </div>
       <input
@@ -60,9 +62,9 @@ function LoopDistanceControl({ value, onChange }) {
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="loop-distance-range h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#f5d0b8]"
+        className="loop-distance-range h-2.5 w-full cursor-pointer appearance-none rounded-lg bg-[#f5d0b8]"
       />
-      <div className="mt-1 flex justify-between text-xs text-stone-700">
+      <div className="mt-1 flex justify-between text-xs text-stone-500">
         <span>{MIN_KM} km</span>
         <span>{MAX_KM} km</span>
       </div>

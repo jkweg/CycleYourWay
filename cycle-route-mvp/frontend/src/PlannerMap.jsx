@@ -1,15 +1,41 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { createViaMarkerIcon, plannerMarkerIcon } from './lib/leafletIcons'
+import { getMapTileLayer } from './lib/mapTiles'
 
-function MapClickHandler({ onMapClick }) {
+function MapClickHandler({ onMapClick, enabled }) {
   useMapEvents({
     click: (event) => {
+      if (!enabled) return
       onMapClick(event.latlng)
     },
   })
+  return null
+}
+
+function MapInteractionController({ interactive }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (interactive) {
+      map.dragging.enable()
+      map.touchZoom.enable()
+      map.doubleClickZoom.enable()
+      map.scrollWheelZoom.enable()
+      map.boxZoom.enable()
+      map.keyboard.enable()
+    } else {
+      map.dragging.disable()
+      map.touchZoom.disable()
+      map.doubleClickZoom.disable()
+      map.scrollWheelZoom.disable()
+      map.boxZoom.disable()
+      map.keyboard.disable()
+    }
+  }, [interactive, map])
+
   return null
 }
 
@@ -43,7 +69,7 @@ function FocusOnLockedPoint({ lockedPoint, disabled }) {
   return null
 }
 
-function MapResizeFix() {
+function MapResizeFix({ bump }) {
   const map = useMap()
 
   useEffect(() => {
@@ -51,20 +77,20 @@ function MapResizeFix() {
       map.invalidateSize()
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [map])
+  }, [map, bump])
 
   return null
 }
 
-function DraggableMarker({ point, icon, onDragEnd }) {
+function DraggableMarker({ point, icon, onDragEnd, enabled }) {
   if (!point) return null
   return (
     <Marker
       position={[point.lat, point.lng]}
       icon={icon}
-      draggable={Boolean(onDragEnd)}
+      draggable={Boolean(onDragEnd) && enabled}
       eventHandlers={
-        onDragEnd
+        onDragEnd && enabled
           ? {
               dragend: (event) => {
                 const next = event.target.getLatLng()
@@ -75,6 +101,23 @@ function DraggableMarker({ point, icon, onDragEnd }) {
       }
     />
   )
+}
+
+function usePreferMapLock() {
+  const [preferLock, setPreferLock] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(pointer: coarse), (max-width: 767px)').matches
+  })
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse), (max-width: 767px)')
+    const sync = () => setPreferLock(mq.matches)
+    sync()
+    mq.addEventListener?.('change', sync)
+    return () => mq.removeEventListener?.('change', sync)
+  }, [])
+
+  return preferLock
 }
 
 function PlannerMap({
@@ -92,22 +135,33 @@ function PlannerMap({
   onEndDrag,
   onViaDrag,
 }) {
+  const preferLock = usePreferMapLock()
+  const [unlocked, setUnlocked] = useState(false)
   const markersLocked = Boolean(selectedRouteGeoJson || routeGeoJson)
+  const interactive = preferLock ? unlocked : true
 
   return (
-    <div className="h-full w-full min-h-[320px]">
-      <MapContainer center={[52.0, 19.2]} zoom={6} scrollWheelZoom className="h-full w-full">
-        <MapResizeFix />
-        <MapClickHandler onMapClick={onMapClick} />
+    <div className="relative h-full w-full min-h-[320px]">
+      <MapContainer
+        center={[52.0, 19.2]}
+        zoom={6}
+        scrollWheelZoom={false}
+        className="h-full w-full"
+      >
+        <MapResizeFix bump={interactive} />
+        <MapInteractionController interactive={interactive} />
+        <MapClickHandler onMapClick={onMapClick} enabled={interactive} />
         <FocusOnLockedPoint lockedPoint={lockedPoint} disabled={Boolean(selectedRouteGeoJson)} />
         <RouteFitBounds routeGeoJson={selectedRouteGeoJson} />
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={getMapTileLayer().attribution}
+          url={getMapTileLayer().url}
+          maxZoom={getMapTileLayer().maxZoom}
         />
         <DraggableMarker
           point={startPoint}
           icon={plannerMarkerIcon}
+          enabled={interactive && !markersLocked}
           onDragEnd={markersLocked ? undefined : onStartDrag}
         />
         {routeMode === 'AtoB' &&
@@ -116,6 +170,7 @@ function PlannerMap({
               key={stop.id}
               point={stop.point}
               icon={createViaMarkerIcon(String(index + 1))}
+              enabled={interactive && !markersLocked}
               onDragEnd={
                 markersLocked || !onViaDrag
                   ? undefined
@@ -127,6 +182,7 @@ function PlannerMap({
           <DraggableMarker
             point={endPoint}
             icon={plannerMarkerIcon}
+            enabled={interactive && !markersLocked}
             onDragEnd={markersLocked ? undefined : onEndDrag}
           />
         )}
@@ -147,6 +203,31 @@ function PlannerMap({
           />
         ))}
       </MapContainer>
+
+      {preferLock && !unlocked && (
+        <button
+          type="button"
+          onClick={() => setUnlocked(true)}
+          className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#4a3226]/35 px-4 backdrop-blur-[1px]"
+        >
+          <span className="rounded-2xl border border-[#C4A574] bg-[#FFF4D6] px-5 py-3 text-center text-sm font-semibold text-[#4a3226] shadow-lg">
+            Dotknij, aby używać mapy
+            <span className="mt-1 block text-xs font-normal text-stone-600">
+              Powiększanie, przesuwanie i zaznaczanie punktów
+            </span>
+          </span>
+        </button>
+      )}
+
+      {preferLock && unlocked && (
+        <button
+          type="button"
+          onClick={() => setUnlocked(false)}
+          className="absolute right-3 top-3 z-[1000] rounded-xl border border-[#C4A574] bg-[#FFF4D6]/95 px-3 py-2 text-xs font-semibold text-[#4a3226] shadow-md"
+        >
+          Zablokuj mapę
+        </button>
+      )}
     </div>
   )
 }

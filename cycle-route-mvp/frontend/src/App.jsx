@@ -18,12 +18,18 @@ import RouteAlternativesCompare from './components/RouteAlternativesCompare'
 import MapRouteDetailsBar from './components/MapRouteDetailsBar'
 import LoopDistanceControl from './components/LoopDistanceControl'
 import RoutePreferencesPanel from './components/RoutePreferencesPanel'
+import CollapsibleSection from './components/CollapsibleSection'
 import PlannerOnboarding from './components/PlannerOnboarding'
 import { shouldShowPlannerOnboarding } from './lib/plannerOnboarding'
 import ProfileModal from './components/ProfileModal'
 import LegalPage from './components/LegalPage'
 import { ensureNavigableFeature } from './lib/routeRefresh'
 import { haversineMeters } from './lib/navigation'
+import { isNativePlatform } from './lib/platform'
+import { getCurrentPosition } from './lib/location'
+import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
+import { captureException, trackEvent } from './lib/monitoring'
+import LocationPermissionGate from './components/LocationPermissionGate'
 import {
   buildRouteAlternatives,
   getLineCoordinates,
@@ -34,10 +40,8 @@ import {
 } from './lib/routeStats'
 import { pushAddressHistory } from './lib/addressHistory'
 import {
-  CLIMB_PREFERENCES,
   DEFAULT_CLIMB_PREFERENCE,
   DEFAULT_RIDE_STYLE,
-  RIDE_STYLES,
   buildRoutePreferencePayload,
   getAsphaltSharePercent,
 } from './lib/routePreferences'
@@ -100,6 +104,8 @@ function App() {
   const [startInput, setStartInput] = useState('')
   const [endInput, setEndInput] = useState('')
   const [viaStops, setViaStops] = useState([])
+  const [routeExtrasOpen, setRouteExtrasOpen] = useState(false)
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false)
   const [loopDistanceKm, setLoopDistanceKm] = useState(() => {
     const savedLoopDistance = window.localStorage.getItem('loopDistanceKm')
     const numericValue = Number(savedLoopDistance)
@@ -142,11 +148,36 @@ function App() {
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
-  const [view, setView] = useState('landing')
+  const [view, setView] = useState(() => (isNativePlatform() ? 'planner' : 'landing'))
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [legalDoc, setLegalDoc] = useState(null)
+  const [pendingLocationAction, setPendingLocationAction] = useState(null)
+
+  useEffect(() => {
+    trackEvent('app_open', { native: isNativePlatform() })
+  }, [])
+
+  useEffect(() => {
+    let remove = () => undefined
+    registerAppUrlListener((url) => {
+      const params = parseDeepLinkParams(url)
+      if (params.ride) {
+        setPendingRideId(params.ride)
+        setView('planner')
+      }
+      if (params.share) {
+        setPendingShareId(params.share)
+        setView('planner')
+      }
+    }).then((unsubscribe) => {
+      remove = unsubscribe || (() => undefined)
+    })
+    return () => {
+      remove()
+    }
+  }, [])
 
   useEffect(() => {
     window.localStorage.setItem('loopDistanceKm', String(loopDistanceKm))
@@ -255,18 +286,6 @@ function App() {
     [selectedFeature],
   )
 
-  const rideStyleLabel = useMemo(
-    () => RIDE_STYLES.find((style) => style.id === rideStyle)?.label || 'Gravel',
-    [rideStyle],
-  )
-
-  const climbPreferenceLabel = useMemo(
-    () =>
-      CLIMB_PREFERENCES.find((preference) => preference.id === climbPreference)?.label ||
-      'Normalne',
-    [climbPreference],
-  )
-
   const clearPlannedRoute = () => {
     setRouteGeoJson(null)
     setSelectedRouteIndex(0)
@@ -322,6 +341,8 @@ function App() {
       setSelectedRouteIndex(0)
       bumpRouteDisplay()
       setIsLoadingRoute(false)
+      trackEvent('route_ok', { mode: 'AtoB', alternatives: false })
+      trackEvent('plan_complete', { mode: 'AtoB' })
 
       const canFetchAlternatives =
         waypoints.length === 2 &&
@@ -336,6 +357,7 @@ function App() {
           setRouteGeoJson(withAlternatives)
           setSelectedRouteIndex(0)
           bumpRouteDisplay()
+          trackEvent('route_ok', { mode: 'AtoB', alternatives: true })
         }
       } catch (altError) {
         if (altError?.name === 'AbortError') return
@@ -352,6 +374,8 @@ function App() {
       bumpRouteDisplay()
       setError(requestError.message || 'Unexpected route error.')
       setIsLoadingRoute(false)
+      trackEvent('route_fail', { mode: 'AtoB', message: requestError.message })
+      captureException(requestError, { where: 'requestRoute' })
     }
   }
 
@@ -490,49 +514,44 @@ function App() {
   }
 
   const handleUseMyLocation = () => {
-    if (!('geolocation' in navigator)) {
-      setError('Twoja przeglądarka nie udostępnia lokalizacji.')
-      return
-    }
+    setPendingLocationAction('locate')
+  }
 
+  const applyMyLocation = async () => {
     setIsLocating(true)
     setError('')
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const point = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        }
-        setStartPoint(point)
-        setStartInput('Moja lokalizacja')
-        setLockedPoint(point)
-        if (routeMode === 'AtoB') {
-          setEndPoint(null)
-          setEndInput('')
-          setViaStops([])
-        }
-        setRouteGeoJson(null)
-        setSelectedRouteIndex(0)
-        setLoadedSavedRouteId(null)
-        setLoadedSavedRouteName('')
-        bumpRouteDisplay()
-        setIsLocating(false)
-      },
-      (geoError) => {
-        const message =
-          geoError?.code === 1
-            ? 'Brak zgody na lokalizację. Zezwól na dostęp do GPS w przeglądarce.'
-            : geoError?.code === 2
-              ? 'Nie udało się ustalić pozycji. Sprawdź sygnał GPS.'
-              : geoError?.code === 3
-                ? 'Przekroczono czas oczekiwania na GPS.'
-                : 'Nie udało się pobrać lokalizacji.'
-        setError(message)
-        setIsLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-    )
+    try {
+      const position = await getCurrentPosition({ timeout: 15000, maximumAge: 10000 })
+      const point = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      }
+      setStartPoint(point)
+      setStartInput('Moja lokalizacja')
+      setLockedPoint(point)
+      if (routeMode === 'AtoB') {
+        setEndPoint(null)
+        setEndInput('')
+        setViaStops([])
+      }
+      setRouteGeoJson(null)
+      setSelectedRouteIndex(0)
+      setLoadedSavedRouteId(null)
+      setLoadedSavedRouteName('')
+      bumpRouteDisplay()
+    } catch (geoError) {
+      const message =
+        geoError?.code === 1
+          ? 'Brak zgody na lokalizację. Zezwól na dostęp do GPS.'
+          : geoError?.code === 2
+            ? 'Nie udało się ustalić pozycji. Sprawdź sygnał GPS.'
+            : geoError?.code === 3
+              ? 'Przekroczono czas oczekiwania na GPS.'
+              : geoError?.message || 'Nie udało się pobrać lokalizacji.'
+      setError(message)
+    } finally {
+      setIsLocating(false)
+    }
   }
 
   const geocodeAddress = async (type, viaId = null) => {
@@ -620,6 +639,7 @@ function App() {
       setError('Możesz dodać maksymalnie 5 punktów pośrednich.')
       return
     }
+    setRouteExtrasOpen(true)
     setViaStops((current) => [...current, createViaStop()])
     setError('')
   }
@@ -667,6 +687,8 @@ function App() {
       setRouteGeoJson(data)
       setSelectedRouteIndex(0)
       bumpRouteDisplay()
+      trackEvent('route_ok', { mode: 'Loop', distance_km: loopDistanceKm })
+      trackEvent('plan_complete', { mode: 'Loop' })
     } catch (requestError) {
       if (requestError?.name === 'AbortError') return
       if (requestId !== loopRequestIdRef.current) return
@@ -675,6 +697,8 @@ function App() {
       setLoadedSavedRouteId(null)
       bumpRouteDisplay()
       setError(requestError.message || 'Unexpected loop generation error.')
+      trackEvent('route_fail', { mode: 'Loop', message: requestError.message })
+      captureException(requestError, { where: 'handleLoopSubmit' })
     } finally {
       if (requestId === loopRequestIdRef.current) {
         setIsLoadingRoute(false)
@@ -941,16 +965,21 @@ function App() {
     ? `${window.location.origin}/?ride=${loadedSavedRouteId}`
     : ''
 
-  const startRideWithFeature = async ({ feature, name, mode, distanceKm, routeId = null }) => {
+  const pendingRideArgsRef = useRef(null)
+
+  const executeStartRide = async () => {
+    const args = pendingRideArgsRef.current
+    if (!args) return
+
     setIsPreparingRide(true)
     setError('')
     setSaveSuccessMessage('')
 
     try {
       const { feature: navigableFeature, refreshed } = await ensureNavigableFeature({
-        feature,
-        mode,
-        distanceKm,
+        feature: args.feature,
+        mode: args.mode,
+        distanceKm: args.distanceKm,
         ...routePreferencePayload,
       })
 
@@ -963,19 +992,28 @@ function App() {
       setRideSessionKey((current) => current + 1)
       setRideRoute({
         feature: navigableFeature,
-        name,
-        mode,
-        routeId,
+        name: args.name,
+        mode: args.mode,
+        routeId: args.routeId || null,
         ...routePreferencePayload,
       })
+      trackEvent('ride_prepare_ok', { mode: args.mode })
     } catch (prepareError) {
       setError(
         prepareError.message ||
           'Nie udało się przygotować nawigacji. Spróbuj ponownie wyznaczyć trasę w planerze.',
       )
+      trackEvent('ride_prepare_fail', { message: prepareError.message })
+      captureException(prepareError, { where: 'executeStartRide' })
     } finally {
       setIsPreparingRide(false)
+      pendingRideArgsRef.current = null
     }
+  }
+
+  const startRideWithFeature = async (args) => {
+    pendingRideArgsRef.current = args
+    setPendingLocationAction('ride')
   }
 
   const handleStartRide = async () => {
@@ -1155,14 +1193,29 @@ function App() {
         avg_speed_kmh: Number.isFinite(summary.avgSpeedKmh)
           ? Math.round(summary.avgSpeedKmh * 100) / 100
           : null,
+        max_speed_kmh: Number.isFinite(summary.maxSpeedKmh)
+          ? Math.round(summary.maxSpeedKmh * 100) / 100
+          : null,
+        elevation_gain_m: Number.isFinite(summary.elevationGainM)
+          ? Math.round(summary.elevationGainM * 100) / 100
+          : null,
+        off_route_events: Number(summary.offRouteEvents || 0),
+        recalculations: Number(summary.recalculations || 0),
+        track_geojson: summary.trackGeoJson || null,
+        started_at: summary.startedAt || null,
         completed_at: new Date().toISOString(),
       })
 
       if (rideError && !isMissingColumnError(rideError.message)) {
         setError(rideError.message || 'Nie udało się zapisać historii jazdy.')
+      } else {
+        trackEvent('ride_saved', {
+          distance_m: summary.distanceMeters,
+          duration_s: summary.durationSeconds,
+        })
       }
-    } catch {
-      // Historia jazd nie powinna blokować zamknięcia nawigacji.
+    } catch (error) {
+      captureException(error, { where: 'handleRideComplete' })
     }
   }
 
@@ -1279,7 +1332,6 @@ function App() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingRideId, isAuthLoading, isAuthenticated, user?.id])
 
   const handleMapClick = (latlng) => {
@@ -1317,6 +1369,7 @@ function App() {
 
     const emptyVia = viaStops.find((stop) => !stop.point)
     if (emptyVia) {
+      setRouteExtrasOpen(true)
       setViaStops((current) =>
         current.map((stop) =>
           stop.id === emptyVia.id
@@ -1337,6 +1390,7 @@ function App() {
 
     if (viaStops.length < 5) {
       const stop = createViaStop(clickedPoint, mapSelectionLabel(clickedPoint))
+      setRouteExtrasOpen(true)
       setViaStops((current) => [...current, stop])
       setLockedPoint(clickedPoint)
       clearPlannedRoute()
@@ -1399,82 +1453,37 @@ function App() {
   }
 
   const accountBar = (
-    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-3 py-2.5 text-sm">
+    <div className="soft-panel rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-3 py-2 text-sm">
       {isAuthenticated ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-xs text-stone-700" title={user?.email}>
-              <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
-            </p>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => setShowProfileModal(true)}
-                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-2.5 py-1 text-[11px] font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
-              >
-                Moje konto
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-lg border border-[#C4A574] bg-[#FFF4D6] px-2.5 py-1 text-[11px] font-semibold text-stone-800 transition hover:bg-[#F5E6C0]"
-              >
-                Wyloguj
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5 text-center">
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-stone-700" title={user?.email}>
+            <span className="font-medium text-[#FC6C26]">Konto:</span> {user?.email}
+          </p>
+          <div className="flex shrink-0 gap-1.5">
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
+              className="rounded-lg border border-[#C4A574] px-2.5 py-1.5 text-[11px] font-semibold text-stone-800"
             >
-              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
-                Styl
-              </span>
-              <span className="block truncate text-[11px] font-bold text-[#E05518]">
-                {rideStyleLabel}
-              </span>
+              Profil
             </button>
             <button
               type="button"
-              onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
+              onClick={logout}
+              className="rounded-lg border border-[#C4A574] px-2.5 py-1.5 text-[11px] font-semibold text-stone-800"
             >
-              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
-                Podjazdy
-              </span>
-              <span className="block truncate text-[11px] font-bold text-[#E05518]">
-                {climbPreferenceLabel}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowProfileModal(true)}
-              className="rounded-lg bg-white/60 px-2 py-1.5 text-left transition hover:bg-white"
-            >
-              <span className="block text-[9px] font-semibold uppercase tracking-wide text-stone-500">
-                Pętla
-              </span>
-              <span className="block truncate text-[11px] font-bold text-[#E05518]">
-                {loopDistanceKm} km
-              </span>
+              Wyloguj
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs leading-5 text-stone-700">
-            Zaloguj się, aby zapisywać trasy.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowAuthModal(true)}
-            className="shrink-0 rounded-lg bg-[#FC6C26] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#E05518]"
-          >
-            Konto
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowAuthModal(true)}
+          className="w-full rounded-lg bg-[#FC6C26] px-3 py-2.5 text-xs font-semibold text-white"
+        >
+          Zaloguj się
+        </button>
       )}
     </div>
   )
@@ -1528,9 +1537,9 @@ function App() {
       ) : (
         <section
           ref={plannerSectionRef}
-          className="relative z-10 px-3 pb-3 pt-3 md:px-5 md:pb-5 md:pt-4"
+          className="relative z-10 px-0 pb-[env(safe-area-inset-bottom)] pt-0 md:px-5 md:pb-5 md:pt-4"
         >
-          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden rounded-[1.5rem] border border-[#C4A574]/90 bg-[#FFF4D6] text-stone-800 shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)] md:h-[calc(100dvh-2.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden">
+          <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden border-0 bg-[#FFF4D6] text-stone-800 md:h-[calc(100dvh-2.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden md:rounded-[1.5rem] md:border md:border-[#C4A574]/90 md:shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)]">
             <PlannerSidebar
               open={sidebarOpen}
               setOpen={setSidebarOpen}
@@ -1546,25 +1555,25 @@ function App() {
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r border-[#C4A574] bg-[linear-gradient(180deg,#F8EBCF_0%,#F2DFC0_100%)] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
-        <div className="shrink-0 space-y-4 border-b border-[#C4A574]/80 bg-white/20 p-5 pb-4 backdrop-blur-sm md:p-6 md:pb-4">
+      <aside className="order-2 flex w-full flex-col border-r border-[#C4A574] bg-[linear-gradient(180deg,#F8EBCF_0%,#F2DFC0_100%)] shadow-[0_12px_44px_rgba(95,74,53,0.12)] md:order-1 md:h-full md:min-h-0 md:w-[26rem] md:shrink-0">
+        <div className="shrink-0 space-y-3 border-b border-[#C4A574]/80 bg-white/20 p-4 pb-3 backdrop-blur-sm md:space-y-4 md:p-6 md:pb-4">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-[#E08A50]/45 bg-[#FFF8E8]/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-orange-900">
               <span className="h-1.5 w-1.5 rounded-full bg-[#FC6C26]" />
               {plannerPanel === 'saved' || plannerPanel === 'savedDetail'
                 ? 'Biblioteka tras'
                 : routeMode === 'AtoB'
-                  ? 'Tryb: Trasa A → B'
-                  : 'Tryb: Pętla treningowa'}
+                  ? 'A → B'
+                  : 'Pętla'}
             </p>
-            <h1 className="mt-2.5 font-serif text-2xl font-semibold tracking-tight text-[#4a3226]">
+            <h1 className="mt-2 font-serif text-xl font-semibold tracking-tight text-[#4a3226] md:text-2xl">
               {plannerPanel === 'saved'
                 ? 'Zapisane trasy'
                 : plannerPanel === 'savedDetail'
                   ? 'Szczegóły trasy'
-                  : 'Planer tras'}
+                  : 'Planer'}
             </h1>
-            <p className="mt-2 text-[15px] leading-6 text-stone-800">
+            <p className="mt-1 hidden text-[15px] leading-6 text-stone-800 md:block">
               {plannerPanel === 'saved'
                 ? 'Wybierz trasę z listy, aby zobaczyć ją na mapie i zarządzać nią.'
                 : plannerPanel === 'savedDetail'
@@ -1624,145 +1633,152 @@ function App() {
           )}
 
           {plannerPanel === 'plan' && (
-          <div className="space-y-4 rounded-2xl border border-[#C4A574] bg-[#FFF8E8]/80 p-4 shadow-[0_16px_35px_-30px_rgba(74,43,32,0.55)]">
+          <div className="space-y-5">
             {routeMode === 'AtoB' ? (
               <>
-                <div>
-                  <label
-                    htmlFor="start-point-input"
-                    className="mb-1 block text-sm font-semibold text-stone-800"
-                  >
-                    Punkt początkowy
-                    {startPoint && (
-                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                        Ustawiony
-                      </span>
-                    )}
-                  </label>
-                  <div className="flex gap-2">
-                    <AddressAutocomplete
-                      id="start-point-input"
-                      value={startInput}
-                      onChange={(nextValue) => handlePointInputChange('start', nextValue)}
-                      onSelect={(result) => applyGeocodeResult('start', result)}
-                      onSubmit={() => geocodeAddress('start')}
-                      placeholder="np. Rynek 1, Krosno"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => geocodeAddress('start')}
-                      disabled={isSearchingStart}
-                      className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
-                    >
-                      {isSearchingStart ? '...' : 'Szukaj'}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleUseMyLocation}
-                    disabled={isLocating}
-                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:opacity-60"
-                  >
-                    {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji'}
-                  </button>
-                </div>
-
-                {viaStops.map((stop, index) => (
-                  <div key={stop.id}>
+                <div className="space-y-4">
+                  <div>
                     <label
-                      htmlFor={`via-point-input-${stop.id}`}
-                      className="mb-1 flex items-center justify-between gap-2 text-sm font-semibold text-stone-800"
+                      htmlFor="start-point-input"
+                      className="mb-1.5 block text-[15px] font-bold text-[#4a3226]"
                     >
-                      <span>
-                        Punkt pośredni {index + 1}
-                        {stop.point && (
-                          <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                            Ustawiony
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveViaStop(stop.id)}
-                        className="text-xs font-semibold text-rose-700 hover:underline"
-                      >
-                        Usuń
-                      </button>
+                      Skąd
+                      {startPoint ? (
+                        <span className="ml-2 align-middle text-xs font-semibold text-[#FC6C26]">
+                          • ustawiony
+                        </span>
+                      ) : null}
                     </label>
                     <div className="flex gap-2">
                       <AddressAutocomplete
-                        id={`via-point-input-${stop.id}`}
-                        value={stop.input}
-                        onChange={(nextValue) =>
-                          handleViaInputChange(stop.id, nextValue)
-                        }
-                        onSelect={(result) =>
-                          applyGeocodeResult('via', result, stop.id)
-                        }
-                        onSubmit={() => geocodeAddress('via', stop.id)}
-                        placeholder="np. Jedlicze"
+                        id="start-point-input"
+                        value={startInput}
+                        onChange={(nextValue) => handlePointInputChange('start', nextValue)}
+                        onSelect={(result) => applyGeocodeResult('start', result)}
+                        onSubmit={() => geocodeAddress('start')}
+                        placeholder="Adres lub miejsce startu"
                       />
                       <button
                         type="button"
-                        onClick={() => geocodeAddress('via', stop.id)}
-                        className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40"
+                        onClick={() => geocodeAddress('start')}
+                        disabled={isSearchingStart}
+                        className="soft-button shrink-0 rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-bold text-white disabled:bg-[#f0b090]"
                       >
-                        Szukaj
+                        {isSearchingStart ? '...' : 'Szukaj'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleUseMyLocation}
+                      disabled={isLocating}
+                      className="mt-2 text-sm font-semibold text-[#E05518] underline-offset-2 hover:underline disabled:opacity-60"
+                    >
+                      {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="end-point-input"
+                      className="mb-1.5 block text-[15px] font-bold text-[#4a3226]"
+                    >
+                      Dokąd
+                      {endPoint ? (
+                        <span className="ml-2 align-middle text-xs font-semibold text-[#FC6C26]">
+                          • ustawiony
+                        </span>
+                      ) : null}
+                    </label>
+                    <div className="flex gap-2">
+                      <AddressAutocomplete
+                        id="end-point-input"
+                        value={endInput}
+                        onChange={(nextValue) => handlePointInputChange('end', nextValue)}
+                        onSelect={(result) => applyGeocodeResult('end', result)}
+                        onSubmit={() => geocodeAddress('end')}
+                        placeholder="Adres lub miejsce docelowe"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => geocodeAddress('end')}
+                        disabled={isSearchingEnd}
+                        className="soft-button shrink-0 rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-bold text-white disabled:bg-[#f0b090]"
+                      >
+                        {isSearchingEnd ? '...' : 'Szukaj'}
                       </button>
                     </div>
                   </div>
-                ))}
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddViaStop}
-                    disabled={viaStops.length >= 5}
-                    className="soft-button flex-1 rounded-xl border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Dodaj punkt pośredni
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReverseRoute}
-                    disabled={!startPoint && !endPoint}
-                    className="soft-button flex-1 rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Odwróć trasę
-                  </button>
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="end-point-input"
-                    className="mb-1 block text-sm font-semibold text-stone-800"
-                  >
-                    Punkt końcowy
-                    {endPoint && (
-                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                        Ustawiony
-                      </span>
-                    )}
-                  </label>
-                  <div className="flex gap-2">
-                    <AddressAutocomplete
-                      id="end-point-input"
-                      value={endInput}
-                      onChange={(nextValue) => handlePointInputChange('end', nextValue)}
-                      onSelect={(result) => applyGeocodeResult('end', result)}
-                      onSubmit={() => geocodeAddress('end')}
-                      placeholder="np. Rynek 1, Jedlicze"
-                    />
+                <CollapsibleSection
+                  title="Więcej opcji"
+                  summary={
+                    viaStops.length > 0
+                      ? `Punkty pośrednie: ${viaStops.length}`
+                      : 'Punkty pośrednie, odwrócenie trasy'
+                  }
+                  open={routeExtrasOpen}
+                  onOpenChange={setRouteExtrasOpen}
+                >
+                  {viaStops.map((stop, index) => (
+                    <div key={stop.id}>
+                      <label
+                        htmlFor={`via-point-input-${stop.id}`}
+                        className="mb-1 flex items-center justify-between gap-2 text-sm font-semibold text-stone-700"
+                      >
+                        <span>
+                          Punkt pośredni {index + 1}
+                          {stop.point ? (
+                            <span className="ml-2 text-xs font-semibold text-[#FC6C26]">• OK</span>
+                          ) : null}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveViaStop(stop.id)}
+                          className="text-xs font-semibold text-rose-700 hover:underline"
+                        >
+                          Usuń
+                        </button>
+                      </label>
+                      <div className="flex gap-2">
+                        <AddressAutocomplete
+                          id={`via-point-input-${stop.id}`}
+                          value={stop.input}
+                          onChange={(nextValue) => handleViaInputChange(stop.id, nextValue)}
+                          onSelect={(result) => applyGeocodeResult('via', result, stop.id)}
+                          onSubmit={() => geocodeAddress('via', stop.id)}
+                          placeholder="Adres punktu pośredniego"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => geocodeAddress('via', stop.id)}
+                          className="soft-button shrink-0 rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white"
+                        >
+                          Szukaj
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => geocodeAddress('end')}
-                      disabled={isSearchingEnd}
-                      className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                      onClick={handleAddViaStop}
+                      disabled={viaStops.length >= 5}
+                      className="rounded-lg px-2 py-1.5 text-sm font-semibold text-[#E05518] underline-offset-2 hover:underline disabled:opacity-40"
                     >
-                      {isSearchingEnd ? '...' : 'Szukaj'}
+                      + Punkt pośredni
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReverseRoute}
+                      disabled={!startPoint && !endPoint}
+                      className="rounded-lg px-2 py-1.5 text-sm font-semibold text-stone-600 underline-offset-2 hover:underline disabled:opacity-40"
+                    >
+                      Odwróć trasę
                     </button>
                   </div>
-                </div>
+                </CollapsibleSection>
 
                 <RoutePreferencesPanel
                   rideStyle={rideStyle}
@@ -1775,35 +1791,37 @@ function App() {
                   onAvoidMainRoadsChange={setAvoidMainRoads}
                 />
 
-                <button
-                  type="button"
-                  onClick={handleRouteSubmit}
-                  disabled={!startPoint || !endPoint || isLoadingRoute}
-                  className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-none disabled:bg-[#f0b090] disabled:shadow-none"
-                >
-                  {isLoadingRoute ? 'Wyznaczanie trasy...' : 'Wyznacz trasę'}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-white/45 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-white/75"
-                >
-                  Wyczyść
-                </button>
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleRouteSubmit}
+                    disabled={!startPoint || !endPoint || isLoadingRoute}
+                    className="soft-button w-full rounded-2xl bg-[#FC6C26] px-4 py-3.5 text-base font-bold text-white shadow-[0_10px_24px_-14px_rgba(224,85,24,0.85)] transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090] disabled:shadow-none"
+                  >
+                    {isLoadingRoute ? 'Wyznaczanie…' : 'Wyznacz trasę'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearCurrentPlan}
+                    className="w-full py-1.5 text-sm font-semibold text-stone-500 underline-offset-2 hover:text-stone-700 hover:underline"
+                  >
+                    Wyczyść
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div>
                   <label
                     htmlFor="loop-start-point-input"
-                    className="mb-1 block text-sm font-semibold text-stone-800"
+                    className="mb-1.5 block text-[15px] font-bold text-[#4a3226]"
                   >
-                    Punkt startowy pętli
-                    {startPoint && (
-                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                        Ustawiony
+                    Start pętli
+                    {startPoint ? (
+                      <span className="ml-2 align-middle text-xs font-semibold text-[#FC6C26]">
+                        • ustawiony
                       </span>
-                    )}
+                    ) : null}
                   </label>
                   <div className="flex gap-2">
                     <AddressAutocomplete
@@ -1812,13 +1830,13 @@ function App() {
                       onChange={(nextValue) => handlePointInputChange('start', nextValue)}
                       onSelect={(result) => applyGeocodeResult('start', result)}
                       onSubmit={() => geocodeAddress('start')}
-                      placeholder="np. Wolności 2, Krosno"
+                      placeholder="Adres lub miejsce startu"
                     />
                     <button
                       type="button"
                       onClick={() => geocodeAddress('start')}
                       disabled={isSearchingStart}
-                    className="soft-button rounded-xl bg-[#FC6C26] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E05518] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[#f0b090]"
+                      className="soft-button shrink-0 rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-bold text-white disabled:bg-[#f0b090]"
                     >
                       {isSearchingStart ? '...' : 'Szukaj'}
                     </button>
@@ -1827,16 +1845,13 @@ function App() {
                     type="button"
                     onClick={handleUseMyLocation}
                     disabled={isLocating}
-                    className="soft-button mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#E08A50] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#E05518] transition hover:bg-[#FFE8D6] disabled:opacity-60"
+                    className="mt-2 text-sm font-semibold text-[#E05518] underline-offset-2 hover:underline disabled:opacity-60"
                   >
-                    {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji (start pętli)'}
+                    {isLocating ? 'Pobieranie lokalizacji…' : 'Użyj mojej lokalizacji'}
                   </button>
                 </div>
 
-                <LoopDistanceControl
-                  value={loopDistanceKm}
-                  onChange={setLoopDistanceKm}
-                />
+                <LoopDistanceControl value={loopDistanceKm} onChange={setLoopDistanceKm} />
 
                 <RoutePreferencesPanel
                   rideStyle={rideStyle}
@@ -1849,21 +1864,23 @@ function App() {
                   onAvoidMainRoadsChange={setAvoidMainRoads}
                 />
 
-                <button
-                  type="button"
-                  onClick={handleLoopSubmit}
-                  disabled={!startPoint || isLoadingRoute}
-                  className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC6C26]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-none disabled:bg-[#f0b090] disabled:shadow-none"
-                >
-                  {isLoadingRoute ? 'Generowanie pętli...' : 'Wygeneruj pętlę'}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearCurrentPlan}
-                  className="soft-button w-full rounded-xl border border-[#C4A574] bg-white/45 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-white/75"
-                >
-                  Wyczyść
-                </button>
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleLoopSubmit}
+                    disabled={!startPoint || isLoadingRoute}
+                    className="soft-button w-full rounded-2xl bg-[#FC6C26] px-4 py-3.5 text-base font-bold text-white shadow-[0_10px_24px_-14px_rgba(224,85,24,0.85)] transition hover:bg-[#E05518] disabled:cursor-not-allowed disabled:bg-[#f0b090] disabled:shadow-none"
+                  >
+                    {isLoadingRoute ? 'Generowanie…' : 'Wygeneruj pętlę'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearCurrentPlan}
+                    className="w-full py-1.5 text-sm font-semibold text-stone-500 underline-offset-2 hover:text-stone-700 hover:underline"
+                  >
+                    Wyczyść
+                  </button>
+                </div>
               </>
             )}
 
@@ -1876,43 +1893,27 @@ function App() {
             )}
 
             {routeStats && (
-              <div className="rounded-2xl border border-[#E08A50]/80 bg-[linear-gradient(145deg,rgba(255,248,232,0.96),rgba(255,244,214,0.9))] p-4 text-sm text-stone-800 shadow-[0_16px_34px_-28px_rgba(224,85,24,0.55)]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">
-                  Akcje
-                </p>
-                <p className="mt-1 text-xs text-stone-700">
-                  Szczegóły trasy (dystans, czas, profil) są pod mapą.
-                </p>
-                <div className="mt-4 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={handleStartRide}
-                    disabled={isPreparingRide}
-                    className="soft-button w-full rounded-xl bg-[linear-gradient(135deg,#FC6C26,#E05518)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_-18px_rgba(224,85,24,0.8)] transition hover:brightness-105 disabled:opacity-60"
-                  >
-                    {isPreparingRide ? 'Przygotowywanie nawigacji…' : 'Nawiguj (tryb jazdy)'}
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={handleOpenOnPhone}
-                      className="soft-button rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-900 transition hover:bg-orange-100"
-                    >
-                      Otwórz na telefonie
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportToGpx}
-                      className="soft-button rounded-xl bg-[#7a6248] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6c563f]"
-                    >
-                      Pobierz GPX
-                    </button>
-                  </div>
+              <div className="space-y-3 border-t border-[#C4A574]/50 pt-4">
+                <button
+                  type="button"
+                  onClick={handleStartRide}
+                  disabled={isPreparingRide}
+                  className="soft-button w-full rounded-2xl bg-[#FC6C26] px-4 py-3.5 text-base font-bold text-white shadow-[0_10px_24px_-14px_rgba(224,85,24,0.85)] transition hover:bg-[#E05518] disabled:opacity-60"
+                >
+                  {isPreparingRide ? 'Przygotowywanie…' : 'Nawiguj'}
+                </button>
+
+                <CollapsibleSection
+                  title="Więcej akcji"
+                  summary="Zapis, GPX, telefon, Google Maps"
+                  open={moreActionsOpen}
+                  onOpenChange={setMoreActionsOpen}
+                >
                   <button
                     type="button"
                     onClick={handleSaveRouteClick}
                     disabled={isSavingRoute}
-                    className="soft-button w-full rounded-xl border border-[#C4A574] bg-[#FFF4D6] px-4 py-2.5 text-sm font-semibold text-stone-800 transition hover:bg-[#F5E6C0] disabled:opacity-60"
+                    className="w-full rounded-xl border border-[#C4A574] bg-white px-4 py-2.5 text-sm font-semibold text-[#4a3226] disabled:opacity-60"
                   >
                     {isSavingRoute
                       ? 'Zapisywanie...'
@@ -1920,16 +1921,30 @@ function App() {
                         ? 'Zapisz trasę'
                         : 'Zapisz trasę (wymaga konta)'}
                   </button>
-                </div>
-                <div className="mt-3 border-t border-orange-100 pt-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenOnPhone}
+                      className="rounded-xl border border-[#C4A574] bg-white px-3 py-2.5 text-sm font-semibold text-[#4a3226]"
+                    >
+                      Na telefon
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportToGpx}
+                      className="rounded-xl border border-[#C4A574] bg-white px-3 py-2.5 text-sm font-semibold text-[#4a3226]"
+                    >
+                      GPX
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={handleExportToGoogleMaps}
-                    className="text-xs font-semibold text-stone-600 underline-offset-2 transition hover:text-[#E05518] hover:underline"
+                    className="text-left text-xs font-semibold text-stone-500 underline-offset-2 hover:text-[#E05518] hover:underline"
                   >
                     Otwórz w Google Maps (przybliżone)
                   </button>
-                </div>
+                </CollapsibleSection>
               </div>
             )}
           </div>
@@ -1937,33 +1952,28 @@ function App() {
         </div>
 
         {plannerPanel === 'plan' && (
-        <div className="shrink-0 p-5 pb-5 pt-0 md:p-6 md:pb-5 md:pt-0">
-          <div className="rounded-xl border border-[#C4A574]/75 bg-[#FFF8E8]/70 p-3.5 text-sm font-medium leading-5 text-stone-700 shadow-[0_10px_24px_-24px_rgba(74,43,32,0.5)]">
-            {isLoadingRoute && <p className="font-medium">Wyznaczanie trasy...</p>}
-            {!isLoadingRoute && !startPoint && routeMode === 'AtoB' && (
-              <p>Kliknij mapę, aby wybrać punkt startowy.</p>
-            )}
-            {!isLoadingRoute && startPoint && !endPoint && routeMode === 'AtoB' && (
-              <p>Kliknij drugi raz, aby wybrać punkt końcowy.</p>
-            )}
-            {!isLoadingRoute &&
-              startPoint &&
-              endPoint &&
-              routeMode === 'AtoB' &&
-              viaStops.length < 5 && (
-              <p>
-                Kolejny klik doda punkt pośredni (max 5). Znaczniki możesz przeciągać —
-                potem ponownie wyznacz trasę.
-              </p>
-            )}
-            {!isLoadingRoute && routeMode === 'Loop' && !startPoint && (
-              <p>Kliknij mapę lub wpisz adres, aby ustawić punkt startowy pętli.</p>
-            )}
-            {!isLoadingRoute && routeMode === 'Loop' && startPoint && (
-              <p>Ustaw dystans i kliknij „Wygeneruj pętlę”.</p>
-            )}
-            {error && <p className="mt-2 font-medium text-rose-700">{error}</p>}
-          </div>
+        <div className="shrink-0 px-4 pb-3 pt-0 md:px-6 md:pb-4">
+          {(isLoadingRoute || error || (!startPoint && !endPoint)) && (
+            <div className="px-0.5 text-sm text-stone-600">
+              {isLoadingRoute && <p className="font-medium text-[#4a3226]">Wyznaczanie trasy…</p>}
+              {!isLoadingRoute && !startPoint && routeMode === 'AtoB' && (
+                <p>Uzupełnij skąd i dokąd — albo zaznacz na mapie.</p>
+              )}
+              {!isLoadingRoute && startPoint && !endPoint && routeMode === 'AtoB' && (
+                <p>Pozostał punkt docelowy.</p>
+              )}
+              {!isLoadingRoute && routeMode === 'Loop' && !startPoint && (
+                <p>Ustaw start pętli i dystans.</p>
+              )}
+              {error && <p className="mt-1 font-medium text-rose-700">{error}</p>}
+            </div>
+          )}
+          {!isLoadingRoute && !error && startPoint && endPoint && routeMode === 'AtoB' && (
+            <p className="px-0.5 text-xs text-stone-500">Gotowe do wyznaczenia trasy.</p>
+          )}
+          {!isLoadingRoute && !error && routeMode === 'Loop' && startPoint && (
+            <p className="px-0.5 text-xs text-stone-500">Gotowe do wygenerowania pętli.</p>
+          )}
         </div>
         )}
         {(plannerPanel === 'saved' || plannerPanel === 'savedDetail') && error && (
@@ -1975,8 +1985,8 @@ function App() {
         )}
       </aside>
 
-      <div className="relative flex w-full shrink-0 flex-col md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
-        <div className="relative m-3 h-[44vh] min-h-[280px] overflow-hidden rounded-2xl border border-[#C4A574] bg-[#FFF4D6] shadow-[0_16px_38px_-24px_rgba(74,43,32,0.5)] ring-1 ring-white/60 md:m-0 md:h-auto md:min-h-0 md:flex-1 md:rounded-none md:border-0 md:border-l md:border-[#C4A574] md:shadow-none md:ring-0">
+      <div className="relative order-1 flex w-full shrink-0 flex-col md:order-2 md:h-full md:min-h-0 md:w-auto md:flex-1 md:shrink">
+        <div className="relative m-2 h-[46vh] min-h-[280px] overflow-hidden rounded-xl border border-[#C4A574] bg-[#FFF4D6] md:m-0 md:h-auto md:min-h-0 md:flex-1 md:rounded-none md:border-0 md:border-l md:border-[#C4A574]">
           <Suspense
             fallback={
               <ChunkFallback label="Ładowanie mapy..." className="h-full min-h-[240px] bg-[#FFF4D6]" />
@@ -2080,6 +2090,20 @@ function App() {
           </div>
         </div>
       )}
+
+      <LocationPermissionGate
+        open={Boolean(pendingLocationAction)}
+        onCancel={() => {
+          setPendingLocationAction(null)
+          pendingRideArgsRef.current = null
+        }}
+        onReady={async () => {
+          const action = pendingLocationAction
+          setPendingLocationAction(null)
+          if (action === 'locate') await applyMyLocation()
+          if (action === 'ride') await executeStartRide()
+        }}
+      />
     </div>
   )
 }

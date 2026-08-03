@@ -22,12 +22,15 @@ function Navbar({
   }
 
   return (
-    <header className="absolute inset-x-0 top-0 z-50 border-b border-[#4a3226]/15 bg-transparent text-[#4a3226]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3.5 sm:gap-4 sm:px-6 sm:py-5 md:px-10">
+    <header
+      className="absolute inset-x-0 top-0 z-50 border-b border-[#4a3226]/15 bg-vanilla/90 text-[#4a3226] backdrop-blur-md md:bg-transparent md:backdrop-blur-none"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-5 md:px-10">
         <button
           type="button"
           onClick={onGoHome}
-          className="min-w-0 truncate text-left text-xs font-bold uppercase tracking-[0.16em] text-[#4a3226] transition hover:text-burnt-orange sm:text-sm sm:tracking-[0.18em]"
+          className="min-w-0 truncate text-left text-sm font-bold uppercase tracking-[0.12em] text-[#4a3226] transition hover:text-burnt-orange sm:tracking-[0.18em]"
         >
           Cycle Your Way
         </button>
@@ -56,7 +59,7 @@ function Navbar({
           </button>
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {isAuthenticated ? (
             <>
               <span
@@ -68,14 +71,15 @@ function Navbar({
               <button
                 type="button"
                 onClick={onOpenProfile}
-                className="rounded-lg border border-[#4a3226] bg-[#4a3226] px-3.5 py-2.5 text-sm font-semibold text-vanilla transition hover:bg-[#352219]"
+                className="rounded-lg border border-[#4a3226] bg-[#4a3226] px-3 py-2 text-xs font-semibold text-vanilla transition hover:bg-[#352219] sm:px-3.5 sm:py-2.5 sm:text-sm"
               >
-                Moje konto
+                <span className="md:hidden">Konto</span>
+                <span className="hidden md:inline">Moje konto</span>
               </button>
               <button
                 type="button"
                 onClick={onLogout}
-                className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
+                className="hidden rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange sm:inline-flex"
               >
                 Wyloguj
               </button>
@@ -84,7 +88,7 @@ function Navbar({
             <button
               type="button"
               onClick={onOpenAuth}
-              className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange"
+              className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3 py-2 text-xs font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange sm:px-3.5 sm:py-2.5 sm:text-sm"
             >
               Konto
             </button>
@@ -94,7 +98,7 @@ function Navbar({
             <button
               type="button"
               onClick={onStartPlanning}
-              className="soft-button rounded-lg bg-burnt-orange px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
+              className="soft-button rounded-lg bg-burnt-orange px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark sm:px-4 sm:py-2.5 sm:text-sm"
             >
               Planer
             </button>
@@ -102,7 +106,7 @@ function Navbar({
             <button
               type="button"
               onClick={onGoHome}
-              className="soft-button rounded-lg border border-[#4a3226] bg-[#4a3226] px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219]"
+              className="soft-button rounded-lg border border-[#4a3226] bg-[#4a3226] px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219] sm:px-4 sm:py-2.5 sm:text-sm"
             >
               Strona główna
             </button>
@@ -112,7 +116,7 @@ function Navbar({
             type="button"
             onClick={onGoHome}
             aria-label="Przejdź do strony głównej"
-            className="flex shrink-0 items-center pl-0.5 sm:pl-1"
+            className="hidden shrink-0 items-center pl-1 md:flex"
           >
             <CircularText
               text="CYCLE*YOUR*WAY*"

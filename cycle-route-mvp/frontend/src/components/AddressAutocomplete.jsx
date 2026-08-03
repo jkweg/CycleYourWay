@@ -146,7 +146,7 @@ function AddressAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-[#C4A574]/80 bg-white/65 px-3.5 py-2.5 text-sm text-stone-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] outline-none ring-[#FC6C26]/35 transition placeholder:text-stone-500 hover:border-[#E08A50] focus:border-[#FC6C26] focus:bg-white focus:ring-2 disabled:bg-[#F5E6C0]"
+        className="w-full rounded-xl border-2 border-[#C4A574] bg-white px-3.5 py-3 text-[15px] font-medium text-[#4a3226] outline-none transition placeholder:font-normal placeholder:text-stone-400 hover:border-[#E08A50] focus:border-[#FC6C26] focus:ring-2 focus:ring-[#FC6C26]/25 disabled:bg-[#F5E6C0]"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
         aria-controls={showDropdown ? `${id}-suggestions` : undefined}

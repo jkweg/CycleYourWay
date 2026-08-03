@@ -2,6 +2,12 @@ import { motion } from 'motion/react'
 import LampHero from './LampHero'
 import ScrollJourney from './ScrollJourney'
 
+const STEPS = [
+  { n: '01', title: 'Wybierz punkty', text: 'A → B albo pętla' },
+  { n: '02', title: 'Wyznacz trasę', text: 'Porównaj warianty' },
+  { n: '03', title: 'Jedź', text: 'Nawigacja w telefonie' },
+]
+
 const FEATURES = [
   {
     eyebrow: 'Planowanie',
@@ -54,7 +60,54 @@ const ABOUT_VALUES = [
 function LandingPage({ onStartPlanning }) {
   return (
     <main className="relative z-10 bg-vanilla">
-      <div className="relative z-10">
+      {/* Telefon / wąski ekran: krótka strona bez makiet */}
+      <section
+        className="flex min-h-[100dvh] flex-col px-5 pb-10 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] md:hidden"
+        aria-labelledby="mobile-landing-title"
+      >
+        <div className="flex flex-1 flex-col justify-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
+            Cycle Your Way
+          </p>
+          <h1
+            id="mobile-landing-title"
+            className="mt-3 font-serif text-[2.65rem] font-semibold leading-[1.05] tracking-tight text-[#4a3226]"
+          >
+            Planuj i jedź.
+          </h1>
+          <p className="mt-4 max-w-sm text-[15px] leading-6 text-[#4a3226]/80">
+            Trasy rowerowe, pętle i nawigacja — w jednym miejscu.
+          </p>
+
+          <button
+            type="button"
+            onClick={onStartPlanning}
+            className="soft-button mt-8 w-full rounded-2xl bg-burnt-orange px-6 py-4 text-sm font-semibold uppercase tracking-wide text-vanilla"
+          >
+            Otwórz planer
+          </button>
+
+          <ul className="mt-10 space-y-3">
+            {STEPS.map((step) => (
+              <li
+                key={step.n}
+                className="flex items-center gap-3 rounded-2xl border border-[#4a3226]/20 bg-[#FFFBF1] px-4 py-3"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#4a3226] text-xs font-bold text-vanilla">
+                  {step.n}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#4a3226]">{step.title}</p>
+                  <p className="text-xs text-ink-muted">{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Desktop / tablet+: pełny landing z makietami i sekcjami */}
+      <div className="relative z-10 hidden md:block">
         <LampHero onStartPlanning={onStartPlanning} />
 
         <ScrollJourney onStartPlanning={onStartPlanning} />
