@@ -1,4 +1,16 @@
-const PRIVACY = {
+export type LegalDocType = 'privacy' | 'terms'
+
+type LegalSection = {
+  heading: string
+  body: string
+}
+
+type LegalDoc = {
+  title: string
+  sections: LegalSection[]
+}
+
+const PRIVACY: LegalDoc = {
   title: 'Polityka prywatności',
   sections: [
     {
@@ -24,7 +36,7 @@ const PRIVACY = {
   ],
 }
 
-const TERMS = {
+const TERMS: LegalDoc = {
   title: 'Regulamin',
   sections: [
     {
@@ -46,7 +58,7 @@ const TERMS = {
   ],
 }
 
-function LegalContent({ doc }) {
+function LegalContent({ doc }: { doc: LegalDoc }) {
   return (
     <div className="space-y-5 text-sm leading-7 text-stone-700">
       {doc.sections.map((section) => (
@@ -60,7 +72,7 @@ function LegalContent({ doc }) {
 }
 
 /** Pełna strona pod /privacy i /terms (sklep, SEO, bezpośrednie linki). */
-export function LegalStandalone({ type }) {
+export function LegalStandalone({ type }: { type: LegalDocType }) {
   const doc = type === 'terms' ? TERMS : PRIVACY
   const otherHref = type === 'terms' ? '/privacy' : '/terms'
   const otherLabel = type === 'terms' ? 'Polityka prywatności' : 'Regulamin'
@@ -88,7 +100,12 @@ export function LegalStandalone({ type }) {
   )
 }
 
-function LegalPage({ type, onClose }) {
+type LegalPageProps = {
+  type: LegalDocType
+  onClose: () => void
+}
+
+function LegalPage({ type, onClose }: LegalPageProps) {
   const doc = type === 'terms' ? TERMS : PRIVACY
 
   return (

@@ -1,14 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import Root from './Root.jsx'
-import { warnMissingProdEnv } from './lib/env.js'
-import { initMonitoring } from './lib/monitoring.js'
+import Root from './Root'
+import { warnMissingProdEnv } from './lib/env'
+import { initMonitoring } from './lib/monitoring'
 
 warnMissingProdEnv()
-initMonitoring()
+void initMonitoring()
 
-createRoot(document.getElementById('root')).render(
+const rootEl = document.getElementById('root')
+if (!rootEl) {
+  throw new Error('Root element #root not found')
+}
+
+createRoot(rootEl).render(
   <StrictMode>
     <Root />
   </StrictMode>,

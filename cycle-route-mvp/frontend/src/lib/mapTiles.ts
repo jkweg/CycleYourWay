@@ -7,7 +7,14 @@ const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const OSM_ATTR =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-export function getMapTileLayer() {
+export type MapTileLayerConfig = {
+  url: string
+  attribution: string
+  maxZoom: number
+  provider: 'commercial' | 'osm'
+}
+
+export function getMapTileLayer(): MapTileLayerConfig {
   const customUrl = import.meta.env.VITE_MAP_TILES_URL
   const attribution =
     import.meta.env.VITE_MAP_TILES_ATTR ||

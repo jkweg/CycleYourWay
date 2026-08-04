@@ -2,10 +2,10 @@
  * Warn once in production when critical launch env vars are missing.
  * Secrets are never logged — only presence.
  */
-export function warnMissingProdEnv() {
+export function warnMissingProdEnv(): void {
   if (!import.meta.env.PROD) return
 
-  const missing = []
+  const missing: string[] = []
   if (!import.meta.env.VITE_API_URL) missing.push('VITE_API_URL')
   if (!import.meta.env.VITE_SUPABASE_URL) missing.push('VITE_SUPABASE_URL')
   if (!import.meta.env.VITE_SUPABASE_ANON_KEY) missing.push('VITE_SUPABASE_ANON_KEY')

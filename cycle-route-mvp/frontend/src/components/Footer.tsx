@@ -1,4 +1,13 @@
-function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
+import type { MouseEvent } from 'react'
+
+type FooterProps = {
+  onStartPlanning?: () => void
+  onGoHome?: () => void
+  onOpenPrivacy?: () => void
+  onOpenTerms?: () => void
+}
+
+function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }: FooterProps) {
   return (
     <footer
       className="relative z-10 border-t border-burnt-orange/25 bg-[#4a3226] text-vanilla/80"
@@ -31,7 +40,7 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
             </button>
             <a
               href="/privacy"
-              onClick={(e) => {
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                 if (onOpenPrivacy) {
                   e.preventDefault()
                   onOpenPrivacy()
@@ -43,7 +52,7 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
             </a>
             <a
               href="/terms"
-              onClick={(e) => {
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                 if (onOpenTerms) {
                   e.preventDefault()
                   onOpenTerms()

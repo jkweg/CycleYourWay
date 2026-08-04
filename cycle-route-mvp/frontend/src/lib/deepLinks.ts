@@ -3,9 +3,10 @@ import { isNativePlatform } from './platform'
 
 /**
  * Register App URL open handlers for ?ride= / ?share= deep links.
- * @param {(url: string) => void} onOpenUrl
  */
-export async function registerAppUrlListener(onOpenUrl) {
+export async function registerAppUrlListener(
+  onOpenUrl: (url: string) => void,
+): Promise<() => void> {
   if (!isNativePlatform()) return () => undefined
 
   try {
@@ -14,12 +15,11 @@ export async function registerAppUrlListener(onOpenUrl) {
       if (event?.url) onOpenUrl(event.url)
     })
 
-    // Cold start URL
     const launch = await App.getLaunchUrl()
     if (launch?.url) onOpenUrl(launch.url)
 
     return () => {
-      handle.remove()
+      void handle.remove()
     }
   } catch (error) {
     console.warn('[deepLinks] App plugin unavailable', error)
@@ -27,7 +27,12 @@ export async function registerAppUrlListener(onOpenUrl) {
   }
 }
 
-export function parseDeepLinkParams(urlString) {
+export type DeepLinkParams = {
+  ride: string | null
+  share: string | null
+}
+
+export function parseDeepLinkParams(urlString: string): DeepLinkParams {
   try {
     const url = new URL(urlString)
     return {
@@ -39,6 +44,6 @@ export function parseDeepLinkParams(urlString) {
   }
 }
 
-export function isRunningInCapacitor() {
+export function isRunningInCapacitor(): boolean {
   return Capacitor.isNativePlatform?.() === true
 }

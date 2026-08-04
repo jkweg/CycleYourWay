@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 
-export const isNativePlatform = () => {
+export const isNativePlatform = (): boolean => {
   try {
     return Capacitor.isNativePlatform()
   } catch {
@@ -8,7 +8,7 @@ export const isNativePlatform = () => {
   }
 }
 
-export const getPlatform = () => {
+export const getPlatform = (): string => {
   try {
     return Capacitor.getPlatform()
   } catch {

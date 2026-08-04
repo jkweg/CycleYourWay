@@ -1,5 +1,15 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { IconChevronDown } from '@tabler/icons-react'
+
+type CollapsibleSectionProps = {
+  title: ReactNode
+  summary?: ReactNode
+  defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: ReactNode
+  className?: string
+}
 
 /**
  * Lightweight disclose/collapse for secondary planner options.
@@ -12,7 +22,7 @@ function CollapsibleSection({
   onOpenChange,
   children,
   className = '',
-}) {
+}: CollapsibleSectionProps) {
   const isControlled = openControlled !== undefined
   const [internalOpen, setInternalOpen] = useState(defaultOpen)
   const open = isControlled ? openControlled : internalOpen

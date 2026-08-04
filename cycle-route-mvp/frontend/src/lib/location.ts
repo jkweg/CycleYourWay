@@ -1,10 +1,29 @@
+import type { Position } from '@capacitor/geolocation'
 import { isNativePlatform } from './platform'
+
+export type GeoErrorLike = {
+  code?: number
+  message?: string
+}
+
+export type WatchPositionOptions = {
+  enableHighAccuracy?: boolean
+  maximumAge?: number
+  timeout?: number
+  background?: boolean
+}
+
+export type UnsubscribePosition = () => void | Promise<void>
 
 /**
  * Unified geolocation watch with Capacitor plugin on native, web API otherwise.
  * Returns an unsubscribe function.
  */
-export async function watchPosition(onUpdate, onError, options = {}) {
+export async function watchPosition(
+  onUpdate?: (position: Position | GeolocationPosition) => void,
+  onError?: (error: GeoErrorLike | GeolocationPositionError) => void,
+  options: WatchPositionOptions = {},
+): Promise<UnsubscribePosition> {
   const {
     enableHighAccuracy = true,
     maximumAge = 1000,
@@ -22,7 +41,6 @@ export async function watchPosition(onUpdate, onError, options = {}) {
         return () => undefined
       }
 
-      // Foreground watch (background plugin is optional and loaded separately).
       const id = await Geolocation.watchPosition(
         { enableHighAccuracy, maximumAge, timeout },
         (position, err) => {
@@ -30,12 +48,11 @@ export async function watchPosition(onUpdate, onError, options = {}) {
             onError?.(err)
             return
           }
-          onUpdate?.(position)
+          if (position) onUpdate?.(position)
         },
       )
 
       if (background) {
-        // Best-effort: keep using foreground watch; document limitation in MOBILE.md.
         console.info('[location] Background flag set — use keep-awake + foreground for v1')
       }
 
@@ -56,16 +73,22 @@ export async function watchPosition(onUpdate, onError, options = {}) {
     return () => undefined
   }
 
-  const watchId = navigator.geolocation.watchPosition(onUpdate, onError, {
-    enableHighAccuracy,
-    maximumAge,
-    timeout,
-  })
+  const watchId = navigator.geolocation.watchPosition(
+    (position) => onUpdate?.(position),
+    (error) => onError?.(error),
+    {
+      enableHighAccuracy,
+      maximumAge,
+      timeout,
+    },
+  )
 
   return () => navigator.geolocation.clearWatch(watchId)
 }
 
-export async function getCurrentPosition(options = {}) {
+export async function getCurrentPosition(
+  options: Pick<WatchPositionOptions, 'timeout' | 'maximumAge'> = {},
+): Promise<Position | GeolocationPosition> {
   if (isNativePlatform()) {
     try {
       const { Geolocation } = await import('@capacitor/geolocation')

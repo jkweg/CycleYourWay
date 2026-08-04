@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseDeepLinkParams } from './deepLinks.js'
-import { getMapTileLayer } from './mapTiles.js'
+import { parseDeepLinkParams } from './deepLinks'
+import { getMapTileLayer } from './mapTiles'
 
 describe('parseDeepLinkParams', () => {
   it('reads ride and share query params', () => {

@@ -1,4 +1,12 @@
-export const RIDE_STYLES = [
+import type { RouteFeature } from '../types/geo'
+
+export type PreferenceOption = {
+  id: string
+  label: string
+  hint?: string
+}
+
+export const RIDE_STYLES: PreferenceOption[] = [
   {
     id: 'road',
     label: 'Szosa',
@@ -26,7 +34,7 @@ export const RIDE_STYLES = [
   },
 ]
 
-export const CLIMB_PREFERENCES = [
+export const CLIMB_PREFERENCES: PreferenceOption[] = [
   {
     id: 'easy',
     label: 'Łagodne',
@@ -47,13 +55,13 @@ export const CLIMB_PREFERENCES = [
 export const DEFAULT_RIDE_STYLE = 'gravel'
 export const DEFAULT_CLIMB_PREFERENCE = 'normal'
 
-export const FITNESS_LEVELS = [
+export const FITNESS_LEVELS: PreferenceOption[] = [
   { id: 'beginner', label: 'Początkujący' },
   { id: 'regular', label: 'Regularny' },
   { id: 'advanced', label: 'Zaawansowany' },
 ]
 
-export const SURFACE_PREFERENCES = [
+export const SURFACE_PREFERENCES: PreferenceOption[] = [
   { id: 'asphalt', label: 'Asfalt' },
   { id: 'mixed', label: 'Mieszana' },
   { id: 'gravel', label: 'Gravel' },
@@ -66,17 +74,24 @@ export const DEFAULT_SURFACE_PREFERENCE = 'mixed'
 /** Surface codes treated as asphalt-like for “prefer asphalt”. */
 export const ASPHALT_SURFACE_CODES = new Set([1, 3])
 
-export function getAsphaltSharePercent(feature) {
+export function getAsphaltSharePercent(feature: RouteFeature | null | undefined): number | null {
   const summary = feature?.properties?.extras?.surface?.summary
   if (!Array.isArray(summary) || summary.length === 0) return null
 
   let asphaltShare = 0
   for (const item of summary) {
-    if (ASPHALT_SURFACE_CODES.has(item?.value) && typeof item.amount === 'number') {
+    if (ASPHALT_SURFACE_CODES.has(item?.value ?? -1) && typeof item.amount === 'number') {
       asphaltShare += item.amount
     }
   }
   return Number(asphaltShare.toFixed(1))
+}
+
+export type RoutePreferencePayload = {
+  rideStyle: string
+  climbPreference: string
+  preferAsphalt: boolean
+  avoidMainRoads: boolean
 }
 
 export function buildRoutePreferencePayload({
@@ -84,7 +99,7 @@ export function buildRoutePreferencePayload({
   climbPreference = DEFAULT_CLIMB_PREFERENCE,
   preferAsphalt = false,
   avoidMainRoads = false,
-} = {}) {
+}: Partial<RoutePreferencePayload> = {}): RoutePreferencePayload {
   return {
     rideStyle,
     climbPreference,

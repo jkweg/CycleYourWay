@@ -2,16 +2,17 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * Fetch JSON from the ORS backend proxy.
- * @param {string} path
- * @param {RequestInit} [options]
  */
-export async function apiFetch(path, options = {}) {
-  const headers = {
+export async function apiFetch<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
   }
 
-  let response
+  let response: Response
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -23,10 +24,13 @@ export async function apiFetch(path, options = {}) {
     )
   }
 
-  const data = await response.json().catch(() => ({}))
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string }
 
   if (!response.ok) {
-    throw new Error(data.error || `Błąd serwera (${response.status}).`)
+    throw new Error(
+      (data && typeof data === 'object' && 'error' in data && data.error) ||
+        `Błąd serwera (${response.status}).`,
+    )
   }
 
   return data

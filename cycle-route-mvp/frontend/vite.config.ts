@@ -1,3 +1,4 @@
+// @ts-nocheck — vitest `test` field + vite peer type mismatch
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,7 +9,6 @@ const pkg = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf8'),
 )
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -16,7 +16,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.{test,spec}.{js,ts}'],
   },
   server: {
     proxy: {

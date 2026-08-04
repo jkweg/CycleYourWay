@@ -1,7 +1,9 @@
 import { isNativePlatform } from './platform'
 
+export type ReleaseAwake = () => void | Promise<void>
+
 /** Keep screen awake during navigation. */
-export async function keepAwake() {
+export async function keepAwake(): Promise<ReleaseAwake> {
   if (isNativePlatform()) {
     try {
       const { KeepAwake } = await import('@capacitor-community/keep-awake')
@@ -20,7 +22,7 @@ export async function keepAwake() {
 
   if (!navigator.wakeLock?.request) return () => undefined
 
-  let wakeLock = null
+  let wakeLock: WakeLockSentinel | null = null
   const request = async () => {
     try {
       wakeLock = await navigator.wakeLock.request('screen')
@@ -31,30 +33,23 @@ export async function keepAwake() {
   await request()
 
   const onVisibility = () => {
-    if (document.visibilityState === 'visible') request()
+    if (document.visibilityState === 'visible') void request()
   }
   document.addEventListener('visibilitychange', onVisibility)
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility)
-    wakeLock?.release?.().catch(() => undefined)
+    void wakeLock?.release?.().catch(() => undefined)
   }
 }
 
-export async function lockPortrait() {
-  if (!isNativePlatform()) {
-    try {
-      await screen.orientation?.lock?.('portrait')
-    } catch {
-      // browser may deny outside fullscreen/PWA
-    }
-    return
-  }
-
+export async function lockPortrait(): Promise<void> {
   try {
-    // Capacitor Android typically locks via AndroidManifest; best-effort here.
-    await screen.orientation?.lock?.('portrait')
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (orientation: string) => Promise<void>
+    }
+    await orientation.lock?.('portrait')
   } catch {
-    // ignore
+    // browser may deny outside fullscreen/PWA; Capacitor often locks via manifest
   }
 }

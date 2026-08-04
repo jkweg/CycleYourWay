@@ -1,8 +1,17 @@
+import type {
+  LatLng,
+  LngLatTuple,
+  Maneuver,
+  ManeuverVisual,
+  NavState,
+  RouteFeature,
+} from '../types/geo'
+
 const EARTH_RADIUS_M = 6371000
 
-const toRad = (value) => (value * Math.PI) / 180
+const toRad = (value: number) => (value * Math.PI) / 180
 
-export const haversineMeters = (a, b) => {
+export const haversineMeters = (a: LatLng | null | undefined, b: LatLng | null | undefined): number => {
   if (!a || !b) return Number.POSITIVE_INFINITY
   const dLat = toRad(b.lat - a.lat)
   const dLng = toRad(b.lng - a.lng)
@@ -14,11 +23,12 @@ export const haversineMeters = (a, b) => {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-const toDeg = (value) => (value * 180) / Math.PI
+const toDeg = (value: number) => (value * 180) / Math.PI
 
-// Azymut (0-360°, 0 = północ, rośnie zgodnie z ruchem wskazówek zegara)
-// z punktu a do punktu b.
-export const bearingDegrees = (a, b) => {
+export const bearingDegrees = (
+  a: LatLng | null | undefined,
+  b: LatLng | null | undefined,
+): number | null => {
   if (!a || !b) return null
   const lat1 = toRad(a.lat)
   const lat2 = toRad(b.lat)
@@ -31,8 +41,7 @@ export const bearingDegrees = (a, b) => {
   return (bearing + 360) % 360
 }
 
-// ORS step.type -> ikona + krótki opis kierunku
-const MANEUVER_TYPES = {
+const MANEUVER_TYPES: Record<number, ManeuverVisual> = {
   0: { icon: '↰', label: 'W lewo' },
   1: { icon: '↱', label: 'W prawo' },
   2: { icon: '⮰', label: 'Ostro w lewo' },
@@ -49,28 +58,31 @@ const MANEUVER_TYPES = {
   13: { icon: '↗', label: 'Trzymaj się prawej' },
 }
 
-export const getManeuverVisual = (type) =>
-  MANEUVER_TYPES[type] || { icon: '↑', label: 'Jedź dalej' }
+export const getManeuverVisual = (type: number | undefined): ManeuverVisual =>
+  (type != null && MANEUVER_TYPES[type]) || { icon: '↑', label: 'Jedź dalej' }
 
-export const toLatLng = (coordinate) => {
+export const toLatLng = (coordinate: LngLatTuple | number[] | null | undefined): LatLng | null => {
   if (!Array.isArray(coordinate) || coordinate.length < 2) return null
   return { lng: coordinate[0], lat: coordinate[1] }
 }
 
-export const getFeatureCoordinates = (feature) => {
+export const getFeatureCoordinates = (feature: RouteFeature | null | undefined): LngLatTuple[] => {
   const full = feature?.properties?.cyw_full_coordinates
   if (Array.isArray(full) && full.length >= 2) return full
 
   const geometry = feature?.geometry
   if (!geometry) return []
-  if (geometry.type === 'LineString') return geometry.coordinates
-  if (geometry.type === 'MultiLineString') return geometry.coordinates.flat()
+  if (geometry.type === 'LineString' && Array.isArray(geometry.coordinates)) {
+    return geometry.coordinates as LngLatTuple[]
+  }
+  if (geometry.type === 'MultiLineString' && Array.isArray(geometry.coordinates)) {
+    return (geometry.coordinates as LngLatTuple[][]).flat()
+  }
   return []
 }
 
-// Łączna odległość (m) wzdłuż trasy do każdego z punktów geometrii.
-export const buildCumulativeDistances = (coordinates) => {
-  const cumulative = new Array(coordinates.length).fill(0)
+export const buildCumulativeDistances = (coordinates: LngLatTuple[]): number[] => {
+  const cumulative = new Array<number>(coordinates.length).fill(0)
   for (let i = 1; i < coordinates.length; i += 1) {
     const prev = toLatLng(coordinates[i - 1])
     const curr = toLatLng(coordinates[i])
@@ -79,13 +91,12 @@ export const buildCumulativeDistances = (coordinates) => {
   return cumulative
 }
 
-// Spłaszcza segmenty ORS w jedną listę manewrów z lokalizacją na trasie.
-export const extractManeuvers = (feature) => {
+export const extractManeuvers = (feature: RouteFeature | null | undefined): Maneuver[] => {
   const coordinates = getFeatureCoordinates(feature)
   const segments = feature?.properties?.segments
   if (!Array.isArray(segments) || coordinates.length === 0) return []
 
-  const maneuvers = []
+  const maneuvers: Maneuver[] = []
   for (const segment of segments) {
     const steps = Array.isArray(segment?.steps) ? segment.steps : []
     for (const step of steps) {
@@ -97,7 +108,7 @@ export const extractManeuvers = (feature) => {
 
       maneuvers.push({
         coordIndex,
-        endIndex: Number.isInteger(wayPoints[1]) ? wayPoints[1] : coordIndex,
+        endIndex: Number.isInteger(wayPoints[1]) ? wayPoints[1]! : coordIndex,
         location,
         instruction: step.instruction || '',
         name: step.name && step.name !== '-' ? step.name : '',
@@ -110,7 +121,9 @@ export const extractManeuvers = (feature) => {
   return maneuvers
 }
 
-export const routeHasTurnByTurnInstructions = (feature) => {
+export const routeHasTurnByTurnInstructions = (
+  feature: RouteFeature | null | undefined,
+): boolean => {
   const segments = feature?.properties?.segments
   if (!Array.isArray(segments) || segments.length === 0) return false
 
@@ -123,7 +136,9 @@ export const routeHasTurnByTurnInstructions = (feature) => {
   )
 }
 
-export const getRouteEndpointsFromFeature = (feature) => {
+export const getRouteEndpointsFromFeature = (
+  feature: RouteFeature | null | undefined,
+): { start: LatLng; end: LatLng } | null => {
   const coordinates = getFeatureCoordinates(feature)
   if (coordinates.length < 2) return null
 
@@ -134,22 +149,18 @@ export const getRouteEndpointsFromFeature = (feature) => {
   return { start, end }
 }
 
-/**
- * Sample evenly spaced waypoints along a coordinate line (for ORS multi-stop
- * refresh / rejoin without regenerating a random loop).
- */
 export const sampleWaypointsFromCoordinates = (
-  coordinates,
-  { maxPoints = 24 } = {},
-) => {
+  coordinates: LngLatTuple[] | null | undefined,
+  { maxPoints = 24 }: { maxPoints?: number } = {},
+): LatLng[] => {
   if (!Array.isArray(coordinates) || coordinates.length < 2) return []
 
   const limit = Math.max(2, Math.min(maxPoints, 50))
   if (coordinates.length <= limit) {
-    return coordinates.map(toLatLng).filter(Boolean)
+    return coordinates.map(toLatLng).filter((point): point is LatLng => Boolean(point))
   }
 
-  const waypoints = []
+  const waypoints: LatLng[] = []
   const step = (coordinates.length - 1) / (limit - 1)
   for (let i = 0; i < limit; i += 1) {
     const index = Math.round(i * step)
@@ -164,10 +175,12 @@ export const sampleWaypointsFromCoordinates = (
   return waypoints
 }
 
-export const sampleWaypointsAlongFeature = (feature, options) =>
-  sampleWaypointsFromCoordinates(getFeatureCoordinates(feature), options)
+export const sampleWaypointsAlongFeature = (
+  feature: RouteFeature | null | undefined,
+  options?: { maxPoints?: number },
+): LatLng[] => sampleWaypointsFromCoordinates(getFeatureCoordinates(feature), options)
 
-export const getFeatureDistanceKm = (feature) => {
+export const getFeatureDistanceKm = (feature: RouteFeature | null | undefined): number | null => {
   const summaryDistance = feature?.properties?.summary?.distance
   if (typeof summaryDistance === 'number') {
     return Math.max(1, Math.round(summaryDistance / 100) / 10)
@@ -181,19 +194,20 @@ export const getFeatureDistanceKm = (feature) => {
   return Math.max(1, Math.round(meters / 100) / 10)
 }
 
-// Najbliższy punkt geometrii względem pozycji użytkownika.
-export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
+export const findNearestIndex = (
+  coordinates: LngLatTuple[],
+  user: LatLng,
+  hintIndex = 0,
+): { index: number; distance: number } => {
   let bestIndex = 0
   let bestDistance = Number.POSITIVE_INFINITY
 
-  // Szukamy głównie do przodu względem ostatniego indeksu, żeby na trasach
-  // z punktami pośrednimi / pętlami nie przeskakiwać na wcześniejsze fragmenty.
   const windowRadius = 500
   const backtrackWindow = 8
   const start = Math.max(0, hintIndex - backtrackWindow)
   const end = Math.min(coordinates.length, hintIndex + windowRadius)
 
-  const scan = (from, to) => {
+  const scan = (from: number, to: number) => {
     for (let i = from; i < to; i += 1) {
       const point = toLatLng(coordinates[i])
       const distance = haversineMeters(user, point)
@@ -206,8 +220,6 @@ export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
 
   scan(start, end)
 
-  // Jeśli wynik w oknie jest bardzo daleki, szukamy szerzej, ale nadal nie
-  // wracamy daleko za aktualny postęp. To stabilizuje odległość do manewru.
   if (bestDistance > 220) {
     bestDistance = Number.POSITIVE_INFINITY
     bestIndex = start
@@ -217,13 +229,13 @@ export const findNearestIndex = (coordinates, user, hintIndex = 0) => {
   return { index: bestIndex, distance: bestDistance }
 }
 
-export const formatDistance = (meters) => {
+export const formatDistance = (meters: number): string => {
   if (!Number.isFinite(meters)) return '—'
   if (meters < 1000) return `${Math.round(meters / 10) * 10} m`
   return `${(meters / 1000).toFixed(meters < 10000 ? 1 : 0)} km`
 }
 
-export const formatDuration = (seconds) => {
+export const formatDuration = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—'
   const totalMinutes = Math.round(seconds / 60)
   const hours = Math.floor(totalMinutes / 60)
@@ -232,7 +244,16 @@ export const formatDuration = (seconds) => {
   return `${minutes} min`
 }
 
-// Stan nawigacji na podstawie pozycji użytkownika i danych trasy.
+export type ComputeNavStateArgs = {
+  coordinates: LngLatTuple[]
+  cumulative: number[]
+  maneuvers: Maneuver[]
+  user: LatLng
+  hintIndex?: number
+  averageSpeedMps?: number
+  accuracyMeters?: number | null
+}
+
 export const computeNavState = ({
   coordinates,
   cumulative,
@@ -241,7 +262,7 @@ export const computeNavState = ({
   hintIndex = 0,
   averageSpeedMps = 4.5,
   accuracyMeters = null,
-}) => {
+}: ComputeNavStateArgs): NavState | null => {
   if (!coordinates.length) return null
 
   const nearest = findNearestIndex(coordinates, user, hintIndex)
@@ -254,7 +275,7 @@ export const computeNavState = ({
     maneuvers[maneuvers.length - 1] ||
     null
 
-  let distanceToManeuver = null
+  let distanceToManeuver: number | null = null
   if (nextManeuver) {
     const maneuverDistanceAlong = cumulative[nextManeuver.coordIndex] || totalDistance
     distanceToManeuver = Math.max(0, maneuverDistanceAlong - traveled)
@@ -266,9 +287,9 @@ export const computeNavState = ({
 
   const offRouteThreshold = Math.max(
     70,
-    Number.isFinite(accuracyMeters) ? accuracyMeters * 1.8 : 0,
+    Number.isFinite(accuracyMeters) && accuracyMeters != null ? accuracyMeters * 1.8 : 0,
   )
-  const hasUsableAccuracy = !Number.isFinite(accuracyMeters) || accuracyMeters <= 85
+  const hasUsableAccuracy = !Number.isFinite(accuracyMeters) || (accuracyMeters ?? 0) <= 85
   const isOffRoute = hasUsableAccuracy && nearest.distance > offRouteThreshold
   const remainingSeconds = remainingDistance / averageSpeedMps
 

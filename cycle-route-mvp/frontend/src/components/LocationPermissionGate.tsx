@@ -2,10 +2,16 @@ import { useState } from 'react'
 import { getCurrentPosition } from '../lib/location'
 import { isNativePlatform } from '../lib/platform'
 
+type LocationPermissionGateProps = {
+  open: boolean
+  onReady?: () => void
+  onCancel?: () => void
+}
+
 /**
  * One-shot permission primer before starting ride / locating.
  */
-function LocationPermissionGate({ open, onReady, onCancel }) {
+function LocationPermissionGate({ open, onReady, onCancel }: LocationPermissionGateProps) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [gateSession, setGateSession] = useState(0)
@@ -22,8 +28,9 @@ function LocationPermissionGate({ open, onReady, onCancel }) {
       setBusy(false)
       setError('')
     } catch (err) {
+      const message = err instanceof Error ? err.message : undefined
       setError(
-        err?.message ||
+        message ||
           'Nie udało się uzyskać lokalizacji. Włącz GPS i pozwól aplikacji na dostęp do lokalizacji.',
       )
       setBusy(false)
@@ -73,7 +80,7 @@ function LocationPermissionGate({ open, onReady, onCancel }) {
           <button
             type="button"
             disabled={busy}
-            onClick={request}
+            onClick={() => void request()}
             className="soft-button flex-1 rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla disabled:opacity-60"
           >
             {busy ? 'Sprawdzam…' : 'Zezwól na lokalizację'}

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import App from './App.jsx'
-import { AuthProvider } from './AuthContext.jsx'
+import { AuthProvider } from './AuthContext'
 import LoadingScreen from './components/LoadingScreen.jsx'
-import { LegalStandalone } from './components/LegalPage.jsx'
+import { LegalStandalone, type LegalDocType } from './components/LegalPage'
 
-function legalTypeFromPath(pathname) {
+function legalTypeFromPath(pathname: string): LegalDocType | null {
   const path = (pathname || '').replace(/\/+$/, '') || '/'
   if (path === '/privacy' || path === '/polityka-prywatnosci') return 'privacy'
   if (path === '/terms' || path === '/regulamin') return 'terms'

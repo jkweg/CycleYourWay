@@ -1,9 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AuthContext } from './authContext'
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { User } from '@supabase/supabase-js'
 import { getAppOrigin } from './lib/appOrigin'
 import { supabase } from './supabaseClient'
+import type { AuthUser } from './types/geo'
 
-function mapUser(authUser) {
+export type AuthContextValue = {
+  user: AuthUser | null
+  isLoading: boolean
+  isAuthenticated: boolean
+  passwordRecovery: boolean
+  login: (email: string, password: string) => Promise<AuthUser | null>
+  loginWithGoogle: () => Promise<void>
+  register: (email: string, password: string) => Promise<AuthUser | null>
+  logout: () => Promise<void>
+  requestPasswordReset: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
+  clearPasswordRecovery: () => void
+}
+
+export const AuthContext = createContext<AuthContextValue | null>(null)
+
+function mapUser(authUser: User | null | undefined): AuthUser | null {
   if (!authUser) return null
   return {
     id: authUser.id,
@@ -11,7 +35,7 @@ function mapUser(authUser) {
   }
 }
 
-function polishAuthError(message) {
+function polishAuthError(message: string | undefined): string {
   const text = String(message || '')
   if (/invalid login credentials/i.test(text)) {
     return 'Nieprawidłowy e-mail lub hasło.'
@@ -28,15 +52,19 @@ function polishAuthError(message) {
   return text || 'Nie udało się wykonać operacji.'
 }
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+type AuthProviderProps = {
+  children: ReactNode
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       if (!cancelled) {
         setUser(mapUser(data.session?.user ?? null))
         setIsLoading(false)
@@ -65,7 +93,7 @@ export function AuthProvider({ children }) {
     setPasswordRecovery(false)
   }, [])
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -76,7 +104,7 @@ export function AuthProvider({ children }) {
     return mapped
   }, [])
 
-  const register = useCallback(async (email, password) => {
+  const register = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -97,7 +125,7 @@ export function AuthProvider({ children }) {
     return mapped
   }, [])
 
-  const requestPasswordReset = useCallback(async (email) => {
+  const requestPasswordReset = useCallback(async (email: string) => {
     const redirectTo = `${getAppOrigin()}/`
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
@@ -105,7 +133,7 @@ export function AuthProvider({ children }) {
     if (error) throw new Error(polishAuthError(error.message))
   }, [])
 
-  const updatePassword = useCallback(async (password) => {
+  const updatePassword = useCallback(async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password })
     if (error) throw new Error(polishAuthError(error.message))
     setPasswordRecovery(false)
