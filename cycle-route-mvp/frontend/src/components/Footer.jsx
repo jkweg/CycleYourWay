@@ -29,20 +29,30 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }) {
             >
               Planer
             </button>
-            <button
-              type="button"
-              onClick={onOpenPrivacy}
+            <a
+              href="/privacy"
+              onClick={(e) => {
+                if (onOpenPrivacy) {
+                  e.preventDefault()
+                  onOpenPrivacy()
+                }
+              }}
               className="transition hover:text-vanilla md:mt-2 md:block"
             >
               Prywatność
-            </button>
-            <button
-              type="button"
-              onClick={onOpenTerms}
+            </a>
+            <a
+              href="/terms"
+              onClick={(e) => {
+                if (onOpenTerms) {
+                  e.preventDefault()
+                  onOpenTerms()
+                }
+              }}
               className="transition hover:text-vanilla md:mt-2 md:block"
             >
               Regulamin
-            </button>
+            </a>
           </div>
         </div>
 

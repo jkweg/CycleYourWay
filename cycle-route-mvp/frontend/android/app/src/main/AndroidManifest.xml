@@ -23,15 +23,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!--
-              App Links: replace android:host with your production frontend host
-              (same as VITE_APP_ORIGIN). Also update public/.well-known/assetlinks.json.
-            -->
+            <!-- App Links — https://cycleyourway.pl (also update public/.well-known/assetlinks.json) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="REPLACE_WITH_YOUR_DOMAIN" android:pathPrefix="/" />
+                <data android:scheme="https" android:host="cycleyourway.pl" android:pathPrefix="/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.cycleyourway.pl" android:pathPrefix="/" />
             </intent-filter>
 
             <!-- Capacitor custom scheme deep links (dev / fallback) -->
@@ -55,13 +58,11 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- Permissions — v1: foreground GPS + keep-awake only (no background location) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- v2 background GPS — declare only when enabling VITE_ENABLE_BG_GPS + plugin -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- v2 background GPS: ACCESS_BACKGROUND_LOCATION + FOREGROUND_SERVICE when enabling VITE_ENABLE_BG_GPS -->
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

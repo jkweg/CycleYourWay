@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthContext } from './authContext'
+import { getAppOrigin } from './lib/appOrigin'
 import { supabase } from './supabaseClient'
 
 function mapUser(authUser) {
@@ -79,6 +80,9 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        emailRedirectTo: `${getAppOrigin()}/`,
+      },
     })
     if (error) throw new Error(polishAuthError(error.message))
 
@@ -94,7 +98,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const requestPasswordReset = useCallback(async (email) => {
-    const redirectTo = `${window.location.origin}/`
+    const redirectTo = `${getAppOrigin()}/`
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     })
@@ -108,8 +112,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
-    const redirectTo =
-      import.meta.env.VITE_APP_ORIGIN || `${window.location.origin}/`
+    const redirectTo = `${getAppOrigin()}/`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

@@ -1,15 +1,24 @@
-{
-  "appId": "com.cycleyourway.app",
-  "appName": "Cycle Your Way",
-  "webDir": "dist",
-  "server": {
-    "androidScheme": "https"
-  },
-  "plugins": {
-    "SplashScreen": {
-      "launchShowDuration": 1200,
-      "backgroundColor": "#FFF4D6",
-      "showSpinner": false
-    }
-  }
-}
+{
+  "appId": "com.cycleyourway.app",
+  "appName": "Cycle Your Way",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "cycleyourway.pl",
+      "*.cycleyourway.pl",
+      "*.supabase.co",
+      "accounts.google.com",
+      "*.google.com",
+      "*.googleapis.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#FFF4D6",
+      "showSpinner": false
+    }
+  }
+}
+

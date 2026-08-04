@@ -26,15 +26,15 @@ VITE_API_URL=https://your-backend.onrender.com
 VITE_SENTRY_DSN=
 VITE_MAP_TILES_URL=https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=YOUR_KEY
 VITE_MAP_TILES_ATTR=© MapTiler © OpenStreetMap
-VITE_APP_ORIGIN=https://your-frontend.vercel.app
-# v2: odblokuj background GPS po instalacji pluginu
+VITE_APP_ORIGIN=https://cycleyourway.pl
+# v2: odblokuj background GPS po instalacji pluginu (+ uprawnienia w AndroidManifest)
 # VITE_ENABLE_BG_GPS=true
 ```
 
-Backend `ALLOWED_ORIGINS` musi zawierać m.in.:
+Backend `ALLOWED_ORIGINS` musi zawierać m.in. (domena prod jest też w `DEFAULT_ALLOWED_ORIGINS` w `server.js`):
 
 ```
-capacitor://localhost,https://localhost,https://your-frontend.vercel.app
+capacitor://localhost,https://localhost,https://cycleyourway.pl,https://www.cycleyourway.pl
 ```
 
 ## Build Android
@@ -61,10 +61,14 @@ W `android/app/build.gradle` (`defaultConfig`):
 
 ## Deep links (App Links)
 
-1. Hostuj `/.well-known/assetlinks.json` na domenie produkcyjnej (już w `public/`).
-2. Uzupełnij `sha256_cert_fingerprints` kluczem upload/signing.
-3. W `android/app/src/main/AndroidManifest.xml` zamień `REPLACE_WITH_YOUR_DOMAIN` na host z `VITE_APP_ORIGIN`.
+1. Hostuj `/.well-known/assetlinks.json` na `https://cycleyourway.pl` (już w `public/`).
+2. Uzupełnij `sha256_cert_fingerprints` kluczem upload/signing (Play App Signing / keystore).
+3. `AndroidManifest.xml` ma już `android:host="cycleyourway.pl"` (+ `www`).
 4. Ścieżki `/?ride=` i `/?share=` otwierają apkę (`appUrlOpen` + cold start).
+
+Publiczne dokumenty: `https://cycleyourway.pl/privacy`, `https://cycleyourway.pl/terms`.
+
+`capacitor.config.json` ma `server.allowNavigation` dla Supabase/Google (OAuth w WebView).
 
 Aplikacja nasłuchuje `appUrlOpen` i ustawia `pendingRideId` / `pendingShareId`.
 

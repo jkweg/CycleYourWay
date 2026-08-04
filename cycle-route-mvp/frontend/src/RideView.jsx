@@ -364,13 +364,19 @@ function RideView({
   }, [userPos, gpsSpeed, accuracy, coordinates, cumulative, maneuvers, isPaused])
 
   useEffect(() => {
+    let cancelled = false
     let release = () => undefined
     keepAwake().then((fn) => {
+      if (cancelled) {
+        Promise.resolve(fn?.()).catch(() => undefined)
+        return
+      }
       release = fn || (() => undefined)
     })
     lockPortrait()
     trackEvent('ride_start', { mode: mode || 'unknown' })
     return () => {
+      cancelled = true
       Promise.resolve(release()).catch(() => undefined)
       cancelSpeech()
     }

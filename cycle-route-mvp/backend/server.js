@@ -62,6 +62,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://*.vercel.app",
+  "https://cycleyourway.pl",
+  "https://www.cycleyourway.pl",
   // Capacitor Android / iOS WebView
   "capacitor://localhost",
   "https://localhost",
@@ -101,22 +103,23 @@ app.use(
 );
 app.use(express.json({ limit: "32kb" }));
 
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Zbyt wiele zapytań. Spróbuj ponownie za chwilę." },
-});
-
-app.use("/api/", apiLimiter);
-
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
     ok: true,
     orsConfigured: Boolean(ORS_API_KEY),
   });
 });
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Zbyt wiele zapytań. Spróbuj ponownie za chwilę." },
+  skip: (req) => req.path === "/health" || req.path === "/api/health",
+});
+
+app.use("/api/", apiLimiter);
 
 const isValidPoint = (point) => {
   if (!point || typeof point !== "object") return false;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getAppOrigin } from './lib/appOrigin'
 import { routeHasTurnByTurnInstructions } from './lib/navigation'
 import { mapSavedRouteRow, supabase } from './supabaseClient'
 import { useAuth } from './useAuth'
@@ -234,7 +235,7 @@ function SavedRoutes({
       )
 
       if (nextPublic) {
-        const shareUrl = `${window.location.origin}/?share=${route.id}`
+        const shareUrl = `${getAppOrigin()}/?share=${route.id}`
         try {
           await navigator.clipboard.writeText(shareUrl)
           setShareInfo('Link udostępniania skopiowany do schowka.')

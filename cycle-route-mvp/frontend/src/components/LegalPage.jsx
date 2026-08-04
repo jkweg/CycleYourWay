@@ -46,6 +46,48 @@ const TERMS = {
   ],
 }
 
+function LegalContent({ doc }) {
+  return (
+    <div className="space-y-5 text-sm leading-7 text-stone-700">
+      {doc.sections.map((section) => (
+        <section key={section.heading}>
+          <h3 className="font-semibold text-[#FC6C26]">{section.heading}</h3>
+          <p className="mt-1">{section.body}</p>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/** Pełna strona pod /privacy i /terms (sklep, SEO, bezpośrednie linki). */
+export function LegalStandalone({ type }) {
+  const doc = type === 'terms' ? TERMS : PRIVACY
+  const otherHref = type === 'terms' ? '/privacy' : '/terms'
+  const otherLabel = type === 'terms' ? 'Polityka prywatności' : 'Regulamin'
+
+  return (
+    <div className="min-h-dvh bg-gradient-to-b from-[#fff8f1] to-[#f5ebe0] px-4 py-10 text-stone-800">
+      <article className="mx-auto max-w-2xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FC6C26]">
+          Cycle Your Way
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold text-[#FC6C26]">{doc.title}</h1>
+        <div className="mt-8">
+          <LegalContent doc={doc} />
+        </div>
+        <nav className="mt-10 flex flex-wrap gap-4 border-t border-[#f0d4b8] pt-6 text-sm">
+          <a href="/" className="text-[#FC6C26] underline-offset-2 hover:underline">
+            Strona główna
+          </a>
+          <a href={otherHref} className="text-stone-600 underline-offset-2 hover:underline">
+            {otherLabel}
+          </a>
+        </nav>
+      </article>
+    </div>
+  )
+}
+
 function LegalPage({ type, onClose }) {
   const doc = type === 'terms' ? TERMS : PRIVACY
 
@@ -70,14 +112,16 @@ function LegalPage({ type, onClose }) {
             ✕
           </button>
         </div>
-        <div className="space-y-5 text-sm leading-7 text-stone-700">
-          {doc.sections.map((section) => (
-            <section key={section.heading}>
-              <h3 className="font-semibold text-[#FC6C26]">{section.heading}</h3>
-              <p className="mt-1">{section.body}</p>
-            </section>
-          ))}
-        </div>
+        <LegalContent doc={doc} />
+        <p className="mt-6 text-xs text-stone-500">
+          Stały adres:{' '}
+          <a
+            href={type === 'terms' ? '/terms' : '/privacy'}
+            className="text-[#FC6C26] underline-offset-2 hover:underline"
+          >
+            {type === 'terms' ? '/terms' : '/privacy'}
+          </a>
+        </p>
       </div>
     </div>
   )

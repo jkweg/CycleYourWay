@@ -25,6 +25,7 @@ import ProfileModal from './components/ProfileModal'
 import LegalPage from './components/LegalPage'
 import { ensureNavigableFeature } from './lib/routeRefresh'
 import { haversineMeters } from './lib/navigation'
+import { getAppOrigin } from './lib/appOrigin'
 import { isNativePlatform } from './lib/platform'
 import { getCurrentPosition } from './lib/location'
 import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
@@ -962,7 +963,7 @@ function App() {
     (routeMode === 'Loop' ? 'Pętla treningowa' : 'Trasa A → B')
 
   const rideUrl = loadedSavedRouteId
-    ? `${window.location.origin}/?ride=${loadedSavedRouteId}`
+    ? `${getAppOrigin()}/?ride=${loadedSavedRouteId}`
     : ''
 
   const pendingRideArgsRef = useRef(null)
@@ -1137,7 +1138,7 @@ function App() {
       }
 
       setOpenOnPhoneTarget({
-        rideUrl: `${window.location.origin}/?ride=${routeId}`,
+        rideUrl: `${getAppOrigin()}/?ride=${routeId}`,
         routeName,
       })
       setShowOpenOnPhone(true)
@@ -1172,7 +1173,7 @@ function App() {
       return
     }
     setOpenOnPhoneTarget({
-      rideUrl: `${window.location.origin}/?ride=${savedRoute.id}`,
+      rideUrl: `${getAppOrigin()}/?ride=${savedRoute.id}`,
       routeName: savedRoute.name || 'Trasa',
     })
     setShowOpenOnPhone(true)
@@ -2032,6 +2033,8 @@ function App() {
       <ProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
+        onOpenPrivacy={() => setLegalDoc('privacy')}
+        onOpenTerms={() => setLegalDoc('terms')}
         onApplied={(profile) => {
           if (typeof profile.prefer_avoid_main_roads === 'boolean') {
             setAvoidMainRoads(profile.prefer_avoid_main_roads)

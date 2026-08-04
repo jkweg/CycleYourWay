@@ -97,7 +97,7 @@ function findLabel(items, id, fallback) {
   return items.find((item) => item.id === id)?.label || fallback
 }
 
-function ProfileModal({ isOpen, onClose, onApplied }) {
+function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }) {
   const { user, isAuthenticated, logout } = useAuth()
   const [profile, setProfile] = useState(() => defaultProfile(user))
   const [routes, setRoutes] = useState([])
@@ -636,6 +636,41 @@ function ProfileModal({ isOpen, onClose, onApplied }) {
 
               {activeTab === 'privacy' && (
                 <div className="space-y-4">
+                  <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
+                    <h3 className="font-semibold text-[#FC6C26]">Dokumenty</h3>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Polityka prywatności i regulamin — też pod stałymi adresami na cycleyourway.pl.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onOpenPrivacy?.()}
+                        className="soft-button rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518]"
+                      >
+                        Polityka prywatności
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenTerms?.()}
+                        className="soft-button rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518]"
+                      >
+                        Regulamin
+                      </button>
+                      <a
+                        href="/privacy"
+                        className="soft-button rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600"
+                      >
+                        /privacy
+                      </a>
+                      <a
+                        href="/terms"
+                        className="soft-button rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600"
+                      >
+                        /terms
+                      </a>
+                    </div>
+                  </div>
+
                   <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
                     <h3 className="font-semibold text-[#FC6C26]">Eksport danych</h3>
                     <p className="mt-1 text-sm text-stone-600">Pobierz lokalny plik JSON z profilem, trasami i historią jazd widocznymi dla konta.</p>
