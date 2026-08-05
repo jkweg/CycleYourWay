@@ -134,11 +134,13 @@ function PlannerMap({
   onStartDrag,
   onEndDrag,
   onViaDrag,
+  allowPointSelection = true,
 }) {
   const preferLock = usePreferMapLock()
   const [unlocked, setUnlocked] = useState(false)
   const markersLocked = Boolean(selectedRouteGeoJson || routeGeoJson)
   const interactive = preferLock ? unlocked : true
+  const pointSelectionEnabled = interactive && allowPointSelection && !markersLocked
 
   return (
     <div className="relative h-full w-full min-h-[320px]">
@@ -150,8 +152,11 @@ function PlannerMap({
       >
         <MapResizeFix bump={interactive} />
         <MapInteractionController interactive={interactive} />
-        <MapClickHandler onMapClick={onMapClick} enabled={interactive} />
-        <FocusOnLockedPoint lockedPoint={lockedPoint} disabled={Boolean(selectedRouteGeoJson)} />
+        <MapClickHandler onMapClick={onMapClick} enabled={pointSelectionEnabled} />
+        <FocusOnLockedPoint
+          lockedPoint={lockedPoint}
+          disabled={Boolean(selectedRouteGeoJson || routeGeoJson)}
+        />
         <RouteFitBounds routeGeoJson={selectedRouteGeoJson} />
         <TileLayer
           attribution={getMapTileLayer().attribution}
@@ -213,7 +218,9 @@ function PlannerMap({
           <span className="rounded-2xl border border-[#C4A574] bg-[#FFF4D6] px-5 py-3 text-center text-sm font-semibold text-[#4a3226] shadow-lg">
             Dotknij, aby używać mapy
             <span className="mt-1 block text-xs font-normal text-stone-600">
-              Powiększanie, przesuwanie i zaznaczanie punktów
+              {markersLocked
+                ? 'Powiększanie i przesuwanie — trasa pozostaje bez zmian'
+                : 'Powiększanie, przesuwanie i zaznaczanie punktów'}
             </span>
           </span>
         </button>

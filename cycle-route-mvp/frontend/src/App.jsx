@@ -1336,6 +1336,9 @@ function App() {
   }, [pendingRideId, isAuthLoading, isAuthenticated, user?.id])
 
   const handleMapClick = (latlng) => {
+    // Gdy trasa jest już na mapie (np. wczytana zapisana), klik nie zmienia punktów.
+    if (routeGeoJson) return
+
     const clickedPoint = { lat: latlng.lat, lng: latlng.lng }
 
     if (routeMode === 'Loop') {
@@ -1412,6 +1415,7 @@ function App() {
   }
 
   const handleStartDrag = (point) => {
+    if (routeGeoJson) return
     setStartPoint(point)
     setStartInput(mapSelectionLabel(point))
     setLockedPoint(point)
@@ -1420,6 +1424,7 @@ function App() {
   }
 
   const handleEndDrag = (point) => {
+    if (routeGeoJson) return
     setEndPoint(point)
     setEndInput(mapSelectionLabel(point))
     setLockedPoint(point)
@@ -1428,6 +1433,7 @@ function App() {
   }
 
   const handleViaDrag = (viaId, point) => {
+    if (routeGeoJson) return
     setViaStops((current) =>
       current.map((stop) =>
         stop.id === viaId
@@ -1449,6 +1455,12 @@ function App() {
   }
 
   const goToHome = () => {
+    // Web: pełny landing. Android: start od razu w planerze (bez marketingu).
+    if (isNativePlatform()) {
+      setView('planner')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setView('landing')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1526,7 +1538,10 @@ function App() {
       {view === 'landing' ? (
         <>
           <Suspense fallback={<ChunkFallback label="Ładowanie strony..." className="min-h-[50vh]" />}>
-            <LandingPage onStartPlanning={goToPlanner} />
+            <LandingPage
+              onStartPlanning={goToPlanner}
+              variant={isNativePlatform() ? 'compact' : 'full'}
+            />
           </Suspense>
           <Footer
             onStartPlanning={goToPlanner}
@@ -2007,6 +2022,7 @@ function App() {
               onStartDrag={handleStartDrag}
               onEndDrag={handleEndDrag}
               onViaDrag={handleViaDrag}
+              allowPointSelection={!routeGeoJson}
             />
           </Suspense>
         </div>

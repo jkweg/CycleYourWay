@@ -7,6 +7,7 @@ import {
   IconUser,
 } from '@tabler/icons-react'
 import { Sidebar, SidebarBody, SidebarLink } from './ui/sidebar'
+import { isNativePlatform } from '../lib/platform'
 
 function SidebarLogo({ open }) {
   return (
@@ -32,7 +33,13 @@ function MobilePlannerNav({
   plannerPanel,
 }) {
   const items = [
-    { id: 'home', label: 'Start', onClick: onGoHome, icon: IconHome, active: false },
+    {
+      id: 'home',
+      label: isNativePlatform() ? 'Planer' : 'Start',
+      onClick: onGoHome,
+      icon: IconHome,
+      active: false,
+    },
     {
       id: 'atob',
       label: 'A → B',
@@ -106,7 +113,7 @@ function PlannerSidebar({
 
   const navLinks = [
     {
-      label: 'Strona główna',
+      label: isNativePlatform() ? 'Planer' : 'Strona główna',
       onClick: onGoHome,
       active: false,
       icon: <IconHome className="h-5 w-5 shrink-0 text-[#FC6C26]" stroke={1.75} />,
