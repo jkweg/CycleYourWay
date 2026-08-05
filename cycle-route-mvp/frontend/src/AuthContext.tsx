@@ -1,31 +1,9 @@
-import {
-  createContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { AuthContext } from './auth-context'
 import { getAppOrigin } from './lib/appOrigin'
 import { supabase } from './supabaseClient'
 import type { AuthUser } from './types/geo'
-
-export type AuthContextValue = {
-  user: AuthUser | null
-  isLoading: boolean
-  isAuthenticated: boolean
-  passwordRecovery: boolean
-  login: (email: string, password: string) => Promise<AuthUser | null>
-  loginWithGoogle: () => Promise<void>
-  register: (email: string, password: string) => Promise<AuthUser | null>
-  logout: () => Promise<void>
-  requestPasswordReset: (email: string) => Promise<void>
-  updatePassword: (password: string) => Promise<void>
-  clearPasswordRecovery: () => void
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null)
 
 function mapUser(authUser: User | null | undefined): AuthUser | null {
   if (!authUser) return null
