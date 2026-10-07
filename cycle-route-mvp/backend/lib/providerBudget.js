@@ -1,7 +1,11 @@
 // Process-wide protection for actual provider calls, including retries/fan-out.
-// This is not a persistent or distributed quota; see docs/IMPLEMENTATION_PROGRESS.md.
+// The optional beforeCall hook adds the persistent, shared daily quota
+// (lib/persistentQuota.js) on top of these in-memory burst limits.
+const { PersistentQuota, quotaLimitsFromEnv } = require("./persistentQuota");
+
 class ProviderBudget {
-  constructor({ perMinute, perDay, concurrency, now = Date.now }) {
+  constructor({ perMinute, perDay, concurrency, now = Date.now, beforeCall = null }) {
+    this.beforeCall = beforeCall;
     this.perMinute = perMinute;
     this.perDay = perDay;
     this.concurrency = concurrency;
@@ -33,6 +37,16 @@ class ProviderBudget {
     this.calls.push(now);
     this.active += 1;
     try {
+      if (this.beforeCall) {
+        try {
+          await this.beforeCall();
+        } catch (error) {
+          // Denied by the shared quota: the call never happened, so free its slot.
+          const index = this.calls.lastIndexOf(now);
+          if (index >= 0) this.calls.splice(index, 1);
+          throw error;
+        }
+      }
       return await request();
     } finally {
       this.active -= 1;
@@ -50,15 +64,24 @@ function positiveInteger(name, fallback) {
   return value;
 }
 
+const persistentQuota = new PersistentQuota({
+  supabaseUrl: process.env.SUPABASE_URL,
+  serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  limits: quotaLimitsFromEnv(),
+  failMode: process.env.QUOTA_FAIL_MODE,
+});
+
 const directionsBudget = new ProviderBudget({
   perMinute: positiveInteger("ORS_DIRECTIONS_PER_MINUTE", 40),
   perDay: positiveInteger("ORS_DIRECTIONS_PER_DAY", 2000),
   concurrency: positiveInteger("ORS_DIRECTIONS_CONCURRENCY", 4),
+  beforeCall: () => persistentQuota.consume("directions"),
 });
 const geocodeBudget = new ProviderBudget({
   perMinute: positiveInteger("ORS_GEOCODE_PER_MINUTE", 100),
   perDay: positiveInteger("ORS_GEOCODE_PER_DAY", 3000),
   concurrency: positiveInteger("ORS_GEOCODE_CONCURRENCY", 6),
+  beforeCall: () => persistentQuota.consume("geocode"),
 });
 
-module.exports = { ProviderBudget, directionsBudget, geocodeBudget };
+module.exports = { ProviderBudget, directionsBudget, geocodeBudget, persistentQuota };

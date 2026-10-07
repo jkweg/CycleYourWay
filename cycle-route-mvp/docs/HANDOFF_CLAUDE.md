@@ -178,7 +178,7 @@ git diff --check
 
 ### Nadal blokują publiczną betę
 
-1. **B02 / R03 — trwały budżet i nadużycia API.** Obecny limiter działa tylko w jednym procesie i nie rozróżnia zalogowanego konta, gościa ani zaufanego klienta. Potrzebny wspólny licznik lub architektura gwarantująca jedną instancję, cap fan-out oraz kill switch kosztów.
+1. **B02 / R03 — trwały budżet i nadużycia API.** *(08.10.2026: zrobione w kodzie — pakiet 8; czeka na migrację `20261008_api_quota.sql` i zmienne Render.)* Obecny limiter działa tylko w jednym procesie i nie rozróżnia zalogowanego konta, gościa ani zaufanego klienta. Potrzebny wspólny licznik lub architektura gwarantująca jedną instancję, cap fan-out oraz kill switch kosztów.
 2. **B06 / R02 — warunki przetwarzania lokalizacji.** Trzeba uzyskać pisemne ustalenie, czy aktualna pozycja i adresy mogą być wysyłane do używanego dostawcy, albo wybrać zgodnego dostawcę. To decyzja operatora/prawna, nie sama zmiana kodu.
 3. **R12/R17 — staging i testy RLS/RPC.** Kod SQL nie jest dowodem wdrożenia. Potrzebne są testy anon/A/B, manipulacji UUID, cascade delete i bezpośrednich zapisów przez PostgREST.
 4. **R13/R15 — dokumenty, retencja, odbiorcy i DPA.** Obecne teksty poprawiono tylko w zakresie linków. Nadal wymagają danych administratora, podstaw, okresów retencji, odbiorców, regionów i procedur praw użytkownika.

@@ -306,3 +306,60 @@ select t.is(t.row_count($$update public.saved_routes set share_enabled = true, s
   where user_id = '00000000-0000-4000-8000-00000000000b' returning 1$$), 1::bigint,
   'service_role: may maintain share columns');
 reset role;
+
+-- ===========================================================================
+-- 5. B02: persistent provider quota (backend-only RPC)
+-- ===========================================================================
+reset role;
+select set_config('request.jwt.claims', '{"role":"anon"}', false);
+set role anon;
+select t.throws($$select public.consume_api_quota('directions', 'ip:x', 10, 10)$$,
+  'anon: cannot call consume_api_quota', '42501');
+select t.throws($$select * from private.api_usage$$,
+  'anon: cannot read private.api_usage', '42501');
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-4000-8000-00000000000b","role":"authenticated"}', false);
+set role authenticated;
+select t.throws($$select public.consume_api_quota('directions', 'user:b', 10, 10)$$,
+  'B: cannot call consume_api_quota (could burn or reset quotas)', '42501');
+select t.throws($$insert into private.api_kill_switch (kind, enabled) values ('all', true)$$,
+  'B: cannot flip the kill switch', '42501');
+
+reset role;
+select set_config('request.jwt.claims', '{"role":"service_role"}', false);
+set role service_role;
+select t.is(public.consume_api_quota('directions', 'ip:1', 2, 3) ->> 'allowed', 'true', 'quota: 1st call allowed');
+select t.is(public.consume_api_quota('directions', 'ip:1', 2, 3) ->> 'allowed', 'true', 'quota: 2nd call allowed');
+select t.is(public.consume_api_quota('directions', 'ip:1', 2, 3) ->> 'reason', 'actor',
+  'quota: actor daily limit denies 3rd call');
+select t.is(public.consume_api_quota('directions', 'ip:2', 2, 3) ->> 'allowed', 'true',
+  'quota: another actor still allowed (global 3/3 used)');
+select t.is(public.consume_api_quota('directions', 'ip:3', 2, 3) ->> 'reason', 'global',
+  'quota: global daily limit denies everyone');
+select t.ok((public.consume_api_quota('directions', 'ip:3', 2, 3) ->> 'retry_after')::int between 1 and 86400,
+  'quota: denial carries retry_after until next UTC day');
+select t.is(public.consume_api_quota('geocode', 'ip:3', 2, 3) ->> 'allowed', 'true',
+  'quota: kinds are counted separately');
+reset role;
+select t.is((select used from private.api_usage where bucket = 'actor:ip:3:directions'), null::integer,
+  'quota: denied call charged no bucket (all-or-nothing)');
+select t.is((select used from private.api_usage where bucket = 'global:directions'), 3,
+  'quota: global bucket never exceeds its limit');
+
+set role service_role;
+select t.is(public.consume_api_quota('directions', 'ip:9', 5, 100, 6) ->> 'allowed', 'false',
+  'quota: cost above limit denied without inserting');
+select t.throws($$select public.consume_api_quota('routes', 'ip:9', 5, 5)$$,
+  'quota: unknown kind rejected', '22023');
+select t.throws($$select public.consume_api_quota('geocode', '', 5, 5)$$,
+  'quota: empty actor rejected', '22023');
+reset role;
+insert into private.api_kill_switch (kind, enabled, note) values ('geocode', true, 'test');
+set role service_role;
+select t.is(public.consume_api_quota('geocode', 'ip:5', 50, 50) ->> 'reason', 'disabled',
+  'quota: kill switch blocks its kind');
+select t.is(public.consume_api_quota('directions', 'ip:5', 50, 50) ->> 'allowed', 'true',
+  'quota: kill switch leaves other kinds running');
+reset role;

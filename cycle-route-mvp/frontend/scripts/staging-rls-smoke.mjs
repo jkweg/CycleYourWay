@@ -283,6 +283,23 @@ async function main() {
     if (edge?.[0]?.id) await A.client.from('saved_routes').delete().eq('id', edge[0].id)
   }
 
+  console.log('== B02 provider quota (backend-only RPC)')
+  {
+    const args = { p_kind: 'geocode', p_actor: `smoke:${runId}`, p_actor_day_limit: 2, p_global_day_limit: 1000000 }
+    const { error: anonQuota } = await anon.rpc('consume_api_quota', args)
+    ok(Boolean(anonQuota), 'anon: cannot call consume_api_quota')
+    const { error: userQuota } = await A.client.rpc('consume_api_quota', args)
+    ok(Boolean(userQuota), 'A: cannot call consume_api_quota')
+    const results = []
+    for (let i = 0; i < 3; i += 1) {
+      const { data, error } = await admin.rpc('consume_api_quota', args)
+      results.push(error ? `error:${error.message}` : data?.allowed ? 'ok' : data?.reason)
+    }
+    ok(results.join(',') === 'ok,ok,actor', 'service_role: actor limit enforced (ok,ok,actor)', results.join(','))
+    const { error: privateRead } = await admin.from('api_usage').select('bucket').limit(1)
+    ok(Boolean(privateRead), 'private.api_usage is not exposed through the API')
+  }
+
   console.log('== export pagination (> 500 rides, > 8 routes)')
   {
     // One bulk insert -> identical created_at for all rows: worst case for range pagination.
