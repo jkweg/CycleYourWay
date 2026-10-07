@@ -36,7 +36,7 @@ Uruchamia te same scenariusze przez prawdziwe API Supabase (supabase-js → Post
    ```
 
 2. Na stagingu wykonaj migracje w kolejności nazw plików (SQL Editor albo `psql`):
-   `20261001_ride_idempotency.sql`, `20261001_unlisted_route_sharing.sql`, `20261001_account_stats.sql`, `20261007_harden_sharing_and_rpc_grants.sql`, `20261007_r07_data_constraints.sql`. Przed ostatnią uruchom `../checks/r07_preflight.sql` (tylko odczyt).
+   `20261001_ride_idempotency.sql`, `20261001_unlisted_route_sharing.sql`, `20261001_account_stats.sql`, `20261007_harden_sharing_and_rpc_grants.sql`, `20261007_r07_data_constraints.sql` (przed nią `../checks/r07_preflight.sql`, tylko odczyt), `20261008_api_quota.sql`.
 3. Uruchom (PowerShell):
 
    ```powershell

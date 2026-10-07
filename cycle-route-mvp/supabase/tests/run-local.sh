@@ -25,6 +25,7 @@ MIGRATIONS=(
   "$SUPA/migrations/20261001_account_stats.sql"
   "$SUPA/migrations/20261007_harden_sharing_and_rpc_grants.sql"
   "$SUPA/migrations/20261007_r07_data_constraints.sql"
+  "$SUPA/migrations/20261008_api_quota.sql"
 )
 WORK="$(mktemp -d)"
 CLUSTER_STARTED=0

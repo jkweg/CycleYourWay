@@ -198,3 +198,45 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 
 - Czyszczenie działa tylko przy uruchomieniu aplikacji; drafty innych kont na wspólnym urządzeniu też są czyszczone po 30 dniach, ale nie są pokazywane na liście.
 - Okres 30 dni jest decyzją produktową; pełna polityka retencji (R13/R15) nadal wymaga decyzji operatora/prawnika.
+
+## Wdrożenie produkcyjne pakietów 1–7 (08.10.2026)
+
+- `r07_preflight.sql` na produkcji: największa trasa ~107 KB (limit 6 MiB), brak jazd ze śladem GPS.
+- Użytkownik uruchomił migracje 1–5 na produkcji, następnie merge [jkweg/CycleYourWay#3](https://github.com/jkweg/CycleYourWay/pull/3) (`2cc83fe`).
+- CI na `main`: `frontend`, `backend`, `supabase-sql` — sukces (pierwsze wykonanie `run-local.sh` na prawdziwym PostgreSQL).
+- Sprawdzone z zewnątrz: www.cycleyourway.pl serwuje nowy bundle (drafty, `get_shared_route`, `client_request_id`); `/api/health` OK; CORS wpuszcza `https://www.cycleyourway.pl`, odrzuca obcy `*.vercel.app` (403).
+- Ręczny test funkcji w przeglądarce wykonał użytkownik („wszystko działa”).
+
+## Pakiet 8 — B02/R03: trwały, wspólny budżet dostawcy (08.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Baza | Migracja `20261008_api_quota.sql`: schemat `private` (niewystawiony przez PostgREST), `private.api_usage` (liczniki dzienne UTC per bucket), `private.api_kill_switch`, RPC `public.consume_api_quota()` — SECURITY DEFINER, EXECUTE tylko `service_role`. Obciąża atomowo bucket globalny i bucket aktora (wszystko albo nic), nigdy nie przekracza limitu, zwraca `retry_after` do północy UTC. Sprzątanie okien starszych niż 7 dni. |
+| Backend | `lib/persistentQuota.js`: każdy faktyczny call ORS (retry i fan-out pętli też) wywołuje RPC przed wysłaniem; cache hit nie jest liczony. Odmowa zwalnia lokalny slot i nie dociera do ORS. `QUOTA_FAIL_MODE=open` (domyślnie; przy awarii Supabase zostaje limit w RAM) lub `closed` (503). Bez `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` warstwa jest wyłączona z ostrzeżeniem w logu, a `/api/health` pokazuje `quotaConfigured`. |
+| Tożsamość | `lib/requestActor.js`: token Supabase z nagłówka `Authorization` weryfikowany przez `/auth/v1/user` (cache 5 min, także odrzuceń); nieweryfikowalny token = gość. Gość = IP, IPv6 grupowane per /64. |
+| Proxy | `trust proxy` = `TRUST_PROXY_HOPS` (domyślnie 1). Wcześniej `req.ip` na Renderze był prawdopodobnie adresem proxy, więc limit 60/min „per IP” mógł być wspólny dla wszystkich. Pierwsze żądanie loguje liczbę wpisów `X-Forwarded-For` (bez adresów) do weryfikacji. |
+| Limity domyślne | Directions: globalnie = `ORS_DIRECTIONS_PER_DAY` (2000), konto 300, gość 60 / dzień. Geocode: globalnie = `ORS_GEOCODE_PER_DAY` (3000), konto 800, gość 200 / dzień. Wszystko przez env. |
+| Wyłącznik | `insert into private.api_kill_switch (kind, enabled) values ('all', true) on conflict (kind) do update set enabled = excluded.enabled;` — działa od następnego wywołania, bez redeployu; `kind` = `all` / `directions` / `geocode`. Odpowiedź 503 z polskim komunikatem. |
+| Frontend | `fetchApi()` w `api.ts` dołącza token sesji do wszystkich wywołań backendu (route, loop, geocode, autocomplete, reverse, przeliczenia w trakcie jazdy). |
+
+### Weryfikacja pakietu 8
+
+- SQL (PGlite, wszystkie migracje ×2, `schema.sql` ×2, dryf, pełny zestaw): **102 PASS / 0 FAIL / 0 GAP** — w tym brak dostępu anon/authenticated do RPC i schematu `private`, limit aktora i globalny, rozliczanie wszystko-albo-nic, odmowa kosztu ponad limit, walidacja argumentów, wyłącznik per rodzaj.
+- Backend: **39/39** (nowe: jednostkowe quota/aktor/IPv6/cache tokenów oraz test HTTP: gość vs konto vs zły token, 429 z `Retry-After` i komunikatem, 503 przy wyłączniku, brak wywołania ORS po odmowie, cache hit nieliczony).
+- Frontend: lint, typecheck, **31/31**, build.
+- `staging-rls-smoke.mjs`: nowa sekcja „B02 provider quota”; na stagingu jeszcze nie uruchomiona.
+
+### Wdrożenie (kolejność dowolna, każdy stan pośredni jest bezpieczny)
+
+1. Staging: migracja `20261008_api_quota.sql` → smoke.
+2. Produkcja: ta sama migracja w SQL Editorze.
+3. Merge kodu (backend bez nowych zmiennych działa jak dotąd).
+4. Render → Environment: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (produkcyjne). Po restarcie `/api/health` → `quotaConfigured: true`; w logu sprawdzić `x-forwarded-for entries` (oczekiwane 1 przy `TRUST_PROXY_HOPS=1`).
+
+### Ograniczenia
+
+- Okno dzienne jest stałe (UTC), nie kroczące; limity minutowe i współbieżność nadal w RAM procesu.
+- Każde wywołanie ORS dodaje jedno zapytanie do Supabase (~kilkadziesiąt ms); weryfikacja tokenu raz na 5 min na token.
+- Gość za NAT (np. sieć komórkowa, firma) dzieli limit z innymi; IPv6 per /64.
+- `/api/reverse` (Nominatim) nie jest objęty tym limitem — ma własny throttle.
+- Limity domyślne są szacunkiem; dopasować do realnego ruchu po pierwszych dniach (`select * from private.api_usage order by window_start desc`).

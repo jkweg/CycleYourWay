@@ -1,4 +1,4 @@
-import { API_BASE } from '../api'
+import { API_BASE, fetchApi } from '../api'
 import {
   findNearestIndex,
   getFeatureCoordinates,
@@ -34,7 +34,7 @@ export async function rerouteFromPosition({
     payload.end = destination
   }
 
-  const response = await fetch(`${API_BASE}/api/route`, {
+  const response = await fetchApi(`${API_BASE}/api/route`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

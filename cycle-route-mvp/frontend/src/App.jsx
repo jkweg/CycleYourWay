@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { API_BASE } from './api'
+import { API_BASE, fetchApi } from './api'
 import AuthModal from './AuthModal'
 import { useAuth } from './useAuth'
 import { downloadRouteAsGpx } from './exportToGpx'
@@ -375,7 +375,7 @@ function App() {
           }
 
     const fetchRoute = async (includeAlternatives) => {
-      const response = await fetch(`${API_BASE}/api/route`, {
+      const response = await fetchApi(`${API_BASE}/api/route`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...basePayload, includeAlternatives }),
@@ -442,7 +442,7 @@ function App() {
 
   const reverseGeocodePoint = async (point) => {
     try {
-      const response = await fetch(
+      const response = await fetchApi(
         `${API_BASE}/api/reverse?lat=${encodeURIComponent(point.lat)}&lng=${encodeURIComponent(point.lng)}`,
       )
       const data = await response.json()
@@ -631,7 +631,7 @@ function App() {
     setError('')
 
     try {
-      const response = await fetch(
+      const response = await fetchApi(
         `${API_BASE}/api/geocode?address=${encodeURIComponent(address)}&limit=1`,
       )
       const data = await response.json()
@@ -724,7 +724,7 @@ function App() {
     setError('')
 
     try {
-      const response = await fetch(`${API_BASE}/api/loop`, {
+      const response = await fetchApi(`${API_BASE}/api/loop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { API_BASE } from '../api'
+import { API_BASE, fetchApi } from '../api'
 import { pushAddressHistory, readAddressHistory } from '../lib/addressHistory'
 
 function AddressAutocomplete({
@@ -32,7 +32,7 @@ function AddressAutocomplete({
       setIsFetching(true)
       setShowHistory(false)
       try {
-        const response = await fetch(
+        const response = await fetchApi(
           `${API_BASE}/api/geocode?address=${encodeURIComponent(query)}&limit=6&autocomplete=true`,
         )
         const data = await response.json()

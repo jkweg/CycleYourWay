@@ -5,7 +5,9 @@ const dotenv = require("dotenv");
 dotenv.config();
 const axios = require("axios");
 const rateLimit = require("express-rate-limit");
-const { directionsBudget } = require("./lib/providerBudget");
+const { directionsBudget, persistentQuota } = require("./lib/providerBudget");
+const { runWithActor } = require("./lib/persistentQuota");
+const { createActorResolver } = require("./lib/requestActor");
 const {
   rankFeaturesByPreferences,
   featurePreferenceScore,
@@ -43,6 +45,9 @@ const {
 } = require("./lib/routePreferences");
 
 const app = express();
+// Render terminates TLS in front of the app; trust exactly that many proxy hops so
+// req.ip is the client (rate limits and guest quotas) and cannot be spoofed.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
 const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
 const orsResponseCache = new TtlCache({ ttlMs: 5 * 60 * 1000, maxSize: 80 });
@@ -51,6 +56,12 @@ const ALLOWED_PROFILES = new Set([
   "cycling-regular",
   "cycling-road",
 ]);
+
+if (!persistentQuota.enabled) {
+  console.warn(
+    "[startup] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — shared daily provider quota is OFF (in-memory limits only).",
+  );
+}
 
 if (!ORS_API_KEY) {
   console.warn(
@@ -94,6 +105,7 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({
     ok: true,
     orsConfigured: Boolean(ORS_API_KEY),
+    quotaConfigured: persistentQuota.enabled,
   });
 });
 
@@ -107,6 +119,23 @@ const apiLimiter = rateLimit({
 });
 
 app.use("/api/", apiLimiter);
+
+const resolveActor = createActorResolver({
+  supabaseUrl: process.env.SUPABASE_URL,
+  apiKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
+let proxyHopsLogged = false;
+
+app.use("/api/", async (req, _res, next) => {
+  if (!proxyHopsLogged) {
+    // One-off deployment check for TRUST_PROXY_HOPS; logs a count, not addresses.
+    proxyHopsLogged = true;
+    const hops = String(req.get("x-forwarded-for") || "").split(",").filter(Boolean).length;
+    console.log(`[startup] first request: x-forwarded-for entries=${hops}, TRUST_PROXY_HOPS=${app.get("trust proxy")}`);
+  }
+  const actor = await resolveActor(req);
+  runWithActor(actor, next);
+});
 
 const isValidPoint = (point) => {
   if (!point || typeof point !== "object") return false;
@@ -175,10 +204,20 @@ const optimizeGeoJsonForPreferences = (
   };
 };
 
+const BUDGET_MESSAGES = {
+  guest: "Dzienny limit wyszukiwań na tym urządzeniu został wykorzystany. Zaloguj się, aby korzystać dalej, lub spróbuj jutro.",
+  user: "Dzienny limit wyszukiwań dla Twojego konta został wykorzystany. Spróbuj ponownie jutro.",
+  disabled: "Wyznaczanie tras jest chwilowo wyłączone. Spróbuj ponownie później.",
+  unavailable: "Usługa mapowa jest chwilowo niedostępna. Spróbuj ponownie za minutę.",
+};
+
 const sendBudgetError = (error, res) => {
-  if (error.code !== "PROVIDER_BUDGET_EXCEEDED") return false;
-  res.set("Retry-After", String(error.retryAfter)).status(429).json({
-    error: "Limit usługi mapowej został osiągnięty. Spróbuj ponownie później.",
+  if (!["PROVIDER_BUDGET_EXCEEDED", "PROVIDER_DISABLED", "PROVIDER_QUOTA_UNAVAILABLE"].includes(error.code)) {
+    return false;
+  }
+  res.set("Retry-After", String(error.retryAfter)).status(error.response?.status || 429).json({
+    error: BUDGET_MESSAGES[error.quotaScope] ||
+      "Limit usługi mapowej został osiągnięty. Spróbuj ponownie później.",
     code: error.code,
   });
   return true;
