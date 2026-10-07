@@ -1,8 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+// Modules below read environment settings during import.
+dotenv.config();
 const axios = require("axios");
 const rateLimit = require("express-rate-limit");
+const { directionsBudget } = require("./lib/providerBudget");
 const {
   rankFeaturesByPreferences,
   featurePreferenceScore,
@@ -39,8 +42,6 @@ const {
   resolveRideStyle,
 } = require("./lib/routePreferences");
 
-dotenv.config();
-
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const ORS_API_KEY = process.env.ORS_API_KEY;
@@ -57,11 +58,10 @@ if (!ORS_API_KEY) {
   );
 }
 
-// Originy zawsze dozwolone (lokalny dev + dowolny deploy Vercela, w tym preview).
+// Defaults apply only when ALLOWED_ORIGINS is absent. Preview URLs must be explicit.
 const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://*.vercel.app",
   "https://cycleyourway.pl",
   "https://www.cycleyourway.pl",
   // Capacitor Android / iOS WebView
@@ -71,32 +71,19 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "ionic://localhost",
 ];
 
-const allowedOriginPatterns = [
-  ...DEFAULT_ALLOWED_ORIGINS,
-  ...(process.env.ALLOWED_ORIGINS || "").split(","),
-]
+const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS === undefined
+  ? DEFAULT_ALLOWED_ORIGINS
+  : process.env.ALLOWED_ORIGINS.split(","))
   .map((origin) => origin.trim())
-  .filter(Boolean)
-  .map((pattern) => {
-    if (!pattern.includes("*")) return pattern;
-    const escaped = pattern
-      .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`);
-  });
-
-const isOriginAllowed = (origin) =>
-  allowedOriginPatterns.some((pattern) =>
-    pattern instanceof RegExp ? pattern.test(origin) : pattern === origin,
-  );
+  .filter(Boolean));
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || isOriginAllowed(origin)) {
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`CORS blocked for origin: ${origin}`));
+        callback(Object.assign(new Error("Origin not allowed"), { status: 403 }));
       }
     },
   }),
@@ -188,30 +175,13 @@ const optimizeGeoJsonForPreferences = (
   };
 };
 
-const getRouteFromOsrm = async (start, end) => {
-  const osrmUrl = `https://router.project-osrm.org/route/v1/bicycle/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
-  const osrmResponse = await axios.get(osrmUrl, { timeout: 15000 });
-  const route = osrmResponse.data?.routes?.[0];
-
-  if (!route?.geometry) {
-    throw new Error("OSRM did not return a valid route geometry.");
-  }
-
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {
-          source: "osrm",
-          summary: route.legs?.[0]?.summary || "",
-          distance: route.distance,
-          duration: route.duration,
-        },
-        geometry: route.geometry,
-      },
-    ],
-  };
+const sendBudgetError = (error, res) => {
+  if (error.code !== "PROVIDER_BUDGET_EXCEEDED") return false;
+  res.set("Retry-After", String(error.retryAfter)).status(429).json({
+    error: "Limit usługi mapowej został osiągnięty. Spróbuj ponownie później.",
+    code: error.code,
+  });
+  return true;
 };
 
 app.get("/api/geocode", async (req, res) => {
@@ -235,6 +205,7 @@ app.get("/api/geocode", async (req, res) => {
 
     return res.status(200).json({ results });
   } catch (error) {
+    if (sendBudgetError(error, res)) return;
     const status = error.response?.status || 500;
     const apiData = error.response?.data || null;
     console.error("Error while geocoding address:", {
@@ -253,7 +224,8 @@ app.get("/api/reverse", async (req, res) => {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng ?? req.query.lon);
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (!isValidPoint({ lat, lng }) || !String(req.query.lat ?? "").trim() ||
+        !String(req.query.lng ?? req.query.lon ?? "").trim()) {
       return res.status(400).json({
         error: "Missing or invalid query params: lat, lng",
       });
@@ -397,13 +369,13 @@ app.post("/api/route", async (req, res) => {
     let usedProfile = requestedProfile;
 
     const postDirections = async (profileName, payload) =>
-      axios.post(directionsGeoJsonUrl(profileName), payload, {
+      directionsBudget.run(() => axios.post(directionsGeoJsonUrl(profileName), payload, {
         headers: {
           Authorization: ORS_API_KEY,
           "Content-Type": "application/json",
         },
         timeout: routeTimeoutMs,
-      });
+      }));
 
     for (const currentProfile of profilesQueue) {
       try {
@@ -485,11 +457,9 @@ app.post("/api/route", async (req, res) => {
     orsResponseCache.set(cacheKey, responseData);
     return res.status(200).json(responseData);
   } catch (error) {
+    if (sendBudgetError(error, res)) return;
     const status = error.response?.status || 500;
     const apiData = error.response?.data;
-    const detailsText = JSON.stringify(apiData || "");
-    const shouldFallbackToOsrm =
-      status === 403 || /disallow/i.test(detailsText);
 
     console.error("Error while fetching route from OpenRouteService:", {
       message: error.message,
@@ -497,22 +467,11 @@ app.post("/api/route", async (req, res) => {
       details: apiData || null,
     });
 
-    if (shouldFallbackToOsrm) {
-      try {
-        const body = req.body || {};
-        const fallbackStart = Array.isArray(body.waypoints) && body.waypoints[0]
-          ? body.waypoints[0]
-          : body.start;
-        const fallbackEnd =
-          Array.isArray(body.waypoints) && body.waypoints.length >= 2
-            ? body.waypoints[body.waypoints.length - 1]
-            : body.end;
-        const osrmGeoJson = await getRouteFromOsrm(fallbackStart, fallbackEnd);
-        console.warn("Using OSRM fallback because ORS access was denied.");
-        return res.status(200).json(osrmGeoJson);
-      } catch (osrmError) {
-        console.error("OSRM fallback failed:", osrmError.message);
-      }
+    if (status === 401 || status === 403) {
+      return res.status(503).json({
+        code: "ROUTING_UNAVAILABLE",
+        error: "Usługa tras rowerowych jest chwilowo niedostępna. Spróbuj ponownie później.",
+      });
     }
 
     return res.status(status).json({
@@ -573,13 +532,13 @@ app.post("/api/loop", async (req, res) => {
     const useWaypointLoop = distanceKm > ORS_ROUND_TRIP_MAX_KM;
 
     const postDirectionsPayload = async (profileName, routePayload) =>
-      axios.post(directionsGeoJsonUrl(profileName), routePayload, {
+      directionsBudget.run(() => axios.post(directionsGeoJsonUrl(profileName), routePayload, {
         headers: {
           Authorization: ORS_API_KEY,
           "Content-Type": "application/json",
         },
         timeout: loopTimeoutMs,
-      });
+      }));
 
     const requestNativeLoop = async (seed, profileName, points) => {
       const cacheKey = buildLoopCacheKey({
@@ -829,6 +788,7 @@ app.post("/api/loop", async (req, res) => {
       features: [bestFeature],
     });
   } catch (error) {
+    if (sendBudgetError(error, res)) return;
     const status = error.response?.status || 500;
     const apiData = error.response?.data || null;
     console.error("Error while generating round trip via OpenRouteService:", {
@@ -850,7 +810,20 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-app.listen(PORT, () => {
+app.use((error, _req, res, _next) => {
+  const status = [400, 403, 413, 415].includes(error.status) ? error.status : 500;
+  res.status(status).json({
+    error: status === 413 ? "Żądanie jest zbyt duże."
+      : status === 403 ? "Ten adres aplikacji nie jest dozwolony."
+      : status === 400 ? "Nieprawidłowe dane żądania."
+      : status === 415 ? "Nieobsługiwany format danych."
+      : "Wystąpił błąd serwera. Spróbuj ponownie później.",
+  });
+});
+
+if (require.main === module) app.listen(PORT, () => {
   console.log(`Backend API listening at http://localhost:${PORT}`);
   console.log("ORS proxy only (geocode, route, loop). Auth + trasy: Supabase.");
 });
+
+module.exports = app;

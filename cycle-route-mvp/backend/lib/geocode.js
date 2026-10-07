@@ -4,6 +4,7 @@
  */
 
 const axios = require("axios");
+const { geocodeBudget } = require("./providerBudget");
 const { ORS_AUTOCOMPLETE_URL, ORS_SEARCH_URL } = require("./orsConfig");
 const {
   cacheGet,
@@ -286,7 +287,7 @@ async function searchNominatim(text, limit) {
 
 async function searchOrs({ text, limit, apiKey, autocomplete }) {
   const url = autocomplete ? ORS_AUTOCOMPLETE_URL : ORS_SEARCH_URL;
-  const response = await axios.get(url, {
+  const response = await geocodeBudget.run(() => axios.get(url, {
     headers: { Authorization: apiKey },
     params: {
       text,
@@ -295,7 +296,7 @@ async function searchOrs({ text, limit, apiKey, autocomplete }) {
       lang: "pl",
     },
     timeout: 12000,
-  });
+  }));
 
   const features = Array.isArray(response.data?.features)
     ? response.data.features
@@ -347,6 +348,14 @@ async function geocodePolishAddress({
   autocomplete = false,
   orsApiKey,
 }) {
+  // Public Nominatim explicitly prohibits autocomplete. Never use it as a
+  // fallback for suggestions, including when Pelias fails or returns no rows.
+  if (autocomplete) {
+    if (!orsApiKey) return [];
+    return mergeResults([await searchOrs({
+      text: String(address || "").trim(), limit, apiKey: orsApiKey, autocomplete: true,
+    })], limit);
+  }
   const variants = expandQueryVariants(address);
   const primary = variants[0];
   const secondary = variants.find((item) => item !== primary) || null;
