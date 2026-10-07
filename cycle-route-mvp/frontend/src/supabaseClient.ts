@@ -43,6 +43,8 @@ export type SavedRouteRow = {
   distance_km?: number | string | null
   duration_seconds?: number | null
   is_public?: boolean | null
+  share_enabled?: boolean | null
+  share_token?: string | null
   is_favorite?: boolean | null
   tags?: unknown
   created_at?: string | null
@@ -56,7 +58,8 @@ export function mapSavedRouteRow(row: SavedRouteRow): SavedRoute {
     geojson: row.geojson,
     distanceKm: row.distance_km != null ? Number(row.distance_km) : null,
     durationSeconds: row.duration_seconds ?? null,
-    isPublic: Boolean(row.is_public),
+    isPublic: Boolean(row.share_enabled),
+    shareToken: row.share_token ?? null,
     isFavorite: Boolean(row.is_favorite),
     tags: Array.isArray(row.tags) ? row.tags.filter(Boolean).map(String) : [],
     createdAt: row.created_at ?? null,

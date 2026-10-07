@@ -22,8 +22,12 @@ const PRIVACY: LegalDoc = {
       body: 'Do logowania, zapisu i udostępniania tras oraz wywołania API routingu (OpenRouteService) przez nasz backend. Nie sprzedajemy danych osobowych.',
     },
     {
+      heading: 'Dane na tym urządzeniu',
+      body: 'Podczas jazdy aplikacja co kilka sekund zapisuje ślad GPS i liczniki w pamięci przeglądarki lub aplikacji na tym urządzeniu (IndexedDB), aby jazda nie przepadła po przeładowaniu lub utracie sieci. Kopia jest usuwana po zapisaniu jazdy na koncie, ręcznie w Profil → Prywatność albo automatycznie po 30 dniach od ostatniej zmiany.',
+    },
+    {
       heading: 'Udostępnianie',
-      body: 'Dane konta, tras i jazd przechowuje Supabase. Punkty start/koniec i geometria tras są przekazywane do OpenRouteService w celu wyznaczenia trasy. Publiczne linki share pokazują trasę osobom, które mają link.',
+      body: 'Dane konta, tras i jazd przechowuje Supabase. Punkty start/koniec i geometria tras są przekazywane do OpenRouteService w celu wyznaczenia trasy. Niepubliczne linki udostępniania pokazują trasę osobom, które mają aktywny link.',
     },
     {
       heading: 'Twoje prawa',
@@ -31,7 +35,7 @@ const PRIVACY: LegalDoc = {
     },
     {
       heading: 'Prywatność tras',
-      body: 'Trasy są domyślnie prywatne. Oznaczenie trasy jako publicznej powoduje, że każdy posiadacz linku może zobaczyć jej przebieg.',
+      body: 'Trasy są domyślnie prywatne. Włączenie udostępniania tworzy losowy link, którego posiadacz może zobaczyć przebieg trasy. Wyłączenie udostępniania unieważnia dotychczasowy link.',
     },
   ],
 }
@@ -49,7 +53,7 @@ const TERMS: LegalDoc = {
     },
     {
       heading: 'Konta użytkowników',
-      body: 'Jesteś odpowiedzialny za bezpieczeństwo swojego hasła. Nie udostępniaj konta osobom trzecim. Publiczne udostępnianie trasy oznacza, że każdy z linkiem może zobaczyć jej przebieg.',
+      body: 'Jesteś odpowiedzialny za bezpieczeństwo swojego hasła. Nie udostępniaj konta osobom trzecim. Link do trasy traktuj jak dostęp do jej przebiegu; możesz go unieważnić w ustawieniach trasy.',
     },
     {
       heading: 'Odpowiedzialność',

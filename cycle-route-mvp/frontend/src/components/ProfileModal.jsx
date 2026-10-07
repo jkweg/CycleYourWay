@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mapSavedRouteRow, supabase } from '../supabaseClient'
 import { useAuth } from '../useAuth'
+import { fetchAllPages } from '../lib/paginatedExport'
+import { DISPLAY_NAME_MAX, HOME_AREA_MAX, clampText } from '../lib/dataLimits'
+import LocalRideDrafts from './LocalRideDrafts'
 import {
   CLIMB_PREFERENCES,
   DEFAULT_CLIMB_PREFERENCE,
@@ -13,7 +16,7 @@ import {
 } from '../lib/routePreferences'
 
 const ROUTE_SELECT =
-  'id, name, mode, distance_km, duration_seconds, is_public, is_favorite, tags, created_at'
+  'id, name, mode, distance_km, duration_seconds, share_enabled, share_token, is_favorite, tags, created_at'
 const ROUTE_SELECT_LEGACY =
   'id, name, mode, distance_km, duration_seconds, is_public, created_at'
 
@@ -97,7 +100,7 @@ function findLabel(items, id, fallback) {
   return items.find((item) => item.id === id)?.label || fallback
 }
 
-function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }) {
+function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, onOpenRideDraft }) {
   const { user, isAuthenticated, logout } = useAuth()
   const [profile, setProfile] = useState(() => defaultProfile(user))
   const [routes, setRoutes] = useState([])
@@ -108,6 +111,8 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [accountStats, setAccountStats] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const loadAccount = useCallback(async () => {
@@ -119,7 +124,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
     setConfirmDelete(false)
 
     try {
-      const [profileResult, routeResult, ridesResult] = await Promise.all([
+      const [profileResult, routeResult, ridesResult, statsResult] = await Promise.all([
         supabase.from('profiles').select(PROFILE_SELECT).eq('id', user.id).maybeSingle(),
         supabase
           .from('saved_routes')
@@ -135,6 +140,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
           .eq('user_id', user.id)
           .order('completed_at', { ascending: false })
           .limit(8),
+        supabase.rpc('get_own_account_stats'),
       ])
 
       if (profileResult.error) {
@@ -169,6 +175,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
       } else {
         setRides(ridesResult.data || [])
       }
+      setAccountStats(statsResult.error ? null : statsResult.data)
     } catch (loadError) {
       setError(
         isMissingSchemaError(loadError.message)
@@ -197,14 +204,22 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
       0,
     )
     const favoriteRoutes = routes.filter((route) => route.isFavorite).length
-    return {
-      routes: routes.length,
-      favoriteRoutes,
-      rides: rides.length,
-      rideDistanceKm: rideDistance / 1000,
-      rideTime: formatDuration(rideSeconds),
-    }
-  }, [rides, routes])
+    return accountStats
+      ? {
+          routes: Number(accountStats.routes || 0),
+          favoriteRoutes: Number(accountStats.favoriteRoutes || 0),
+          rides: Number(accountStats.rides || 0),
+          rideDistance: `${(Number(accountStats.rideDistanceMeters || 0) / 1000).toFixed(1)} km`,
+          rideTime: formatDuration(Number(accountStats.rideDurationSeconds || 0)),
+        }
+      : {
+          routes: `${routes.length}${routes.length === 8 ? '+' : ''}`,
+          favoriteRoutes: `${favoriteRoutes}${routes.length === 8 ? '+' : ''}`,
+          rides: `${rides.length}${rides.length === 8 ? '+' : ''}`,
+          rideDistance: `${(rideDistance / 1000).toFixed(1)} km${rides.length === 8 ? '+' : ''}`,
+          rideTime: `${formatDuration(rideSeconds)}${rides.length === 8 ? '+' : ''}`,
+        }
+  }, [accountStats, rides, routes])
 
   if (!isOpen) return null
 
@@ -222,7 +237,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
 
     const payload = {
       id: user.id,
-      display_name: profile.display_name?.trim() || null,
+      display_name: clampText(profile.display_name, DISPLAY_NAME_MAX) || null,
       prefer_avoid_main_roads: Boolean(profile.prefer_avoid_main_roads),
       default_loop_distance_km: clampNumber(profile.default_loop_distance_km, 5, 200, 30),
       ride_style: profile.ride_style || DEFAULT_RIDE_STYLE,
@@ -235,7 +250,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
       prefer_asphalt: Boolean(profile.prefer_asphalt),
       avoid_unpaved: Boolean(profile.avoid_unpaved),
       avoid_dark_routes: Boolean(profile.avoid_dark_routes),
-      home_area: profile.home_area?.trim() || null,
+      home_area: clampText(profile.home_area, HOME_AREA_MAX) || null,
     }
 
     try {
@@ -256,23 +271,59 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
     }
   }
 
-  const handleExportData = () => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      user: { id: user?.id, email: user?.email },
-      profile,
-      routes,
-      rides,
+  const handleExportData = async () => {
+    if (!user?.id || isExporting) return
+    setIsExporting(true)
+    setError('')
+    setInfo('Przygotowujemy kompletny eksport danych…')
+    try {
+      const fetchResource = (table, orderColumn) =>
+        fetchAllPages(async (from, to) => {
+          const { data, error: fetchError } = await supabase
+            .from(table)
+            .select('*')
+            .eq('user_id', user.id)
+            .order(orderColumn, { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+          if (fetchError) throw new Error(fetchError.message)
+          return data || []
+        })
+      const [profileResult, allRoutes, allRides] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        fetchResource('saved_routes', 'created_at'),
+        fetchResource('rides', 'created_at'),
+      ])
+      if (profileResult.error) throw new Error(profileResult.error.message)
+
+      const payload = {
+        format: 'cycle-your-way-account-export',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        user: {
+          id: user.id,
+          email: user.email,
+          createdAt: user.created_at || null,
+          lastSignInAt: user.last_sign_in_at || null,
+        },
+        profile: profileResult.data,
+        routes: allRoutes,
+        rides: allRides,
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `cycle-your-way-data-${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      setInfo(`Wyeksportowano ${allRoutes.length} tras i ${allRides.length} jazd.`)
+    } catch (exportError) {
+      setInfo('')
+      setError(exportError.message || 'Nie udało się wyeksportować danych konta.')
+    } finally {
+      setIsExporting(false)
     }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `cycle-your-way-data-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   const handleDeleteAccount = async () => {
@@ -368,6 +419,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
                       Wyświetlana nazwa
                       <input
                         value={profile.display_name || ''}
+                        maxLength={DISPLAY_NAME_MAX}
                         onChange={(event) => updateProfile('display_name', event.target.value)}
                         className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
                       />
@@ -376,6 +428,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
                       Okolica startowa
                       <input
                         value={profile.home_area || ''}
+                        maxLength={HOME_AREA_MAX}
                         onChange={(event) => updateProfile('home_area', event.target.value)}
                         placeholder="np. Krosno, okolice rynku"
                         className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
@@ -510,7 +563,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
                     <StatCard label="Trasy" value={stats.routes} />
                     <StatCard label="Ulubione" value={stats.favoriteRoutes} />
                     <StatCard label="Jazdy" value={stats.rides} />
-                    <StatCard label="Dystans" value={`${stats.rideDistanceKm.toFixed(1)} km`} />
+                    <StatCard label="Dystans" value={stats.rideDistance} />
                     <StatCard label="Czas" value={stats.rideTime} />
                   </div>
 
@@ -671,15 +724,18 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms }
                     </div>
                   </div>
 
+                  <LocalRideDrafts userId={user?.id || null} onOpenDraft={onOpenRideDraft} />
+
                   <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
                     <h3 className="font-semibold text-[#FC6C26]">Eksport danych</h3>
                     <p className="mt-1 text-sm text-stone-600">Pobierz lokalny plik JSON z profilem, trasami i historią jazd widocznymi dla konta.</p>
                     <button
                       type="button"
+                      disabled={isExporting}
                       onClick={handleExportData}
-                      className="soft-button mt-3 rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518]"
+                      className="soft-button mt-3 rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518] disabled:cursor-wait disabled:opacity-60"
                     >
-                      Eksportuj dane
+                      {isExporting ? 'Przygotowywanie eksportu…' : 'Eksportuj dane'}
                     </button>
                   </div>
 

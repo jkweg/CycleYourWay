@@ -80,6 +80,7 @@ export type SavedRoute = {
   distanceKm: number | null
   durationSeconds: number | null
   isPublic: boolean
+  shareToken: string | null
   isFavorite: boolean
   tags: string[]
   createdAt: string | null

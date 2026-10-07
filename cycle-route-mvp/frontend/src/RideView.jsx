@@ -39,6 +39,7 @@ import { speakText, cancelSpeech } from './lib/tts'
 import { trackEvent } from './lib/monitoring'
 import { startRideTracking } from './lib/backgroundLocation'
 import { isNativePlatform } from './lib/platform'
+import { deleteRideDraft, saveRideDraft } from './lib/rideDraftStore'
 
 const OFF_ROUTE_TRIGGER_MS = 15_000
 const OFF_ROUTE_MIN_DISTANCE_M = 90
@@ -129,10 +130,14 @@ function RideView({
   feature,
   routeName,
   mode,
+  routeId = null,
   avoidMainRoads = false,
   preferAsphalt = false,
   rideStyle = 'gravel',
   climbPreference = 'normal',
+  sessionId,
+  ownerId,
+  resumeDraft,
   onExit,
   onRideComplete,
 }) {
@@ -159,8 +164,13 @@ function RideView({
   const [navState, setNavState] = useState(null)
   const [follow, setFollow] = useState(true)
   const [voiceOn, setVoiceOn] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [rideSummary, setRideSummary] = useState(null)
+  const [isPaused, setIsPaused] = useState(() => Boolean(resumeDraft))
+  const [rideSummary, setRideSummary] = useState(() =>
+    resumeDraft?.status === 'completed' ? resumeDraft.summary : null,
+  )
+  const [isSavingRide, setIsSavingRide] = useState(false)
+  const [saveRideError, setSaveRideError] = useState('')
+  const [draftStorageError, setDraftStorageError] = useState('')
   const [showManeuverList, setShowManeuverList] = useState(false)
 
   const hintRef = useRef(0)
@@ -168,22 +178,72 @@ function RideView({
   const offRouteSinceRef = useRef(null)
   const lastRecalcAtRef = useRef(0)
   const recalcInFlightRef = useRef(false)
-  const offRouteEventsRef = useRef(0)
-  const recalculationsRef = useRef(0)
-  const maxSpeedMpsRef = useRef(0)
+  const offRouteEventsRef = useRef(resumeDraft?.runtime?.offRouteEvents || 0)
+  const recalculationsRef = useRef(resumeDraft?.runtime?.recalculations || 0)
+  const maxSpeedMpsRef = useRef(resumeDraft?.runtime?.maxSpeedMps || 0)
   // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
   const originalFeatureRef = useRef(feature)
-  const trackRef = useRef([])
-  const startedAtRef = useRef(0)
+  const trackRef = useRef(resumeDraft?.runtime?.track || [])
+  const startedAtRef = useRef(resumeDraft?.runtime?.startedAt || 0)
   const pausedAtRef = useRef(null)
-  const pausedMsRef = useRef(0)
+  const pausedMsRef = useRef(resumeDraft?.runtime?.pausedMs || 0)
   const isPausedRef = useRef(false)
+  const rideFinishedRef = useRef(resumeDraft?.status === 'completed')
+  const draftWriteRef = useRef(Promise.resolve())
 
   useEffect(() => {
-    startedAtRef.current = Date.now()
+    if (!startedAtRef.current) startedAtRef.current = Date.now()
+    if (resumeDraft && !pausedAtRef.current) pausedAtRef.current = Date.now()
+  }, [resumeDraft])
+
+  const routeDraft = useMemo(() => ({
+    feature,
+    name: routeName,
+    mode,
+    routeId: resumeDraft?.route?.routeId || routeId,
+    avoidMainRoads,
+    preferAsphalt,
+    rideStyle,
+    climbPreference,
+  }), [feature, routeName, mode, routeId, resumeDraft, avoidMainRoads, preferAsphalt, rideStyle, climbPreference])
+
+  const queueDraftSave = useCallback((record) => {
+    draftWriteRef.current = draftWriteRef.current
+      .catch(() => undefined)
+      .then(() => saveRideDraft(record))
+    return draftWriteRef.current
   }, [])
+
+  const activeDraftSnapshot = useCallback(() => ({
+    sessionId,
+    ownerId: resumeDraft?.ownerId || ownerId || null,
+    status: 'active',
+    route: routeDraft,
+    runtime: {
+      track: [...trackRef.current],
+      startedAt: startedAtRef.current,
+      pausedMs: pausedMsRef.current + (pausedAtRef.current ? Date.now() - pausedAtRef.current : 0),
+      offRouteEvents: offRouteEventsRef.current,
+      recalculations: recalculationsRef.current,
+      maxSpeedMps: maxSpeedMpsRef.current,
+    },
+  }), [sessionId, ownerId, resumeDraft, routeDraft])
+
+  useEffect(() => {
+    if (!sessionId || rideSummary || rideFinishedRef.current) return undefined
+    void queueDraftSave(activeDraftSnapshot())
+      .then(() => setDraftStorageError(''))
+      .catch(() => setDraftStorageError('Nie można utworzyć lokalnej kopii jazdy. Sprawdź wolne miejsce urządzenia.'))
+    const checkpoint = window.setInterval(() => {
+      if (rideFinishedRef.current) return
+      void queueDraftSave(activeDraftSnapshot())
+        .then(() => setDraftStorageError(''))
+        .catch(() => setDraftStorageError('Nie można aktualizować lokalnej kopii jazdy. Sprawdź wolne miejsce urządzenia.'))
+    }, 10_000)
+    return () => window.clearInterval(checkpoint)
+  }, [sessionId, rideSummary, queueDraftSave, activeDraftSnapshot])
 
   useEffect(() => {
     originalFeatureRef.current = feature
@@ -271,6 +331,7 @@ function RideView({
   }, [navState, userPos, isRecalculating, isPaused, handleRecalculateRoute])
 
   useEffect(() => {
+    if (rideSummary) return undefined
     let cancelled = false
     let unsubscribe = () => undefined
     let lastAccepted = null
@@ -343,7 +404,7 @@ function RideView({
       cancelled = true
       Promise.resolve(unsubscribe()).catch(() => undefined)
     }
-  }, [])
+  }, [rideSummary])
 
   useEffect(() => {
     if (!userPos || coordinates.length === 0 || isPaused) return
@@ -463,6 +524,7 @@ function RideView({
       startedAt: new Date(startedAtRef.current).toISOString(),
       trackGeoJson,
       pointCount: points.length,
+      clientRequestId: sessionId,
     }
   }
 
@@ -480,18 +542,42 @@ function RideView({
     })
   }
 
-  const handleExitRequest = () => {
+  const handleExitRequest = async () => {
     const summary = buildRideSummary()
     if (summary.distanceMeters >= 40 || summary.durationSeconds >= 45) {
+      rideFinishedRef.current = true
       setRideSummary(summary)
+      try {
+        await queueDraftSave({
+          ...activeDraftSnapshot(),
+          status: 'completed',
+          summary,
+        })
+      } catch {
+        setSaveRideError('Nie udało się zachować jazdy na tym urządzeniu. Zwolnij miejsce i spróbuj ponownie.')
+      }
       return
     }
-    onExit()
+    rideFinishedRef.current = true
+    void draftWriteRef.current
+      .catch(() => undefined)
+      .then(() => deleteRideDraft(sessionId))
+      .catch(() => undefined)
+      .finally(() => onExit())
   }
 
-  const handleCloseSummary = () => {
-    onRideComplete?.(rideSummary)
-    onExit()
+  const handleCloseSummary = async () => {
+    if (!rideSummary || isSavingRide) return
+    setIsSavingRide(true)
+    setSaveRideError('')
+    try {
+      const result = await onRideComplete?.(rideSummary)
+      onExit(result?.saved === false ? sessionId : undefined)
+    } catch (error) {
+      setSaveRideError(error.message || 'Nie udało się zapisać jazdy. Spróbuj ponownie.')
+    } finally {
+      setIsSavingRide(false)
+    }
   }
 
   const routeLine = useMemo(() => {
@@ -552,13 +638,33 @@ function RideView({
               </dd>
             </div>
           </dl>
+          {resumeDraft?.status === 'completed' && !saveRideError && (
+            <p className="mt-4 rounded-xl bg-blue-500/15 px-3 py-2 text-sm text-blue-100">
+              Odzyskano niezapisaną jazdę z tego urządzenia.
+            </p>
+          )}
+          {saveRideError && (
+            <p role="alert" className="mt-4 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-100">
+              {saveRideError}
+            </p>
+          )}
           <button
             type="button"
             onClick={handleCloseSummary}
+            disabled={isSavingRide}
             className="mt-6 w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-orange-400"
           >
-            Zamknij
+            {isSavingRide ? 'Zapisywanie…' : saveRideError ? 'Spróbuj zapisać ponownie' : 'Zapisz i zamknij'}
           </button>
+          {saveRideError && (
+            <button
+              type="button"
+              onClick={() => onExit(sessionId)}
+              className="mt-2 w-full rounded-xl border border-white/20 px-4 py-3 text-sm font-semibold text-orange-50"
+            >
+              Wróć do planera — zachowaj lokalnie
+            </button>
+          )}
         </div>
       </div>
     )
@@ -743,6 +849,12 @@ function RideView({
                 </ol>
               )}
             </div>
+          )}
+
+          {draftStorageError && (
+            <p role="alert" className="mt-3 rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
+              {draftStorageError}
+            </p>
           )}
 
           {isPaused ? (
