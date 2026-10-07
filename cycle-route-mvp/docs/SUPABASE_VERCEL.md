@@ -61,6 +61,6 @@ Szczegóły backendu: [`DEPLOY_BACKEND.md`](./DEPLOY_BACKEND.md).
 
 - [ ] RLS włączone na `saved_routes` (z `schema.sql`)
 - [ ] `ORS_API_KEY` tylko na backendzie
-- [ ] `ALLOWED_ORIGINS` zawiera domenę Vercel (backend i tak akceptuje `*.vercel.app`)
+- [ ] `ALLOWED_ORIGINS` zawiera dokładną domenę Vercel i wszystkie używane originy aplikacji; lista zastępuje domyślne, wildcard `*.vercel.app` nie jest obsługiwany.
 - [ ] `VITE_API_URL` wskazuje na wdrożony backend
 - [ ] Confirm email / reset hasła skonfigurowane w Supabase według potrzeb
