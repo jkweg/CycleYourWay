@@ -1,0 +1,23 @@
+{
+  "axios": {
+    "current": "1.16.1",
+    "wanted": "1.20.0",
+    "latest": "1.20.0",
+    "dependent": "backend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\backend\\node_modules\\axios"
+  },
+  "dotenv": {
+    "current": "17.4.2",
+    "wanted": "17.4.2",
+    "latest": "18.0.4",
+    "dependent": "backend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\backend\\node_modules\\dotenv"
+  },
+  "express-rate-limit": {
+    "current": "8.6.0",
+    "wanted": "8.7.0",
+    "latest": "8.7.0",
+    "dependent": "backend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\backend\\node_modules\\express-rate-limit"
+  }
+}

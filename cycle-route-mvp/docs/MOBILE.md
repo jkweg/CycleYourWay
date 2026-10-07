@@ -31,7 +31,7 @@ VITE_APP_ORIGIN=https://cycleyourway.pl
 # VITE_ENABLE_BG_GPS=true
 ```
 
-Backend `ALLOWED_ORIGINS` musi zawierać m.in. (domena prod jest też w `DEFAULT_ALLOWED_ORIGINS` w `server.js`):
+Backend `ALLOWED_ORIGINS` musi zawierać m.in. poniższe originy oraz używane domeny produkcyjne. Ustawiona lista zastępuje wszystkie domyślne originy z `server.js`:
 
 ```
 capacitor://localhost,https://localhost,https://cycleyourway.pl,https://www.cycleyourway.pl

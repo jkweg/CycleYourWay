@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ROUTE_NAME_MAX, TAG_MAX, TAGS_MAX, normalizeTags } from './lib/dataLimits'
 
 function SaveRouteModal({
   isOpen,
@@ -18,12 +19,7 @@ function SaveRouteModal({
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    const tags = tagsText
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .slice(0, 8)
-    onSave({ name: trimmed, tags, isFavorite }, mode)
+    onSave({ name: trimmed, tags: normalizeTags(tagsText), isFavorite }, mode)
   }
 
   return (
@@ -64,7 +60,7 @@ function SaveRouteModal({
               id="route-name"
               type="text"
               required
-              maxLength={120}
+              maxLength={ROUTE_NAME_MAX}
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
@@ -78,7 +74,7 @@ function SaveRouteModal({
             <input
               id="route-tags"
               type="text"
-              maxLength={160}
+              maxLength={TAGS_MAX * (TAG_MAX + 2)}
               value={tagsText}
               onChange={(event) => setTagsText(event.target.value)}
               placeholder="np. gravel, trening, rodzina"

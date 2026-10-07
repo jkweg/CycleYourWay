@@ -1,0 +1,19 @@
+HeiGIT — notatka z weryfikacji, 2026-09-27
+
+Źródło: https://account.heigit.org/info/tos
+Odczytano stronę aplikacji w przeglądarce. Ten plik zawiera skrót ustaleń,
+a nie pełną kopię regulaminu ani potwierdzenie warunków konkretnego konta.
+
+- Lista zakazanych zastosowań obejmuje przesyłanie danych osobowych,
+  z wyjątkiem danych wymaganych do obsługi konta HeiGIT.
+- Wyniki openrouteservice opisano jako objęte CC-BY-SA 4.0.
+- Wymagane jest oznaczenie openrouteservice/HeiGIT oraz danych OSM.
+- Przekroczenie limitów może skutkować błędami lub blokadą; brak SLA.
+- Dopuszczalność przekazywania osobistej lokalizacji z Cycle Your Way
+  wymaga wyjaśnienia z dostawcą przed uruchomieniem.
+
+Źródło: https://account.heigit.org/info/plans
+Standard: directions 2000/dzień, 40/min; geocoding 3000/dzień, 100/min;
+elevation 2000/dzień, 40/min. Plan Standard wskazuje cenę 0 EUR.
+Limity są wspólne dla klucza. Nie sprawdzano rzeczywistego planu konta.
+Aktualna aplikacja korzysta z elevation w odpowiedzi directions.

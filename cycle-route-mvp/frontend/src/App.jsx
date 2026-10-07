@@ -30,6 +30,14 @@ import { isNativePlatform } from './lib/platform'
 import { getCurrentPosition } from './lib/location'
 import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
 import { captureException, trackEvent } from './lib/monitoring'
+import {
+  canRestoreRideDraft,
+  createRideSessionId,
+  deleteRideDraft,
+  listRideDrafts,
+  markRideDraftSynced,
+  purgeExpiredRideDrafts,
+} from './lib/rideDraftStore'
 import LocationPermissionGate from './components/LocationPermissionGate'
 import {
   buildRouteAlternatives,
@@ -40,6 +48,15 @@ import {
   summarizeRouteSurfaces,
 } from './lib/routeStats'
 import { pushAddressHistory } from './lib/addressHistory'
+import { isUuid } from './lib/shareLinks'
+import {
+  ROUTE_NAME_MAX,
+  buildSavedRouteGeoJson,
+  clampText,
+  fitTrackGeoJson,
+  isCheckViolation,
+  normalizeTags,
+} from './lib/dataLimits'
 import {
   DEFAULT_CLIMB_PREFERENCE,
   DEFAULT_RIDE_STYLE,
@@ -73,6 +90,9 @@ function isMissingColumnError(message) {
 
 function polishSaveError(message) {
   const text = String(message || '')
+  if (/check constraint/i.test(text)) {
+    return 'Trasa przekracza limity zapisu (długość nazwy, tagi lub rozmiar trasy).'
+  }
   if (/policy|permission|rls/i.test(text)) {
     return 'Brak uprawnień do zapisu trasy — uruchom supabase/schema.sql (polityki INSERT/SELECT).'
   }
@@ -137,6 +157,7 @@ function App() {
   const [showOpenOnPhone, setShowOpenOnPhone] = useState(false)
   const [openOnPhoneTarget, setOpenOnPhoneTarget] = useState(null)
   const [rideRoute, setRideRoute] = useState(null)
+  const dismissedRideDraftsRef = useRef(new Set())
   const [rideSessionKey, setRideSessionKey] = useState(0)
   const [pendingRideId, setPendingRideId] = useState(() => {
     if (typeof window === 'undefined') return null
@@ -159,6 +180,42 @@ function App() {
   useEffect(() => {
     trackEvent('app_open', { native: isNativePlatform() })
   }, [])
+
+  useEffect(() => {
+    if (user?.id) dismissedRideDraftsRef.current.clear()
+  }, [user?.id])
+
+  const openRideDraft = (draft) => {
+    dismissedRideDraftsRef.current.delete(draft.sessionId)
+    setRideSessionKey((current) => current + 1)
+    setRideRoute({
+      ...draft.route,
+      sessionId: draft.sessionId,
+      resumeDraft: draft,
+    })
+  }
+
+  useEffect(() => {
+    if (isAuthLoading || rideRoute) return undefined
+    let cancelled = false
+    purgeExpiredRideDrafts()
+      .catch((purgeError) => captureException(purgeError, { where: 'purgeExpiredRideDrafts' }))
+      .then(() => listRideDrafts())
+      .then((drafts) => {
+        if (cancelled) return
+        const draft = drafts.find((item) =>
+          canRestoreRideDraft(item, user?.id || null) &&
+          !dismissedRideDraftsRef.current.has(item.sessionId),
+        )
+        if (!draft) return
+        openRideDraft(draft)
+        trackEvent('ride_draft_restored', { status: draft.status || 'active' })
+      })
+      .catch((draftError) => captureException(draftError, { where: 'restoreRideDraft' }))
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthLoading, rideRoute, user?.id])
 
   useEffect(() => {
     let remove = () => undefined
@@ -779,9 +836,9 @@ function App() {
         features[selectedRouteIndex] || selectedFeature || features[0]
       const remaining = features.filter((feature) => feature !== selected)
       // Selected alternative first so ride / load always use features[0].
-      const geojsonToSave = {
-        type: 'FeatureCollection',
-        features: [selected, ...remaining],
+      const geojsonToSave = buildSavedRouteGeoJson(selected, remaining)
+      if (!geojsonToSave) {
+        throw new Error('Trasa jest zbyt duża, aby ją zapisać. Skróć ją lub podziel na części.')
       }
 
       const summary = selected?.properties?.summary
@@ -799,7 +856,7 @@ function App() {
             : null
 
       const payload = {
-        name: draft.name.trim(),
+        name: clampText(draft.name, ROUTE_NAME_MAX),
         mode: routeMode,
         geojson: geojsonToSave,
         distance_km:
@@ -808,7 +865,7 @@ function App() {
             : null,
         duration_seconds:
           durationSeconds != null ? Math.round(durationSeconds) : null,
-        tags: Array.isArray(draft.tags) ? draft.tags : [],
+        tags: normalizeTags(draft.tags),
         is_favorite: Boolean(draft.isFavorite),
       }
 
@@ -996,6 +1053,7 @@ function App() {
         name: args.name,
         mode: args.mode,
         routeId: args.routeId || null,
+        sessionId: createRideSessionId(),
         ...routePreferencePayload,
       })
       trackEvent('ride_prepare_ok', { mode: args.mode })
@@ -1065,14 +1123,15 @@ function App() {
         }
 
         const remaining = features.filter((feature) => feature !== selected)
-        const geojsonToSave = {
-          type: 'FeatureCollection',
-          features: [selected, ...remaining],
+        const geojsonToSave = buildSavedRouteGeoJson(selected, remaining)
+        if (!geojsonToSave) {
+          throw new Error('Trasa jest zbyt duża, aby przesłać ją na telefon.')
         }
         const summary = getRouteSummary(selected)
-        const autoName =
-          loadedSavedRouteName ||
-          `Telefon · ${new Date().toLocaleString('pl-PL')}`
+        const autoName = clampText(
+          loadedSavedRouteName || `Telefon · ${new Date().toLocaleString('pl-PL')}`,
+          ROUTE_NAME_MAX,
+        )
 
         const { data: inserted, error: saveError } = await supabase
           .from('saved_routes')
@@ -1087,41 +1146,12 @@ function App() {
             duration_seconds: summary
               ? Math.round(summary.durationSeconds)
               : null,
-            is_public: true,
           })
           .select('id, name')
           .maybeSingle()
 
         if (saveError) {
-          // Older schema without is_public
-          if (/is_public|column|schema cache/i.test(saveError.message)) {
-            const retry = await supabase
-              .from('saved_routes')
-              .insert({
-                user_id: authUser.id,
-                name: autoName,
-                mode: routeMode,
-                geojson: geojsonToSave,
-                distance_km: summary
-                  ? Math.round((summary.distanceMeters / 1000) * 100) / 100
-                  : null,
-                duration_seconds: summary
-                  ? Math.round(summary.durationSeconds)
-                  : null,
-              })
-              .select('id, name')
-              .maybeSingle()
-            if (retry.error || !retry.data?.id) {
-              throw new Error(
-                retry.error?.message ||
-                  'Nie udało się przygotować linku na telefon.',
-              )
-            }
-            routeId = retry.data.id
-            routeName = retry.data.name
-          } else {
-            throw new Error(saveError.message)
-          }
+          throw new Error(polishSaveError(saveError.message))
         } else if (!inserted?.id) {
           throw new Error('Nie udało się przygotować linku na telefon.')
         } else {
@@ -1133,7 +1163,7 @@ function App() {
         setLoadedSavedRouteName(routeName)
         setSavedRoutesRefreshKey((current) => current + 1)
         setSaveSuccessMessage(
-          'Zapisano trasę jako publiczną, żeby otworzyć ją na telefonie.',
+          'Zapisano prywatną trasę, żeby otworzyć ją po zalogowaniu na telefonie.',
         )
       }
 
@@ -1180,13 +1210,19 @@ function App() {
   }
 
   const handleRideComplete = async (summary) => {
-    if (!summary || !isAuthenticated || !user?.id || !rideRoute) return
+    if (!summary || !rideRoute) throw new Error('Brak danych zakończonej jazdy.')
+    if (!isAuthenticated || !user?.id) {
+      setError('Jazda została zachowana na tym urządzeniu. Zaloguj się, aby wysłać ją do profilu.')
+      setShowAuthModal(true)
+      return { saved: false, local: true }
+    }
 
     try {
-      const { error: rideError } = await supabase.from('rides').insert({
+      const payload = {
         user_id: user.id,
+        client_request_id: summary.clientRequestId,
         route_id: rideRoute.routeId || null,
-        route_name: rideRoute.name || null,
+        route_name: clampText(rideRoute.name, ROUTE_NAME_MAX) || null,
         mode: rideRoute.mode || null,
         status: 'completed',
         distance_meters: Math.round(summary.distanceMeters || 0),
@@ -1202,21 +1238,34 @@ function App() {
           : null,
         off_route_events: Number(summary.offRouteEvents || 0),
         recalculations: Number(summary.recalculations || 0),
-        track_geojson: summary.trackGeoJson || null,
+        track_geojson: fitTrackGeoJson(summary.trackGeoJson) || null,
         started_at: summary.startedAt || null,
         completed_at: new Date().toISOString(),
-      })
-
-      if (rideError && !isMissingColumnError(rideError.message)) {
-        setError(rideError.message || 'Nie udało się zapisać historii jazdy.')
-      } else {
-        trackEvent('ride_saved', {
-          distance_m: summary.distanceMeters,
-          duration_s: summary.durationSeconds,
-        })
       }
-    } catch (error) {
-      captureException(error, { where: 'handleRideComplete' })
+      const { error: rideError } = await supabase
+        .from('rides')
+        .upsert(payload, { onConflict: 'user_id,client_request_id' })
+
+      if (rideError) throw rideError
+      trackEvent('ride_saved', {
+        distance_m: summary.distanceMeters,
+        duration_s: summary.durationSeconds,
+      })
+      try {
+        await markRideDraftSynced(summary.clientRequestId)
+        await deleteRideDraft(summary.clientRequestId)
+      } catch (draftError) {
+        captureException(draftError, { where: 'clearSyncedRideDraft' })
+      }
+      return { saved: true }
+    } catch (saveError) {
+      captureException(saveError, { where: 'handleRideComplete' })
+      const message = isMissingColumnError(saveError.message)
+        ? 'Baza wymaga migracji client_request_id. Jazda pozostała bezpiecznie na tym urządzeniu.'
+        : isCheckViolation(saveError)
+          ? 'Dane jazdy przekraczają limity zapisu. Jazda pozostała bezpiecznie na tym urządzeniu.'
+          : saveError.message || 'Nie udało się zapisać jazdy. Dane pozostały na tym urządzeniu.'
+      throw new Error(message, { cause: saveError })
     }
   }
 
@@ -1229,17 +1278,22 @@ function App() {
       setView('planner')
       setError('')
 
+      if (!isUuid(pendingShareId)) {
+        setError('Link udostępniania jest nieprawidłowy.')
+        setPendingShareId(null)
+        window.history.replaceState({}, '', window.location.pathname)
+        return
+      }
+
       const { data, error: fetchError } = await supabase
-        .from('saved_routes')
-        .select('id, name, mode, geojson, distance_km, is_public')
-        .eq('id', pendingShareId)
+        .rpc('get_shared_route', { p_share_token: pendingShareId })
         .maybeSingle()
 
       if (cancelled) return
 
       if (fetchError || !data) {
         setError(
-          'Nie udało się wczytać udostępnionej trasy. Link może być nieaktualny albo trasa nie jest publiczna.',
+          'Nie udało się wczytać udostępnionej trasy. Link może być nieaktualny lub został unieważniony.',
         )
         setPendingShareId(null)
         window.history.replaceState({}, '', window.location.pathname)
@@ -1247,12 +1301,14 @@ function App() {
       }
 
       handleLoadSavedRoute({
-        id: data.id,
+        id: null,
         name: data.name,
         mode: data.mode,
         geojson: data.geojson,
         distanceKm: data.distance_km != null ? Number(data.distance_km) : null,
       })
+      setLoadedSavedRouteId(null)
+      setPlannerPanel('plan')
       setSaveSuccessMessage(`Wczytano udostępnioną trasę „${data.name}”.`)
       setPendingShareId(null)
       window.history.replaceState({}, '', window.location.pathname)
@@ -1274,10 +1330,16 @@ function App() {
     const loadRideRoute = async () => {
       setView('planner')
 
-      // Public routes can be ridden without login; private ones need the owner.
-      let query = supabase
+      if (!isUuid(pendingRideId)) {
+        setError('Link do trasy jest nieprawidłowy.')
+        setPendingRideId(null)
+        return
+      }
+
+      // ?ride= is an owner-only cross-device link. Public sharing uses ?share=token.
+      const query = supabase
         .from('saved_routes')
-        .select('id, name, mode, geojson, distance_km, is_public, user_id')
+        .select('id, name, mode, geojson, distance_km, user_id')
         .eq('id', pendingRideId)
 
       const { data, error: fetchError } = await query.maybeSingle()
@@ -1288,8 +1350,9 @@ function App() {
         if (!isAuthenticated) {
           setShowAuthModal(true)
           setError(
-            'Zaloguj się, aby otworzyć prywatną trasę, albo użyj publicznego linku udostępniania.',
+            'Zaloguj się kontem właściciela, aby otworzyć tę trasę na urządzeniu.',
           )
+          return
         } else {
           setError(
             'Nie udało się wczytać trasy do nawigacji. Sprawdź, czy link jest aktualny.',
@@ -1300,12 +1363,11 @@ function App() {
       }
 
       const isOwner = isAuthenticated && user?.id && data.user_id === user.id
-      const isPublic = Boolean(data.is_public)
-      if (!isOwner && !isPublic) {
+      if (!isOwner) {
         if (!isAuthenticated) {
           setShowAuthModal(true)
         }
-        setError('Ta trasa jest prywatna — zaloguj się kontem właściciela.')
+        setError('Ta trasa należy do innego konta.')
         setPendingRideId(null)
         return
       }
@@ -1509,11 +1571,18 @@ function App() {
           feature={rideRoute.feature}
           routeName={rideRoute.name}
           mode={rideRoute.mode}
+          routeId={rideRoute.routeId || null}
           avoidMainRoads={Boolean(rideRoute.avoidMainRoads)}
           preferAsphalt={Boolean(rideRoute.preferAsphalt)}
           rideStyle={rideRoute.rideStyle || DEFAULT_RIDE_STYLE}
           climbPreference={rideRoute.climbPreference || DEFAULT_CLIMB_PREFERENCE}
-          onExit={() => setRideRoute(null)}
+          sessionId={rideRoute.sessionId}
+          ownerId={user?.id || null}
+          resumeDraft={rideRoute.resumeDraft || null}
+          onExit={(preserveSessionId) => {
+            if (preserveSessionId) dismissedRideDraftsRef.current.add(preserveSessionId)
+            setRideRoute(null)
+          }}
           onRideComplete={handleRideComplete}
         />
       </Suspense>
@@ -2051,6 +2120,11 @@ function App() {
         onClose={() => setShowProfileModal(false)}
         onOpenPrivacy={() => setLegalDoc('privacy')}
         onOpenTerms={() => setLegalDoc('terms')}
+        onOpenRideDraft={(draft) => {
+          setShowProfileModal(false)
+          openRideDraft(draft)
+          trackEvent('ride_draft_opened', { status: draft.status || 'active' })
+        }}
         onApplied={(profile) => {
           if (typeof profile.prefer_avoid_main_roads === 'boolean') {
             setAvoidMainRoads(profile.prefer_avoid_main_roads)

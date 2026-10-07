@@ -1,0 +1,191 @@
+{
+  "@capacitor/android": {
+    "current": "8.5.0",
+    "wanted": "8.5.2",
+    "latest": "8.5.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@capacitor\\android"
+  },
+  "@capacitor/cli": {
+    "current": "8.5.0",
+    "wanted": "8.5.2",
+    "latest": "8.5.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@capacitor\\cli"
+  },
+  "@capacitor/core": {
+    "current": "8.5.0",
+    "wanted": "8.5.2",
+    "latest": "8.5.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@capacitor\\core"
+  },
+  "@capacitor/geolocation": {
+    "current": "8.2.0",
+    "wanted": "8.2.2",
+    "latest": "8.2.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@capacitor\\geolocation"
+  },
+  "@sentry/react": {
+    "current": "10.69.0",
+    "wanted": "10.75.3",
+    "latest": "11.0.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@sentry\\react"
+  },
+  "@supabase/supabase-js": {
+    "current": "2.106.2",
+    "wanted": "2.117.2",
+    "latest": "2.117.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@supabase\\supabase-js"
+  },
+  "@tabler/icons-react": {
+    "current": "3.44.0",
+    "wanted": "3.48.0",
+    "latest": "3.48.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@tabler\\icons-react"
+  },
+  "@types/node": {
+    "current": "26.1.2",
+    "wanted": "26.6.3",
+    "latest": "26.6.3",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@types\\node"
+  },
+  "@types/react": {
+    "current": "19.2.15",
+    "wanted": "19.3.0",
+    "latest": "19.3.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@types\\react"
+  },
+  "@types/react-dom": {
+    "current": "19.2.3",
+    "wanted": "19.3.0",
+    "latest": "19.3.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@types\\react-dom"
+  },
+  "@vitejs/plugin-react": {
+    "current": "6.0.2",
+    "wanted": "6.1.1",
+    "latest": "6.1.1",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\@vitejs\\plugin-react"
+  },
+  "autoprefixer": {
+    "current": "10.5.0",
+    "wanted": "10.6.1",
+    "latest": "10.6.1",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\autoprefixer"
+  },
+  "eslint": {
+    "current": "10.4.0",
+    "wanted": "10.11.0",
+    "latest": "10.11.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\eslint"
+  },
+  "eslint-plugin-react-refresh": {
+    "current": "0.5.2",
+    "wanted": "0.5.7",
+    "latest": "0.5.7",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\eslint-plugin-react-refresh"
+  },
+  "globals": {
+    "current": "17.6.0",
+    "wanted": "17.12.0",
+    "latest": "17.12.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\globals"
+  },
+  "motion": {
+    "current": "12.40.0",
+    "wanted": "12.43.0",
+    "latest": "13.4.4",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\motion"
+  },
+  "postcss": {
+    "current": "8.5.15",
+    "wanted": "8.5.28",
+    "latest": "8.5.28",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\postcss"
+  },
+  "react": {
+    "current": "19.2.6",
+    "wanted": "19.3.0",
+    "latest": "19.3.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\react"
+  },
+  "react-dom": {
+    "current": "19.2.6",
+    "wanted": "19.3.0",
+    "latest": "19.3.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\react-dom"
+  },
+  "recharts": {
+    "current": "3.8.1",
+    "wanted": "3.10.1",
+    "latest": "3.10.1",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\recharts"
+  },
+  "sharp": {
+    "current": "0.35.3",
+    "wanted": "0.35.4",
+    "latest": "0.35.4",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\sharp"
+  },
+  "tailwind-merge": {
+    "current": "3.6.0",
+    "wanted": "3.7.0",
+    "latest": "3.7.0",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\tailwind-merge"
+  },
+  "tailwindcss": {
+    "current": "3.4.19",
+    "wanted": "3.4.19",
+    "latest": "4.3.3",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\tailwindcss"
+  },
+  "typescript": {
+    "current": "5.9.3",
+    "wanted": "5.9.3",
+    "latest": "7.0.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\typescript"
+  },
+  "typescript-eslint": {
+    "current": "8.66.0",
+    "wanted": "8.70.1",
+    "latest": "8.70.1",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\typescript-eslint"
+  },
+  "vite": {
+    "current": "8.0.14",
+    "wanted": "8.3.1",
+    "latest": "8.3.1",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\vite"
+  },
+  "vitest": {
+    "current": "3.2.7",
+    "wanted": "3.2.7",
+    "latest": "5.0.2",
+    "dependent": "frontend",
+    "location": "D:\\CycleYourWay\\CycleYourWay\\cycle-route-mvp\\frontend\\node_modules\\vitest"
+  }
+}
