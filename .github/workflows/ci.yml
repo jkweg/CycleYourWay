@@ -20,6 +20,7 @@ jobs:
           cache-dependency-path: cycle-route-mvp/frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:
@@ -41,3 +42,10 @@ jobs:
           cache-dependency-path: cycle-route-mvp/backend/package-lock.json
       - run: npm ci
       - run: npm test
+
+  supabase-sql:
+    # Throwaway local PostgreSQL only: migrations, schema.sql drift and RLS/RPC suite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash cycle-route-mvp/supabase/tests/run-local.sh
