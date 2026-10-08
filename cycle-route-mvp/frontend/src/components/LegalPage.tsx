@@ -2,40 +2,100 @@ export type LegalDocType = 'privacy' | 'terms'
 
 type LegalSection = {
   heading: string
-  body: string
+  body?: string
+  items?: string[]
 }
 
 type LegalDoc = {
   title: string
+  updated?: string
   sections: LegalSection[]
 }
 
+const CONTACT_EMAIL = 'jakub.wegrzyniak1239@gmail.com'
+
+// Source draft and open questions: docs/legal/POLITYKA_PRYWATNOSCI_SZKIC.md.
 const PRIVACY: LegalDoc = {
   title: 'Polityka prywatności',
+  updated: '8 października 2026',
   sections: [
     {
-      heading: 'Jakie dane zbieramy',
-      body: 'Adres e-mail i hasło (przez Supabase Auth), profil rowerzysty, preferencje planowania, zapisane trasy, tagi tras oraz historię zakończonych jazd. Lokalizacja GPS jest używana w trybie jazdy i może być zapisana w historii tylko wtedy, gdy aplikacja włączy taki zapis.',
+      heading: '1. Administrator',
+      body: `Administratorem Twoich danych osobowych jest Jakub Węgrzyniak, twórca aplikacji Cycle Your Way. W sprawach danych osobowych napisz na ${CONTACT_EMAIL}.`,
     },
     {
-      heading: 'Do czego używamy danych',
-      body: 'Do logowania, zapisu i udostępniania tras oraz wywołania API routingu (OpenRouteService) przez nasz backend. Nie sprzedajemy danych osobowych.',
+      heading: '2. Jakie dane przetwarzamy',
+      items: [
+        'Konto: adres e-mail, zaszyfrowane hasło i identyfikator konta; przy logowaniu przez Google — adres e-mail i identyfikator konta Google.',
+        'Profil: wyświetlana nazwa, okolica startowa i preferencje jazdy.',
+        'Trasy: punkty startu i końca, przebieg trasy, nazwa, tagi, oznaczenie ulubionych i stan udostępnienia.',
+        'Jazdy: ślad GPS, czas, dystans, prędkości i liczba zejść z trasy — gdy zakończysz i wyślesz jazdę.',
+        'Lokalizacja: bieżąca pozycja urządzenia, tylko w trybie nawigacji i po udzieleniu zgody w systemie lub przeglądarce.',
+        'Wyszukiwane adresy: wpisywany tekst i wybrane miejsca.',
+        'Dane techniczne: adres IP (dla IPv6 — jego prefiks) i identyfikator konta w dziennych licznikach limitów usługi oraz logi serwerów (adres IP, czas, wywołany adres).',
+      ],
     },
     {
-      heading: 'Dane na tym urządzeniu',
-      body: 'Podczas jazdy aplikacja co kilka sekund zapisuje ślad GPS i liczniki w pamięci przeglądarki lub aplikacji na tym urządzeniu (IndexedDB), aby jazda nie przepadła po przeładowaniu lub utracie sieci. Kopia jest usuwana po zapisaniu jazdy na koncie, ręcznie w Profil → Prywatność albo automatycznie po 30 dniach od ostatniej zmiany.',
+      heading: '3. Cele i podstawy prawne',
+      items: [
+        'Prowadzenie konta, zapis tras i jazd, nawigacja i udostępnianie tras linkiem — wykonanie umowy (art. 6 ust. 1 lit. b RODO).',
+        'Wyznaczanie tras i wyszukiwanie adresów przez zewnętrzne usługi — wykonanie umowy (art. 6 ust. 1 lit. b RODO).',
+        'Ochrona usługi przed nadużyciami (dzienne limity zapytań) i bezpieczeństwo — prawnie uzasadniony interes administratora (art. 6 ust. 1 lit. f RODO).',
+        'Obsługa Twoich żądań dotyczących danych i ewentualnych roszczeń — obowiązek prawny i prawnie uzasadniony interes (art. 6 ust. 1 lit. c i f RODO).',
+      ],
+      body: 'Nie podejmujemy decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, nie profilujemy Cię, nie używamy analityki ani reklam i nie sprzedajemy danych.',
     },
     {
-      heading: 'Udostępnianie',
-      body: 'Dane konta, tras i jazd przechowuje Supabase. Punkty start/koniec i geometria tras są przekazywane do OpenRouteService w celu wyznaczenia trasy. Niepubliczne linki udostępniania pokazują trasę osobom, które mają aktywny link.',
+      heading: '4. Odbiorcy danych',
+      items: [
+        'Supabase Inc. — baza danych, logowanie i e-maile logowania (potwierdzenie konta, reset hasła); serwery w Irlandii (UE).',
+        'Render Services, Inc. — serwer API aplikacji; serwery we Frankfurcie (UE).',
+        'Vercel Inc. — hosting strony; globalna sieć serwerów.',
+        'HeiGIT gGmbH (openrouteservice, Niemcy) — wyznaczanie tras i podpowiedzi adresów. Otrzymuje współrzędne punktów trasy, w trakcie jazdy także bieżącą pozycję przy przeliczaniu trasy, oraz wpisywany tekst adresu. Zapytania wysyła nasz serwer, więc HeiGIT nie otrzymuje Twojego adresu IP, e-maila ani identyfikatora konta.',
+        'OpenStreetMap Foundation (Nominatim, Wielka Brytania) — wyszukanie adresu i nazwy miejsca po współrzędnych; również bez Twojego adresu IP i e-maila.',
+        'MapTiler AG (Szwajcaria) — kafelki mapy. Twoja przeglądarka pobiera je bezpośrednio, więc MapTiler widzi adres IP i oglądany obszar mapy.',
+        'Google LLC — logowanie przez Google, jeśli je wybierzesz.',
+      ],
+      body: 'Udostępniona trasa jest widoczna dla każdego, kto ma aktywny link (nazwa, tryb, przebieg, dystans, czas — bez Twojego e-maila i identyfikatora). Wyłączenie udostępnienia unieważnia link.',
     },
     {
-      heading: 'Twoje prawa',
-      body: 'Możesz usuwać zapisane trasy, eksportować dane konta oraz usunąć konto w panelu profilu. Usunięcie konta usuwa profil, trasy i historię jazd powiązane z użytkownikiem.',
+      heading: '5. Przekazywanie danych poza EOG',
+      body: 'Szwajcaria i Wielka Brytania mają decyzje Komisji Europejskiej stwierdzające odpowiedni poziom ochrony. Dostawcy z USA (Supabase, Render, Vercel, Google) mogą mieć dostęp do danych, np. w ramach wsparcia technicznego; odbywa się to na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską lub decyzji w sprawie EU-US Data Privacy Framework — zgodnie z umowami powierzenia tych dostawców.',
     },
     {
-      heading: 'Prywatność tras',
-      body: 'Trasy są domyślnie prywatne. Włączenie udostępniania tworzy losowy link, którego posiadacz może zobaczyć przebieg trasy. Wyłączenie udostępniania unieważnia dotychczasowy link.',
+      heading: '6. Jak długo przechowujemy dane',
+      items: [
+        'Konto, profil, trasy i jazdy — do czasu ich usunięcia przez Ciebie albo usunięcia konta.',
+        'Liczniki limitów zapytań — do 7 dni.',
+        'Logi serwerów — krótko, zgodnie z ustawieniami dostawców hostingu, nie dłużej niż 30 dni.',
+        'Kopie zapasowe bazy — do 30 dni; usunięte dane znikają z kopii najpóźniej po tym czasie.',
+        'Niewysłane jazdy na Twoim urządzeniu — do wysłania, ręcznego usunięcia albo automatycznie po 30 dniach od ostatniej zmiany.',
+        'Historia wyszukiwanych adresów na urządzeniu (najwyżej 8 ostatnich) — do wyczyszczenia.',
+      ],
+    },
+    {
+      heading: '7. Dane zapisywane na Twoim urządzeniu',
+      body: 'Nie używamy plików cookie reklamowych ani analitycznych. W pamięci przeglądarki lub aplikacji (localStorage, IndexedDB) zapisujemy tylko to, co jest niezbędne do działania usługi: sesję logowania, niewysłane jazdy (aby nie przepadły po przeładowaniu lub utracie sieci), ostatnio wyszukiwane adresy, ustawienia planera i informację o ukończonym samouczku. Możesz je usunąć w Profil → Prywatność albo czyszcząc dane witryny w przeglądarce.',
+    },
+    {
+      heading: '8. Twoje prawa',
+      items: [
+        'Dostęp do danych i ich kopia — Profil → Prywatność → Eksportuj dane (plik JSON z profilem, trasami i jazdami).',
+        'Sprostowanie — edycja profilu, nazw tras i tagów w aplikacji.',
+        'Usunięcie — usuwanie tras i jazd albo całego konta (Profil → Prywatność → Usuń konto); usunięcie konta kasuje profil, trasy i jazdy.',
+        'Ograniczenie przetwarzania i przenoszenie danych (eksport JSON).',
+        'Sprzeciw wobec przetwarzania opartego na naszym prawnie uzasadnionym interesie.',
+        'Skarga do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa, uodo.gov.pl).',
+      ],
+      body: `Pozostałe żądania wyślij na ${CONTACT_EMAIL}. Odpowiemy bez zbędnej zwłoki, najpóźniej w ciągu miesiąca.`,
+    },
+    {
+      heading: '9. Dobrowolność',
+      body: 'Korzystanie z aplikacji i założenie konta jest dobrowolne. Bez konta możesz planować trasy, ale nie zapiszesz ich na koncie. Bez dostępu do lokalizacji nie zadziała nawigacja w trakcie jazdy. Usługa jest przeznaczona dla osób, które ukończyły 16 lat.',
+    },
+    {
+      heading: '10. Zmiany polityki',
+      body: 'O istotnych zmianach poinformujemy w aplikacji. Aktualna wersja jest zawsze dostępna pod adresem cycleyourway.pl/privacy.',
     },
   ],
 }
@@ -53,7 +113,7 @@ const TERMS: LegalDoc = {
     },
     {
       heading: 'Konta użytkowników',
-      body: 'Jesteś odpowiedzialny za bezpieczeństwo swojego hasła. Nie udostępniaj konta osobom trzecim. Link do trasy traktuj jak dostęp do jej przebiegu; możesz go unieważnić w ustawieniach trasy.',
+      body: 'Konto może założyć osoba, która ukończyła 16 lat. Jesteś odpowiedzialny za bezpieczeństwo swojego hasła. Nie udostępniaj konta osobom trzecim. Link do trasy traktuj jak dostęp do jej przebiegu; możesz go unieważnić w ustawieniach trasy.',
     },
     {
       heading: 'Odpowiedzialność',
@@ -68,9 +128,17 @@ function LegalContent({ doc }: { doc: LegalDoc }) {
       {doc.sections.map((section) => (
         <section key={section.heading}>
           <h3 className="font-semibold text-[#FC6C26]">{section.heading}</h3>
-          <p className="mt-1">{section.body}</p>
+          {section.items && (
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {section.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+          {section.body && <p className="mt-1">{section.body}</p>}
         </section>
       ))}
+      {doc.updated && <p className="text-xs text-stone-500">Wersja z dnia {doc.updated}.</p>}
     </div>
   )
 }
