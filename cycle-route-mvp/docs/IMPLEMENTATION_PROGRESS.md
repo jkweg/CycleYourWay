@@ -289,3 +289,10 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 
 - Uzupełnić pola `[[…]]` w szkicu, przegląd prawny, przeniesienie tekstu do `LegalPage.tsx`.
 - B06 nadal blokuje publiczną betę niezależnie od treści polityki.
+
+## Pakiet 11 — R28: polskie komunikaty błędów sieci (08.10.2026)
+
+- `frontend/src/lib/userMessages.js`: `toUserMessage()` zamienia „Failed to fetch” (Chrome), „NetworkError when attempting…” (Firefox), „Load failed” (Safari) na „Brak połączenia z serwerem…”, a stronę błędu HTML parsowaną jako JSON na „Serwer odpowiedział nieprawidłowo…”; komunikaty serwera/aplikacji przechodzą bez zmian.
+- Użyte przy wyznaczaniu trasy, pętli, wyszukiwaniu adresu, zapisie trasy, linku na telefon i zapisie jazdy (z informacją, że jazda została na urządzeniu). Usunięte angielskie fallbacki („Unexpected route error.”) i deweloperski komunikat „Uruchom backend: npm run dev” w `api.ts`.
+- Weryfikacja: lint, typecheck, **35/35** (nowe 3 testy), build.
+- Otwarte z R28/R29: stany offline/empty w listach, dostępność modali (focus trap, Escape), reduced motion.
