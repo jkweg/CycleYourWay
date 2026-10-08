@@ -296,3 +296,10 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 - Użyte przy wyznaczaniu trasy, pętli, wyszukiwaniu adresu, zapisie trasy, linku na telefon i zapisie jazdy (z informacją, że jazda została na urządzeniu). Usunięte angielskie fallbacki („Unexpected route error.”) i deweloperski komunikat „Uruchom backend: npm run dev” w `api.ts`.
 - Weryfikacja: lint, typecheck, **35/35** (nowe 3 testy), build.
 - Otwarte z R28/R29: stany offline/empty w listach, dostępność modali (focus trap, Escape), reduced motion.
+
+## Pakiet 12 — polityka prywatności w aplikacji, B06 sprawdzone (08.10.2026)
+
+- Odpowiedzi operatora (administrator, regiony: Supabase `eu-west-1`, Render Frankfurt; MapTiler; Sentry wyłączony; SMTP Supabase; Google login; backup 30 dni; wiek 16; bez analityki) wprowadzone do `/privacy` (`LegalPage.tsx`, 10 sekcji, wersja z 08.10.2026) i regulaminu (wiek 16). `LegalPage` obsługuje listy punktów.
+- B06: regulamin HeiGIT odczytany 08.10.2026 — zakaz „Transmit personal data (apart from the data required by the HeiGIT account management)” nadal obowiązuje. Przygotowane zapytanie do HeiGIT: `docs/legal/HEIGIT_ZAPYTANIE_B06.md`. Na stronie HeiGIT zapowiedziano prace serwisowe 09.10.2026 08:30–12:30 CEST (możliwa niedostępność routingu).
+- Weryfikacja: lint, typecheck, **35/35**, build; `/privacy` sprawdzone w przeglądarce (treść renderuje się poprawnie).
+- Otwarte: przegląd prawny tekstu; własny SMTP (Supabase ostrzega, że wbudowany nie jest do produkcji); po włączeniu Sentry — dopisać do polityki; ograniczyć klucz MapTiler do domen aplikacji w panelu MapTiler.

@@ -4,6 +4,8 @@
 >
 > Szkic opisuje stan po pakietach 1–9 i po usunięciu Google Fonts (pakiet 10). Jeśli zmieni się dostawca map, routingu, e-maili lub monitoringu, ten dokument trzeba zaktualizować razem z kodem.
 
+**Aktualizacja 08.10.2026:** odpowiedzi operatora wprowadzone, tekst opublikowany w `LegalPage.tsx` (`/privacy`). Ustalenia: administrator Jakub Węgrzyniak (kontakt e-mail; adres pocztowy nie podany — do decyzji prawnika), Supabase `eu-west-1` (Irlandia), Render Frankfurt, kafelki MapTiler, Sentry wyłączony (brak `VITE_SENTRY_DSN` → sekcja raportów błędów usunięta; po włączeniu Sentry trzeba ją przywrócić), e-maile przez wbudowany SMTP Supabase, logowanie Google włączone, backup 30 dni, wiek 16 lat, bez analityki. B06: regulamin HeiGIT potwierdzony 08.10.2026 — zapytanie do wysłania w `HEIGIT_ZAPYTANIE_B06.md`.
+
 ---
 
 ## A. Pytania do Ciebie (bez odpowiedzi nie da się zamknąć tekstu)
