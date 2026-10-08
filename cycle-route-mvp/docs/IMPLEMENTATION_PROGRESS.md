@@ -270,3 +270,22 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 - Alarm 5xx backendu nadal tylko pośrednio (monitor `/api/health`); brak Sentry/APM po stronie backendu.
 - Deadline całego żądania, anulowanie upstream po rozłączeniu klienta i inflight dedupe (reszta R09) — otwarte.
 - Testy cleanup GPS (reszta R11) — otwarte.
+
+## Pakiet 10 — R13/R15/R16: szkic polityki prywatności i mniej odbiorców danych (08.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Szkic polityki | `docs/legal/POLITYKA_PRYWATNOSCI_SZKIC.md`: pełny projekt tekstu (administrator, kategorie danych, cele i podstawy, odbiorcy z lokalizacją, transfery, retencja, dane na urządzeniu, prawa i sposób realizacji w aplikacji, UODO) oraz 11 pytań do operatora i notatki dla prawnika (B06, role dostawców, art. 399 PKE). Nie jest jeszcze w `/privacy`. |
+| Google Fonts → własny hosting | Fonty (Fraunces Variable z osią opsz, Great Vibes, Source Sans 3 400–700) z pakietów `@fontsource` w bundlu; usunięte `<link>` do fonts.googleapis.com. Google nie dostaje już IP każdego odwiedzającego. Sprawdzone w przeglądarce: fonty załadowane, 0 żądań do Google, `dist` bez odwołań. |
+| Oznaczenie routingu (R16) | `ROUTING_ATTR` w `lib/mapTiles.ts`: „Trasy © openrouteservice.org by HeiGIT” na mapie planera i nawigacji (wymóg CC BY-SA 4.0 wyników ORS). Sprawdzone w przeglądarce. |
+| Regulamin | Usunięta nieaktualna wzmianka o awaryjnym OSRM; licencje OSM (ODbL) i ORS (CC BY-SA 4.0), Nominatim. |
+| Dane na urządzeniu (R15) | Profil → Prywatność: licznik i przycisk „Wyczyść historię” wyszukiwanych adresów (`clearAddressHistory`). |
+
+### Weryfikacja pakietu 10
+
+- Frontend: lint, typecheck, **32/32**, build; podgląd w przeglądarce (landing + planer).
+
+### Do zrobienia po odpowiedziach operatora
+
+- Uzupełnić pola `[[…]]` w szkicu, przegląd prawny, przeniesienie tekstu do `LegalPage.tsx`.
+- B06 nadal blokuje publiczną betę niezależnie od treści polityki.

@@ -7,6 +7,11 @@ const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const OSM_ATTR =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
+// openrouteservice results are CC BY-SA 4.0 and must credit HeiGIT; shown on every
+// map that draws a computed route.
+export const ROUTING_ATTR =
+  'Trasy &copy; <a href="https://openrouteservice.org/">openrouteservice.org</a> by HeiGIT'
+
 export type MapTileLayerConfig = {
   url: string
   attribution: string
@@ -25,7 +30,7 @@ export function getMapTileLayer(): MapTileLayerConfig {
   if (customUrl) {
     return {
       url: customUrl,
-      attribution,
+      attribution: `${attribution} | ${ROUTING_ATTR}`,
       maxZoom: 20,
       provider: 'commercial',
     }
@@ -39,7 +44,7 @@ export function getMapTileLayer(): MapTileLayerConfig {
 
   return {
     url: OSM_URL,
-    attribution: OSM_ATTR,
+    attribution: `${OSM_ATTR} | ${ROUTING_ATTR}`,
     maxZoom: 19,
     provider: 'osm',
   }

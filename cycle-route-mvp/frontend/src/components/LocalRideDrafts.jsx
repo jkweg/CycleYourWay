@@ -7,6 +7,7 @@ import {
   listRideDrafts,
   rideDraftExpiresAt,
 } from '../lib/rideDraftStore'
+import { clearAddressHistory, readAddressHistory } from '../lib/addressHistory'
 import { captureException } from '../lib/monitoring'
 
 const STATUS_LABELS = {
@@ -42,6 +43,7 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [confirmId, setConfirmId] = useState(null)
+  const [historyCount, setHistoryCount] = useState(() => readAddressHistory().length)
 
   useEffect(() => {
     let cancelled = false
@@ -139,6 +141,25 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
           })}
         </ul>
       )}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#f0d4b8] pt-3 text-sm text-stone-600">
+        <span>
+          Historia wyszukiwanych adresów:{' '}
+          {historyCount > 0 ? `${historyCount} (tylko na tym urządzeniu)` : 'pusta'}
+        </span>
+        {historyCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              clearAddressHistory()
+              setHistoryCount(0)
+            }}
+            className="soft-button rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700"
+          >
+            Wyczyść historię
+          </button>
+        )}
+      </div>
     </div>
   )
 }
