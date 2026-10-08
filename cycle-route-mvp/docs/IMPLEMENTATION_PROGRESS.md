@@ -240,3 +240,33 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 - Gość za NAT (np. sieć komórkowa, firma) dzieli limit z innymi; IPv6 per /64.
 - `/api/reverse` (Nominatim) nie jest objęty tym limitem — ma własny throttle.
 - Limity domyślne są szacunkiem; dopasować do realnego ruchu po pierwszych dniach (`select * from private.api_usage order by window_start desc`).
+
+### Wdrożenie pakietu 8 (08.10.2026)
+
+- Migracja `20261008_api_quota.sql` na produkcji, merge [jkweg/CycleYourWay#4](https://github.com/jkweg/CycleYourWay/pull/4) (`dd74b4b`), zmienne `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` na Render; `/api/health` → `quotaConfigured: true`.
+- `private.api_usage` po ruchu testowym: osobne buckety konta (`actor:user:<uuid>`) i gości, sumy zgodne z bucketami globalnymi.
+- Proxy: z `TRUST_PROXY_HOPS=1` goście byli liczeni po wewnętrznych adresach Render (`10.x`), a log pokazał `x-forwarded-for entries=3`. Po ustawieniu `TRUST_PROXY_HOPS=3` na Render gość jest liczony po publicznym IP klienta; zapytanie z podrobionym `X-Forwarded-For: 1.2.3.4` zostało przypisane do prawdziwego IP (brak bucketu `1.2.3.4`).
+- Obserwacja: jednorazowy błąd `Parse Error: Expected HTTP/` przy geocodingu ~24 s po starcie usługi (błąd połączenia z dostawcą, nie quota). Jeśli się powtórzy — jedno ponowienie dla błędów połączenia (razem z R09).
+- **B02 zamknięte** dla jednego backendu na Render. Pozostaje: limity minutowe w RAM procesu, dostrojenie limitów dziennych do ruchu.
+
+## Pakiet 9 — minimum operacyjne: monitoring limitu, odporność, ErrorBoundary (08.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Monitoring limitu | Migracja `20261008_api_usage_status.sql`: RPC `get_api_usage_today()` (tylko `service_role`) zwraca globalne zużycie dnia i aktywne wyłączniki. Backend: `GET /api/health/quota` → 200 albo 503 (`quota_high` ≥ `QUOTA_ALERT_PERCENT`, domyślnie 80; `kill_switch`; `quota_unreachable`; `not_configured`). Tylko procenty, bez bucketów użytkowników. |
+| R09 (część) | Jedno ponowienie dla błędów połączenia bez odpowiedzi HTTP (`ECONNRESET`, `EPIPE`, `ECONNREFUSED`, `EAI_AGAIN`, `HPE_*`, „Parse Error”, „socket hang up”) w Directions i Pelias; każda próba jest osobno liczona w limicie. Timeouty i błędy HTTP nie są ponawiane. Odpowiedź na błąd `Parse Error: Expected HTTP/` z logu Render. |
+| R11 (część) | `components/ErrorBoundary.tsx`: cała aplikacja i osobno nawigacja. Błąd w nawigacji pokazuje „Wróć do planera” (draft jazdy zostaje w IndexedDB i nie otwiera się ponownie automatycznie w tej sesji); błąd gdzie indziej — „Odśwież aplikację”. Zgłoszenie do Sentry z `where`. Nieaktualny chunk po wdrożeniu → automatyczne przeładowanie, najwyżej raz na minutę (`lib/chunkReload.ts`, część R27). |
+| Dokumentacja | `docs/OPS_LAUNCH.md` §7: monitory UptimeRobot (API, limit, strona), Sentry, polecenia wyłącznika, backup + próba odtworzenia na stagingu, SMTP. |
+
+### Weryfikacja pakietu 9
+
+- SQL (PGlite, wszystkie 7 migracji ×2, `schema.sql` ×2, dryf): **104 PASS / 0 FAIL / 0 GAP**.
+- Backend: **41/41** (nowe: klasyfikacja błędów przejściowych, dokładnie jedno ponowienie i podwójne naliczenie, brak ponowienia HTTP 403, statusy `/api/health/quota`, test HTTP 503 przy 95% zużycia).
+- Frontend: lint, typecheck, **32/32**, build.
+- Nie sprawdzono wizualnie ekranu ErrorBoundary w przeglądarce.
+
+### Ograniczenia
+
+- Alarm 5xx backendu nadal tylko pośrednio (monitor `/api/health`); brak Sentry/APM po stronie backendu.
+- Deadline całego żądania, anulowanie upstream po rozłączeniu klienta i inflight dedupe (reszta R09) — otwarte.
+- Testy cleanup GPS (reszta R11) — otwarte.

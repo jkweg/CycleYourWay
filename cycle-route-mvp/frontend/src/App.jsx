@@ -14,6 +14,7 @@ import Navbar from './components/Navbar'
 import AddressAutocomplete from './components/AddressAutocomplete'
 import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
+import ErrorBoundary from './components/ErrorBoundary'
 import RouteAlternativesCompare from './components/RouteAlternativesCompare'
 import MapRouteDetailsBar from './components/MapRouteDetailsBar'
 import LoopDistanceControl from './components/LoopDistanceControl'
@@ -1565,6 +1566,16 @@ function App() {
 
   if (rideRoute) {
     return (
+      <ErrorBoundary
+        where="ride"
+        title="Nawigacja napotkała błąd"
+        description="Jazda zapisuje się na tym urządzeniu. Możesz ją wznowić lub wysłać później w Profil → Prywatność → Jazdy na tym urządzeniu."
+        actionLabel="Wróć do planera"
+        onAction={() => {
+          if (rideRoute.sessionId) dismissedRideDraftsRef.current.add(rideRoute.sessionId)
+          setRideRoute(null)
+        }}
+      >
       <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#2c1e16] text-orange-100" />}>
         <RideView
           key={rideSessionKey}
@@ -1586,6 +1597,7 @@ function App() {
           onRideComplete={handleRideComplete}
         />
       </Suspense>
+      </ErrorBoundary>
     )
   }
 

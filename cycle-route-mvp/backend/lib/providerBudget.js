@@ -3,6 +3,14 @@
 // (lib/persistentQuota.js) on top of these in-memory burst limits.
 const { PersistentQuota, quotaLimitsFromEnv } = require("./persistentQuota");
 
+// Connection-level failures (reset socket, malformed HTTP from the provider or an
+// intermediate proxy) carry no HTTP response and are safe to retry once.
+function isTransientConnectionError(error) {
+  if (!error || error.response) return false;
+  return /^(ECONNRESET|EPIPE|ECONNREFUSED|EAI_AGAIN|HPE_[A-Z_]+)$/.test(String(error.code || "")) ||
+    /Parse Error|socket hang up/i.test(String(error.message || ""));
+}
+
 class ProviderBudget {
   constructor({ perMinute, perDay, concurrency, now = Date.now, beforeCall = null }) {
     this.beforeCall = beforeCall;
@@ -52,6 +60,18 @@ class ProviderBudget {
       this.active -= 1;
     }
   }
+
+  // Each attempt is a real provider call, so each one is budgeted and charged.
+  async runWithRetry(request, retries = 1) {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.run(request);
+      } catch (error) {
+        if (attempt >= retries || !isTransientConnectionError(error)) throw error;
+        console.warn(`[provider] transient connection error (${error.code || error.message}), retrying`);
+      }
+    }
+  }
 }
 
 function positiveInteger(name, fallback) {
@@ -84,4 +104,10 @@ const geocodeBudget = new ProviderBudget({
   beforeCall: () => persistentQuota.consume("geocode"),
 });
 
-module.exports = { ProviderBudget, directionsBudget, geocodeBudget, persistentQuota };
+module.exports = {
+  ProviderBudget,
+  directionsBudget,
+  geocodeBudget,
+  isTransientConnectionError,
+  persistentQuota,
+};

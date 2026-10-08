@@ -67,6 +67,35 @@ class PersistentQuota {
     return Boolean(this.endpoint && this.serviceKey);
   }
 
+  // Today's global usage as a share of the global limits, for uptime monitors.
+  async status(alertPercent) {
+    if (!this.enabled) return { ok: false, reason: "not_configured" };
+    const response = await this.fetchImpl(this.endpoint.replace(/consume_api_quota$/, "get_api_usage_today"), {
+      method: "POST",
+      headers: {
+        apikey: this.serviceKey,
+        Authorization: `Bearer ${this.serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new Error(`usage RPC HTTP ${response.status}`);
+    const { usage = {}, disabled = [] } = await response.json();
+    const kinds = {};
+    for (const kind of Object.keys(this.limits)) {
+      kinds[kind] = Math.round((100 * (usage[kind] || 0)) / this.limits[kind].global);
+    }
+    const overThreshold = Object.entries(kinds).filter(([, percent]) => percent >= alertPercent);
+    return {
+      ok: overThreshold.length === 0 && disabled.length === 0,
+      reason: disabled.length ? "kill_switch" : overThreshold.length ? "quota_high" : undefined,
+      percentUsed: kinds,
+      alertPercent,
+      disabled,
+    };
+  }
+
   // Charges one provider call of `kind` to the current actor and the global bucket.
   async consume(kind) {
     if (!this.enabled) return;

@@ -22,6 +22,9 @@ test("HTTP: shared quota charges the right actor and blocks before ORS", async (
       const ok = init.headers.Authorization === `Bearer ${"t".repeat(40)}`;
       return { ok, status: ok ? 200 : 401, json: async () => ({ id: userId }) };
     }
+    if (target === "https://db.example/rest/v1/rpc/get_api_usage_today") {
+      return { ok: true, status: 200, json: async () => ({ usage: { directions: 1900 }, disabled: [] }) };
+    }
     if (target === "https://db.example/rest/v1/rpc/consume_api_quota") {
       quotaCalls.push(JSON.parse(init.body));
       return { ok: true, status: 200, json: async () => quotaReply };
@@ -49,6 +52,9 @@ test("HTTP: shared quota charges the right actor and blocks before ORS", async (
   });
 
   assert.equal((await (await realFetch(`${base}/api/health`)).json()).quotaConfigured, true);
+  const quotaHealth = await realFetch(`${base}/api/health/quota`);
+  assert.equal(quotaHealth.status, 503, "95% of the global directions quota trips the monitor");
+  assert.deepEqual((await quotaHealth.json()).percentUsed, { directions: 95, geocode: 0 });
 
   assert.equal((await route(21.0)).status, 200);
   assert.deepEqual(

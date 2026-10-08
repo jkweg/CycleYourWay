@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import App from './App.jsx'
 import { AuthProvider } from './AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import LoadingScreen from './components/LoadingScreen.jsx'
 import { LegalStandalone, type LegalDocType } from './components/LegalPage'
 
@@ -26,9 +27,11 @@ export default function Root() {
   return (
     <>
       {showSplash ? <LoadingScreen onComplete={() => setShowSplash(false)} /> : null}
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <ErrorBoundary where="root">
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ErrorBoundary>
     </>
   )
 }

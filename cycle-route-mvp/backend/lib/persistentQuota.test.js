@@ -121,3 +121,52 @@ test("verified Supabase token identifies the user; anything else is a guest", as
   await resolve(req(`Bearer ${flaky}`));
   assert.equal(calls, 4, "network failures are not cached");
 });
+
+test("transient connection errors are retried once, each attempt charged", async () => {
+  const { isTransientConnectionError } = require("./providerBudget");
+  const parseError = Object.assign(new Error("Parse Error: Expected HTTP/, RTSP/ or ICE/"), { code: "HPE_INVALID_CONSTANT" });
+  assert.equal(isTransientConnectionError(parseError), true);
+  assert.equal(isTransientConnectionError(Object.assign(new Error("x"), { code: "ECONNRESET" })), true);
+  assert.equal(isTransientConnectionError(Object.assign(new Error("forbidden"), { response: { status: 403 } })), false);
+  assert.equal(isTransientConnectionError(Object.assign(new Error("timeout"), { code: "ECONNABORTED" })), false);
+
+  let charged = 0;
+  const budget = new ProviderBudget({ perMinute: 10, perDay: 10, concurrency: 2, beforeCall: async () => { charged++; } });
+  let attempts = 0;
+  assert.equal(await budget.runWithRetry(async () => {
+    attempts++;
+    if (attempts === 1) throw parseError;
+    return "ok";
+  }), "ok");
+  assert.deepEqual([attempts, charged], [2, 2]);
+
+  attempts = 0;
+  await assert.rejects(budget.runWithRetry(async () => { attempts++; throw parseError; }), /Parse Error/);
+  assert.equal(attempts, 2, "only one retry");
+
+  attempts = 0;
+  await assert.rejects(budget.runWithRetry(async () => {
+    attempts++;
+    throw Object.assign(new Error("forbidden"), { response: { status: 403 } });
+  }), /forbidden/);
+  assert.equal(attempts, 1, "HTTP errors are not retried");
+});
+
+test("quota status reports percentages and trips at the alert threshold", async () => {
+  let reply = { usage: { directions: 1500, geocode: 300 }, disabled: [] };
+  const quota = new PersistentQuota({
+    supabaseUrl: "https://db.example", serviceKey: "s", limits,
+    fetchImpl: async (url) => {
+      assert.equal(url, "https://db.example/rest/v1/rpc/get_api_usage_today");
+      return json(200, reply);
+    },
+  });
+  assert.deepEqual(await quota.status(80), {
+    ok: true, reason: undefined, percentUsed: { directions: 75, geocode: 10 }, alertPercent: 80, disabled: [],
+  });
+  reply = { usage: { directions: 1600 }, disabled: [] };
+  assert.equal((await quota.status(80)).reason, "quota_high");
+  reply = { usage: {}, disabled: ["all"] };
+  assert.equal((await quota.status(80)).reason, "kill_switch");
+  assert.deepEqual(await new PersistentQuota({ limits }).status(80), { ok: false, reason: "not_configured" });
+});

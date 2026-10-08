@@ -287,7 +287,7 @@ async function searchNominatim(text, limit) {
 
 async function searchOrs({ text, limit, apiKey, autocomplete }) {
   const url = autocomplete ? ORS_AUTOCOMPLETE_URL : ORS_SEARCH_URL;
-  const response = await geocodeBudget.run(() => axios.get(url, {
+  const response = await geocodeBudget.runWithRetry(() => axios.get(url, {
     headers: { Authorization: apiKey },
     params: {
       text,

@@ -45,7 +45,7 @@ const {
 } = require("./lib/routePreferences");
 
 const app = express();
-// Render terminates TLS in front of the app; trust exactly that many proxy hops so
+// Proxies in front of the app (production on Render: 3); trust exactly that many hops so
 // req.ip is the client (rate limits and guest quotas) and cannot be spoofed.
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
 const PORT = Number(process.env.PORT) || 5000;
@@ -107,6 +107,19 @@ app.get("/api/health", (_req, res) => {
     orsConfigured: Boolean(ORS_API_KEY),
     quotaConfigured: persistentQuota.enabled,
   });
+});
+
+// Uptime-monitor target: 503 when today's global provider usage crosses
+// QUOTA_ALERT_PERCENT (default 80) or a kill switch is on. Percentages only.
+const QUOTA_ALERT_PERCENT = Number(process.env.QUOTA_ALERT_PERCENT) || 80;
+app.get("/api/health/quota", async (_req, res) => {
+  try {
+    const status = await persistentQuota.status(QUOTA_ALERT_PERCENT);
+    res.status(status.ok ? 200 : 503).json(status);
+  } catch (error) {
+    console.error("[quota] status check failed:", error.message);
+    res.status(503).json({ ok: false, reason: "quota_unreachable" });
+  }
 });
 
 const apiLimiter = rateLimit({
@@ -408,7 +421,7 @@ app.post("/api/route", async (req, res) => {
     let usedProfile = requestedProfile;
 
     const postDirections = async (profileName, payload) =>
-      directionsBudget.run(() => axios.post(directionsGeoJsonUrl(profileName), payload, {
+      directionsBudget.runWithRetry(() => axios.post(directionsGeoJsonUrl(profileName), payload, {
         headers: {
           Authorization: ORS_API_KEY,
           "Content-Type": "application/json",
@@ -571,7 +584,7 @@ app.post("/api/loop", async (req, res) => {
     const useWaypointLoop = distanceKm > ORS_ROUND_TRIP_MAX_KM;
 
     const postDirectionsPayload = async (profileName, routePayload) =>
-      directionsBudget.run(() => axios.post(directionsGeoJsonUrl(profileName), routePayload, {
+      directionsBudget.runWithRetry(() => axios.post(directionsGeoJsonUrl(profileName), routePayload, {
         headers: {
           Authorization: ORS_API_KEY,
           "Content-Type": "application/json",
