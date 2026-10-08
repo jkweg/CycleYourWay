@@ -644,4 +644,3 @@ $$;
 revoke all on function public.get_api_usage_today() from public;
 revoke execute on function public.get_api_usage_today() from anon, authenticated;
 grant execute on function public.get_api_usage_today() to service_role;
-
