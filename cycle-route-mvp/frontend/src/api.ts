@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { NETWORK_ERROR_MESSAGE } from './lib/userMessages'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -40,9 +41,7 @@ export async function apiFetch<T = unknown>(
       headers,
     })
   } catch {
-    throw new Error(
-      'Brak połączenia z serwerem. Uruchom backend: npm run dev (folder backend).',
-    )
+    throw new Error(NETWORK_ERROR_MESSAGE)
   }
 
   const data = (await response.json().catch(() => ({}))) as T & { error?: string }

@@ -14,6 +14,7 @@ import Navbar from './components/Navbar'
 import AddressAutocomplete from './components/AddressAutocomplete'
 import PlannerSidebar from './components/PlannerSidebar'
 import ChunkFallback from './components/ChunkFallback'
+import ErrorBoundary from './components/ErrorBoundary'
 import RouteAlternativesCompare from './components/RouteAlternativesCompare'
 import MapRouteDetailsBar from './components/MapRouteDetailsBar'
 import LoopDistanceControl from './components/LoopDistanceControl'
@@ -49,6 +50,7 @@ import {
 } from './lib/routeStats'
 import { pushAddressHistory } from './lib/addressHistory'
 import { isUuid } from './lib/shareLinks'
+import { isNetworkError, NETWORK_ERROR_MESSAGE, toUserMessage } from './lib/userMessages'
 import {
   ROUTE_NAME_MAX,
   buildSavedRouteGeoJson,
@@ -90,6 +92,7 @@ function isMissingColumnError(message) {
 
 function polishSaveError(message) {
   const text = String(message || '')
+  if (isNetworkError({ message: text })) return NETWORK_ERROR_MESSAGE
   if (/check constraint/i.test(text)) {
     return 'Trasa przekracza limity zapisu (długość nazwy, tagi lub rozmiar trasy).'
   }
@@ -430,7 +433,7 @@ function App() {
       setLoadedSavedRouteId(null)
       setLoadedSavedRouteName('')
       bumpRouteDisplay()
-      setError(requestError.message || 'Unexpected route error.')
+      setError(toUserMessage(requestError, 'Nie udało się wyznaczyć trasy.'))
       setIsLoadingRoute(false)
       trackEvent('route_fail', { mode: 'AtoB', message: requestError.message })
       captureException(requestError, { where: 'requestRoute' })
@@ -647,7 +650,7 @@ function App() {
 
       applyGeocodeResult(type, firstResult, viaId)
     } catch (requestError) {
-      setError(requestError.message || 'Unexpected geocoding error.')
+      setError(toUserMessage(requestError, 'Nie udało się znaleźć adresu.'))
     } finally {
       if (type === 'start') setIsSearchingStart(false)
       else if (type === 'end') setIsSearchingEnd(false)
@@ -754,7 +757,7 @@ function App() {
       setSelectedRouteIndex(0)
       setLoadedSavedRouteId(null)
       bumpRouteDisplay()
-      setError(requestError.message || 'Unexpected loop generation error.')
+      setError(toUserMessage(requestError, 'Nie udało się wyznaczyć pętli.'))
       trackEvent('route_fail', { mode: 'Loop', message: requestError.message })
       captureException(requestError, { where: 'handleLoopSubmit' })
     } finally {
@@ -925,7 +928,7 @@ function App() {
       setPlannerPanel('savedDetail')
       setShowSaveRouteModal(false)
     } catch (saveError) {
-      setError(saveError.message || 'Nie udało się zapisać trasy.')
+      setError(toUserMessage(saveError, 'Nie udało się zapisać trasy.'))
     } finally {
       setIsSavingRoute(false)
     }
@@ -1173,7 +1176,7 @@ function App() {
       })
       setShowOpenOnPhone(true)
     } catch (phoneError) {
-      setError(phoneError.message || 'Nie udało się przygotować linku na telefon.')
+      setError(toUserMessage(phoneError, 'Nie udało się przygotować linku na telefon.'))
     }
   }
 
@@ -1264,7 +1267,9 @@ function App() {
         ? 'Baza wymaga migracji client_request_id. Jazda pozostała bezpiecznie na tym urządzeniu.'
         : isCheckViolation(saveError)
           ? 'Dane jazdy przekraczają limity zapisu. Jazda pozostała bezpiecznie na tym urządzeniu.'
-          : saveError.message || 'Nie udało się zapisać jazdy. Dane pozostały na tym urządzeniu.'
+          : isNetworkError(saveError)
+            ? 'Brak połączenia z serwerem. Jazda pozostała bezpiecznie na tym urządzeniu — spróbuj ponownie po odzyskaniu internetu.'
+            : saveError.message || 'Nie udało się zapisać jazdy. Dane pozostały na tym urządzeniu.'
       throw new Error(message, { cause: saveError })
     }
   }
@@ -1565,6 +1570,16 @@ function App() {
 
   if (rideRoute) {
     return (
+      <ErrorBoundary
+        where="ride"
+        title="Nawigacja napotkała błąd"
+        description="Jazda zapisuje się na tym urządzeniu. Możesz ją wznowić lub wysłać później w Profil → Prywatność → Jazdy na tym urządzeniu."
+        actionLabel="Wróć do planera"
+        onAction={() => {
+          if (rideRoute.sessionId) dismissedRideDraftsRef.current.add(rideRoute.sessionId)
+          setRideRoute(null)
+        }}
+      >
       <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#2c1e16] text-orange-100" />}>
         <RideView
           key={rideSessionKey}
@@ -1586,6 +1601,7 @@ function App() {
           onRideComplete={handleRideComplete}
         />
       </Suspense>
+      </ErrorBoundary>
     )
   }
 

@@ -20,6 +20,14 @@ export function readAddressHistory() {
   }
 }
 
+export function clearAddressHistory() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // storage unavailable: nothing stored either
+  }
+}
+
 export function pushAddressHistory(entry) {
   if (!entry?.name || !Number.isFinite(entry.lat) || !Number.isFinite(entry.lon)) {
     return readAddressHistory()

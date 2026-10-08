@@ -363,3 +363,14 @@ select t.is(public.consume_api_quota('geocode', 'ip:5', 50, 50) ->> 'reason', 'd
 select t.is(public.consume_api_quota('directions', 'ip:5', 50, 50) ->> 'allowed', 'true',
   'quota: kill switch leaves other kinds running');
 reset role;
+
+-- Ops status RPC: backend-only, reports global usage and active kill switches
+set role service_role;
+select t.is(public.get_api_usage_today(),
+  '{"usage": {"directions": 4, "geocode": 1}, "disabled": ["geocode"]}'::jsonb,
+  'ops: get_api_usage_today reports global usage and kill switches only');
+reset role;
+select set_config('request.jwt.claims', '{"role":"anon"}', false);
+set role anon;
+select t.throws('select public.get_api_usage_today()', 'anon: cannot call get_api_usage_today', '42501');
+reset role;

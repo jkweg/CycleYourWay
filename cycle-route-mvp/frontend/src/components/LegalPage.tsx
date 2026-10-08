@@ -49,7 +49,7 @@ const TERMS: LegalDoc = {
     },
     {
       heading: 'Dane map i routingu',
-      body: 'Mapy pochodzą z OpenStreetMap. Routing z OpenRouteService (oraz awaryjnie OSRM). Obowiązują warunki tych usług.',
+      body: 'Dane mapy: © współtwórcy OpenStreetMap (ODbL). Trasy i podpowiedzi adresów: openrouteservice.org by HeiGIT — wyniki na licencji CC BY-SA 4.0. Wyszukiwanie adresu i nazwy miejsca: Nominatim (OpenStreetMap). Obowiązują warunki tych usług; gdy usługa routingu jest niedostępna, aplikacja nie wyznacza trasy zastępczej.',
     },
     {
       heading: 'Konta użytkowników',
