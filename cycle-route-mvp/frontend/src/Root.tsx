@@ -3,8 +3,10 @@ import App from './App.jsx'
 import { AuthProvider } from './AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoadingScreen from './components/LoadingScreen.jsx'
+import NativeIntro from './components/NativeIntro.jsx'
 import TopRouteBar from './components/TopRouteBar.jsx'
 import { hasSeenIntro, markIntroSeen, signalIntroDone } from './lib/intro'
+import { isNativePlatform } from './lib/platform'
 import { setSystemBarsTone } from './lib/systemBars'
 import { LegalStandalone, type LegalDocType } from './components/LegalPage'
 
@@ -17,8 +19,10 @@ function legalTypeFromPath(pathname: string): LegalDocType | null {
 
 export default function Root() {
   const legalType = legalTypeFromPath(window.location.pathname)
-  // The full intro plays only on the first visit on this device.
-  const [firstRun] = useState(() => !legalType && !hasSeenIntro())
+  // Web: the full intro plays only on the first visit on this device.
+  // Android app: the short launch animation plays on every cold start.
+  const [native] = useState(isNativePlatform)
+  const [firstRun] = useState(() => !legalType && (native || !hasSeenIntro()))
   const [showIntro, setShowIntro] = useState(firstRun)
 
   useEffect(() => {
@@ -40,7 +44,9 @@ export default function Root() {
 
   return (
     <>
-      {showIntro ? <LoadingScreen onComplete={finishIntro} /> : null}
+      {showIntro ? (
+        native ? <NativeIntro onComplete={finishIntro} /> : <LoadingScreen onComplete={finishIntro} />
+      ) : null}
       {!firstRun ? <TopRouteBar /> : null}
       <ErrorBoundary where="root">
         <AuthProvider>

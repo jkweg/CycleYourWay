@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   IconAdjustmentsHorizontal,
   IconArrowLeft,
@@ -31,7 +31,7 @@ const ElevationChart = lazy(() => import('../ElevationChart'))
 
 const LOOP_PRESETS = [20, 40, 60, 100]
 // Leaves the route clear of the floating top bar and of the bottom sheet.
-const MAP_FIT_PADDING = { top: 140, bottom: 340 }
+const MAP_FIT_PADDING = { top: 130, bottom: 260 }
 
 const formatKm = (value) => String(value).replace('.', ',')
 
@@ -47,7 +47,7 @@ function RoundButton({ label, onClick, children, dark = false, disabled = false 
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`grid h-12 w-12 shrink-0 place-items-center rounded-full shadow-[0_8px_22px_rgba(42,26,18,0.16)] transition active:scale-95 disabled:opacity-60 ${
+      className={`grid h-11 w-11 shrink-0 place-items-center rounded-full shadow-[0_8px_22px_rgba(42,26,18,0.16)] transition active:scale-95 disabled:opacity-60 ${
         dark ? 'bg-ink text-burnt-orange' : 'bg-white text-ink'
       }`}
     >
@@ -63,7 +63,7 @@ function Chip({ active, onClick, children, tone = 'ink' }) {
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition ${
+      className={`h-8 shrink-0 rounded-full px-3 text-[13px] font-semibold transition ${
         active ? on : 'border-[1.5px] border-sand bg-transparent text-ink'
       }`}
     >
@@ -85,7 +85,7 @@ function ModeTabs({ routeMode, onChange }) {
           role="tab"
           aria-selected={routeMode === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`h-11 rounded-full text-[15px] font-semibold transition ${
+          className={`h-9 rounded-full text-sm font-semibold transition ${
             routeMode === tab.id ? 'bg-ink font-bold text-white' : 'text-ink-muted'
           }`}
         >
@@ -98,15 +98,15 @@ function ModeTabs({ routeMode, onChange }) {
 
 function Preferences({ p }) {
   return (
-    <div className="space-y-3">
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+    <div className="space-y-2">
+      <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
         {RIDE_STYLES.map((style) => (
           <Chip key={style.id} active={p.rideStyle === style.id} onClick={() => p.setRideStyle(style.id)}>
             {style.label}
           </Chip>
         ))}
       </div>
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
         <Chip tone="sage" active={p.avoidMainRoads} onClick={() => p.setAvoidMainRoads(!p.avoidMainRoads)}>
           Bez głównych dróg
         </Chip>
@@ -128,13 +128,22 @@ function Preferences({ p }) {
   )
 }
 
+function preferencesSummary(p) {
+  const parts = [RIDE_STYLES.find((style) => style.id === p.rideStyle)?.label]
+  if (p.avoidMainRoads) parts.push('bez głównych dróg')
+  if (p.preferAsphalt) parts.push('asfalt')
+  const climb = CLIMB_PREFERENCES.find((c) => c.id === p.climbPreference)
+  if (climb && climb.id !== 'normal') parts.push(`podjazdy: ${climb.label.toLowerCase()}`)
+  return parts.filter(Boolean).join(' · ')
+}
+
 function PrimaryAction({ onClick, disabled, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-ink text-[17px] font-bold text-white shadow-[0_12px_26px_rgba(42,26,18,0.24)] transition active:scale-[0.99] disabled:bg-sand disabled:shadow-none"
+      className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ink text-base font-bold text-white shadow-[0_12px_26px_rgba(42,26,18,0.24)] transition active:scale-[0.99] disabled:bg-sand disabled:shadow-none"
     >
       {children}
     </button>
@@ -162,7 +171,7 @@ function SheetMessages({ p }) {
 function PlanAtoB({ p }) {
   return (
     <>
-      <div className="grid grid-cols-[22px_1fr] gap-x-3 rounded-[22px] border border-[#EFE0BC] bg-white px-3.5 py-2">
+      <div className="grid grid-cols-[18px_1fr] gap-x-2.5 rounded-[18px] border border-[#EFE0BC] bg-white px-3 py-1.5">
         <div className="flex flex-col items-center pt-5" aria-hidden="true">
           <span className="h-3 w-3 rounded-full border-[3px] border-burnt-orange bg-white" />
           <span className="my-1 w-0.5 flex-1 bg-[repeating-linear-gradient(#D9C79C_0_4px,transparent_4px_8px)]" />
@@ -170,7 +179,7 @@ function PlanAtoB({ p }) {
         </div>
         <div className="min-w-0 space-y-2 py-1">
           <div>
-            <label htmlFor="m-start" className="text-xs font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
+            <label htmlFor="m-start" className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
               Start
             </label>
             <div className="mt-1 flex gap-2">
@@ -190,7 +199,7 @@ function PlanAtoB({ p }) {
           {p.viaStops.map((stop, index) => (
             <div key={stop.id}>
               <div className="flex items-center justify-between">
-                <label htmlFor={`m-via-${stop.id}`} className="text-xs font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
+                <label htmlFor={`m-via-${stop.id}`} className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
                   Przystanek {index + 1}
                 </label>
                 <button
@@ -213,7 +222,7 @@ function PlanAtoB({ p }) {
             </div>
           ))}
           <div>
-            <label htmlFor="m-end" className="text-xs font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
+            <label htmlFor="m-end" className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
               Cel
             </label>
             <div className="mt-1">
@@ -234,14 +243,14 @@ function PlanAtoB({ p }) {
           type="button"
           onClick={p.handleAddViaStop}
           disabled={p.viaStops.length >= 5}
-          className="flex h-10 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-sand px-3.5 text-sm font-semibold text-ink-muted disabled:opacity-40"
+          className="flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-sand px-3 text-[13px] font-semibold text-ink-muted disabled:opacity-40"
         >
           <IconPlus size={16} stroke={2.4} /> Przystanek
         </button>
         <button
           type="button"
           onClick={p.handleReverseRoute}
-          className="flex h-10 items-center gap-1.5 rounded-full border-[1.5px] border-sand px-3.5 text-sm font-semibold text-ink-muted"
+          className="flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-sand px-3 text-[13px] font-semibold text-ink-muted"
         >
           <IconArrowsExchange size={16} /> Zamień
         </button>
@@ -249,13 +258,13 @@ function PlanAtoB({ p }) {
           <button
             type="button"
             onClick={p.clearCurrentPlan}
-            className="ml-auto h-10 rounded-full px-3 text-sm font-semibold text-rust"
+            className="ml-auto h-8 rounded-full px-2 text-[13px] font-semibold text-rust"
           >
             Wyczyść
           </button>
         )}
       </div>
-      <p className="text-xs text-[#6B4E3D]">Możesz też dotknąć mapy, żeby ustawić punkt.</p>
+      <p className="text-[11px] text-[#6B4E3D]">Możesz też dotknąć mapy, żeby ustawić punkt.</p>
     </>
   )
 }
@@ -265,8 +274,8 @@ function PlanLoop({ p }) {
   const estimate = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min` : `${minutes} min`
   return (
     <>
-      <div className="rounded-[18px] border border-[#EFE0BC] bg-white px-3.5 py-2.5">
-        <label htmlFor="m-loop-start" className="text-xs font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
+      <div className="rounded-[16px] border border-[#EFE0BC] bg-white px-3 py-2">
+        <label htmlFor="m-loop-start" className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
           Start i meta
         </label>
         <div className="mt-1 flex gap-2">
@@ -283,31 +292,13 @@ function PlanLoop({ p }) {
           </RoundButton>
         </div>
       </div>
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#6B4E3D]">Długość</p>
-          <p className="font-serif text-[52px] font-semibold leading-none text-ink">
-            {p.loopDistanceKm}
-            <span className="text-xl font-medium"> km</span>
-          </p>
-        </div>
-        <p className="pb-2 text-[15px] text-ink-muted">ok. {estimate}</p>
-      </div>
-      <div role="radiogroup" aria-label="Szybki wybór długości" className="grid grid-cols-4 gap-2">
-        {LOOP_PRESETS.map((km) => (
-          <button
-            key={km}
-            type="button"
-            role="radio"
-            aria-checked={p.loopDistanceKm === km}
-            onClick={() => p.setLoopDistanceKm(km)}
-            className={`h-11 rounded-2xl text-[15px] font-bold text-ink ${
-              p.loopDistanceKm === km ? 'bg-burnt-orange' : 'border border-[#EFE0BC] bg-white'
-            }`}
-          >
-            {km} km
-          </button>
-        ))}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B4E3D]">Długość</p>
+        <p className="whitespace-nowrap font-serif text-[30px] font-semibold leading-none text-ink">
+          {p.loopDistanceKm}
+          <span className="text-sm font-medium"> km</span>
+          <span className="ml-2 font-sans text-[13px] font-normal text-ink-muted">ok. {estimate}</span>
+        </p>
       </div>
       <input
         type="range"
@@ -319,6 +310,22 @@ function PlanLoop({ p }) {
         aria-label="Długość pętli w kilometrach"
         className="loop-distance-range w-full"
       />
+      <div role="radiogroup" aria-label="Szybki wybór długości" className="grid grid-cols-4 gap-1.5">
+        {LOOP_PRESETS.map((km) => (
+          <button
+            key={km}
+            type="button"
+            role="radio"
+            aria-checked={p.loopDistanceKm === km}
+            onClick={() => p.setLoopDistanceKm(km)}
+            className={`h-8 rounded-full text-[13px] font-bold ${
+              p.loopDistanceKm === km ? 'bg-ink text-white' : 'border-[1.5px] border-sand text-ink'
+            }`}
+          >
+            {km} km
+          </button>
+        ))}
+      </div>
     </>
   )
 }
@@ -328,26 +335,26 @@ function ResultCard({ p, onExpand }) {
   return (
     <section
       aria-label="Podsumowanie trasy"
-      className="pointer-events-auto mx-3 mb-4 space-y-3.5 rounded-[30px] bg-vanilla px-[18px] pb-[18px] pt-2.5 shadow-[0_18px_44px_rgba(42,26,18,0.22)]"
+      className="pointer-events-auto mx-2.5 mb-3 space-y-3 rounded-[24px] bg-vanilla px-4 pb-4 pt-1.5 shadow-[0_18px_44px_rgba(42,26,18,0.22)]"
     >
-      <button type="button" onClick={onExpand} aria-label="Rozwiń szczegóły trasy" className="mx-auto flex h-6 w-24 items-center justify-center">
-        <span className="h-1 w-10 rounded-full bg-sand" />
+      <button type="button" onClick={onExpand} aria-label="Rozwiń szczegóły trasy" className="mx-auto flex h-5 w-24 items-center justify-center">
+        <span className="h-1 w-9 rounded-full bg-sand" />
       </button>
       <SheetMessages p={p} />
       <div className="flex items-end justify-between gap-3">
-        <p className="font-serif text-[44px] font-semibold leading-none text-ink">
+        <p className="whitespace-nowrap font-serif text-[34px] font-semibold leading-none text-ink">
           {formatKm(p.routeStats.distanceKm)}
-          <span className="text-xl font-medium"> km</span>
+          <span className="text-[15px] font-medium"> km</span>
         </p>
-        <div className="flex gap-4 pb-1 text-right">
-          <p>
-            <strong className="block text-[17px]">{formatDuration(p.routeStats)}</strong>
-            <span className="text-xs text-[#6B4E3D]">czas</span>
+        <div className="flex gap-3.5 pb-0.5 text-right">
+          <p className="whitespace-nowrap">
+            <strong className="block text-[15px] leading-tight">{formatDuration(p.routeStats)}</strong>
+            <span className="text-[11px] text-[#6B4E3D]">czas</span>
           </p>
           {gain != null && (
-            <p>
-              <strong className="block text-[17px]">↗ {Math.round(gain)} m</strong>
-              <span className="text-xs text-[#6B4E3D]">podjazdy</span>
+            <p className="whitespace-nowrap">
+              <strong className="block text-[15px] leading-tight">↗ {Math.round(gain)} m</strong>
+              <span className="text-[11px] text-[#6B4E3D]">podjazdy</span>
             </p>
           )}
         </div>
@@ -361,7 +368,7 @@ function ResultCard({ p, onExpand }) {
               role="radio"
               aria-checked={p.selectedRouteIndex === alt.index}
               onClick={() => p.setSelectedRouteIndex(alt.index)}
-              className={`h-9 shrink-0 rounded-full px-3.5 text-sm font-semibold ${
+              className={`h-8 shrink-0 rounded-full px-3 text-[13px] font-semibold ${
                 p.selectedRouteIndex === alt.index ? 'bg-ink text-white' : 'border-[1.5px] border-sand text-ink'
               }`}
             >
@@ -370,12 +377,12 @@ function ResultCard({ p, onExpand }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-[1fr_52px_52px] gap-2">
+      <div className="grid grid-cols-[1fr_48px_48px] gap-2">
         <button
           type="button"
           onClick={p.handleStartRide}
           disabled={p.isPreparingRide}
-          className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-burnt-orange text-lg font-bold text-ink shadow-[0_12px_24px_rgba(224,85,24,0.28)] disabled:opacity-60"
+          className="flex h-12 items-center justify-center gap-2 rounded-full bg-burnt-orange text-base font-bold text-ink shadow-[0_10px_22px_rgba(224,85,24,0.26)] disabled:opacity-60"
         >
           <IconPlayerPlayFilled size={18} />
           {p.isPreparingRide ? 'Przygotowuję…' : 'Jedź'}
@@ -385,11 +392,11 @@ function ResultCard({ p, onExpand }) {
           aria-label="Zapisz trasę"
           onClick={p.handleSaveRouteClick}
           disabled={p.isSavingRoute}
-          className="grid h-14 place-items-center rounded-full bg-white text-ink disabled:opacity-60"
+          className="grid h-12 place-items-center rounded-full bg-white text-ink disabled:opacity-60"
         >
           <IconBookmark size={22} />
         </button>
-        <button type="button" aria-label="Szczegóły trasy" onClick={onExpand} className="grid h-14 place-items-center rounded-full bg-white text-ink">
+        <button type="button" aria-label="Szczegóły trasy" onClick={onExpand} className="grid h-12 place-items-center rounded-full bg-white text-ink">
           <IconChevronUp size={22} stroke={2.2} />
         </button>
       </div>
@@ -405,14 +412,14 @@ function DetailsSheet({ p, onCollapse }) {
   return (
     <section
       aria-label="Szczegóły trasy"
-      className="pointer-events-auto flex max-h-[78dvh] flex-col rounded-t-[30px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)]"
+      className="pointer-events-auto flex max-h-[72dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)]"
     >
       <div className="shrink-0 space-y-2 px-[18px] pt-2.5">
         <button type="button" onClick={onCollapse} aria-label="Zwiń szczegóły" className="mx-auto flex h-6 w-24 items-center justify-center">
           <span className="h-1 w-10 rounded-full bg-sand" />
         </button>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="truncate font-serif text-[26px] font-medium text-ink">{title}</h2>
+          <h2 className="truncate font-serif text-[22px] font-medium text-ink">{title}</h2>
           <RoundButton label="Zwiń" onClick={onCollapse}>
             <IconChevronDown size={20} stroke={2.4} />
           </RoundButton>
@@ -472,7 +479,7 @@ function DetailsSheet({ p, onCollapse }) {
               key={label}
               type="button"
               onClick={onClick}
-              className="flex h-[70px] flex-col items-center justify-center gap-1.5 rounded-[18px] bg-white text-xs font-semibold text-ink"
+              className="flex h-[58px] flex-col items-center justify-center gap-1 rounded-[16px] bg-white text-[11px] font-semibold text-ink"
             >
               <Icon size={20} className="text-burnt-orange-dark" />
               {label}
@@ -485,7 +492,7 @@ function DetailsSheet({ p, onCollapse }) {
           type="button"
           onClick={p.handleStartRide}
           disabled={p.isPreparingRide}
-          className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-burnt-orange text-lg font-bold text-ink disabled:opacity-60"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-burnt-orange text-base font-bold text-ink disabled:opacity-60"
         >
           <IconPlayerPlayFilled size={18} />
           {p.isPreparingRide ? 'Przygotowuję…' : 'Jedź tą trasą'}
@@ -502,7 +509,7 @@ function BottomNav({ active, onMap, onSaved, onProfile }) {
     { id: 'profile', label: 'Profil', icon: IconUser, onClick: onProfile },
   ]
   return (
-    <nav aria-label="Nawigacja główna" className="grid h-16 grid-cols-3 items-center rounded-full bg-ink px-2">
+    <nav aria-label="Nawigacja główna" className="grid h-[54px] grid-cols-3 items-center rounded-full bg-ink px-1.5">
       {items.map(({ id, label, icon: Icon, onClick }) =>
         active === id ? (
           <button
@@ -510,14 +517,14 @@ function BottomNav({ active, onMap, onSaved, onProfile }) {
             type="button"
             aria-current="page"
             onClick={onClick}
-            className="flex h-12 items-center justify-center gap-1.5 rounded-full bg-vanilla text-[13px] font-bold text-ink"
+            className="flex h-[42px] items-center justify-center gap-1.5 rounded-full bg-vanilla text-[13px] font-bold text-ink"
           >
-            <Icon size={20} stroke={2.2} className="text-burnt-orange-dark" />
+            <Icon size={18} stroke={2.2} className="text-burnt-orange-dark" />
             {label}
           </button>
         ) : (
-          <button key={id} type="button" aria-label={label} onClick={onClick} className="grid h-12 place-items-center text-vanilla-deep">
-            <Icon size={22} />
+          <button key={id} type="button" aria-label={label} onClick={onClick} className="grid h-[42px] place-items-center text-vanilla-deep">
+            <Icon size={20} />
           </button>
         ),
       )}
@@ -539,6 +546,7 @@ function MobilePlanner({ p, sheet, setSheet }) {
   }
   const openProfile = () => (p.isAuthenticated ? p.openProfile() : p.openAuth())
   const initials = (p.userEmail || '').slice(0, 2).toUpperCase()
+  const [prefsOpen, setPrefsOpen] = useState(false)
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#EFE3C4] font-sans text-ink">
@@ -576,16 +584,16 @@ function MobilePlanner({ p, sheet, setSheet }) {
                 type="button"
                 aria-label={p.isAuthenticated ? 'Profil' : 'Zaloguj się'}
                 onClick={openProfile}
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-ink text-[15px] font-bold text-white shadow-[0_8px_22px_rgba(42,26,18,0.18)]"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-ink text-sm font-bold text-white shadow-[0_8px_22px_rgba(42,26,18,0.18)]"
               >
                 {p.isAuthenticated && initials ? initials : <IconUser size={20} />}
               </button>
               <button
                 type="button"
                 onClick={() => openPlan('AtoB')}
-                className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-4 text-left text-[15px] text-[#6B4E3D] shadow-[0_8px_22px_rgba(42,26,18,0.14)]"
+                className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3.5 text-left text-[15px] text-[#6B4E3D] shadow-[0_8px_22px_rgba(42,26,18,0.14)]"
               >
-                <IconSearch size={20} className="shrink-0 text-ink" />
+                <IconSearch size={18} className="shrink-0 text-ink" />
                 <span className="truncate">Dokąd dziś jedziesz?</span>
               </button>
             </>
@@ -598,7 +606,7 @@ function MobilePlanner({ p, sheet, setSheet }) {
                 <IconArrowLeft size={20} stroke={2.2} />
               </RoundButton>
               {hasRoute && (sheet === 'result' || sheet === 'details') && (
-                <span className="flex h-12 items-center gap-2 rounded-full bg-white px-4 text-[15px] font-semibold shadow-[0_8px_22px_rgba(42,26,18,0.14)]">
+                <span className="flex h-9 items-center gap-2 rounded-full bg-white px-3.5 text-sm font-semibold shadow-[0_8px_22px_rgba(42,26,18,0.14)]">
                   <span className="h-2 w-2 rounded-full bg-burnt-orange" />
                   {p.routeMode === 'Loop' ? 'Pętla' : 'A → B'} ·{' '}
                   {RIDE_STYLES.find((s) => s.id === p.rideStyle)?.label || 'Trasa'}
@@ -617,36 +625,36 @@ function MobilePlanner({ p, sheet, setSheet }) {
         {sheet === 'home' && (
           <section
             aria-label="Nowa trasa"
-            className={`pointer-events-auto space-y-3.5 rounded-t-[30px] bg-vanilla px-[18px] pt-2.5 shadow-[0_-14px_40px_rgba(42,26,18,0.16)] ${bottomPad}`}
+            className={`pointer-events-auto space-y-2.5 rounded-t-[24px] bg-vanilla px-3.5 pt-2 shadow-[0_-10px_30px_rgba(42,26,18,0.14)] ${bottomPad}`}
           >
-            <span className="mx-auto block h-1 w-10 rounded-full bg-sand" />
-            <h1 className="font-serif text-[28px] font-medium leading-tight text-ink">Gdzie jedziemy?</h1>
+            <span className="mx-auto block h-1 w-9 rounded-full bg-sand" />
+            <h1 className="sr-only">Gdzie jedziemy?</h1>
             <SheetMessages p={p} />
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => openPlan('AtoB')}
-                className="flex flex-col gap-3.5 rounded-[22px] border border-[#EFE0BC] bg-white p-4 text-left shadow-[0_6px_18px_rgba(42,26,18,0.06)]"
+                className="flex h-14 items-center gap-2.5 rounded-[18px] border border-[#EFE0BC] bg-white px-3 text-left"
               >
-                <span className="grid h-11 w-11 place-items-center rounded-[14px] bg-vanilla">
-                  <IconRoute size={24} className="text-burnt-orange-dark" />
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-vanilla">
+                  <IconRoute size={20} className="text-burnt-orange-dark" />
                 </span>
-                <span>
-                  <strong className="block text-[17px]">Z A do B</strong>
-                  <span className="text-[13px] text-[#6B4E3D]">Trasa do celu</span>
+                <span className="min-w-0 leading-tight">
+                  <strong className="block text-[15px]">Z A do B</strong>
+                  <span className="text-xs text-[#6B4E3D]">do celu</span>
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => openPlan('Loop')}
-                className="flex flex-col gap-3.5 rounded-[22px] bg-ink p-4 text-left text-white shadow-[0_10px_24px_rgba(42,26,18,0.22)]"
+                className="flex h-14 items-center gap-2.5 rounded-[18px] bg-ink px-3 text-left text-white"
               >
-                <span className="grid h-11 w-11 place-items-center rounded-[14px] bg-burnt-orange">
-                  <IconRepeat size={24} stroke={2.2} className="text-ink" />
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-burnt-orange">
+                  <IconRepeat size={20} stroke={2.2} className="text-ink" />
                 </span>
-                <span>
-                  <strong className="block text-[17px]">Pętla</strong>
-                  <span className="text-[13px] text-vanilla-deep">Wróć do startu</span>
+                <span className="min-w-0 leading-tight">
+                  <strong className="block text-[15px]">Pętla</strong>
+                  <span className="text-xs text-vanilla-deep">wróć do startu</span>
                 </span>
               </button>
             </div>
@@ -654,11 +662,11 @@ function MobilePlanner({ p, sheet, setSheet }) {
               <button
                 type="button"
                 onClick={() => setSheet('result')}
-                className="flex w-full items-center gap-2 rounded-full border border-[#EFE0BC] bg-white px-4 py-2.5 text-sm font-semibold"
+                className="flex h-9 w-full items-center gap-2 rounded-full border border-[#EFE0BC] bg-white px-3.5 text-[13px] font-semibold"
               >
                 <span className="h-2 w-2 rounded-full bg-burnt-orange" />
                 Wróć do trasy · {formatKm(p.routeStats.distanceKm)} km
-                <IconArrowRight size={16} className="ml-auto text-rust" />
+                <IconArrowRight size={15} className="ml-auto text-rust" />
               </button>
             )}
             <BottomNav active="map" onMap={() => setSheet('home')} onSaved={() => setSheet('saved')} onProfile={openProfile} />
@@ -668,23 +676,36 @@ function MobilePlanner({ p, sheet, setSheet }) {
         {sheet === 'plan' && (
           <section
             aria-label={p.routeMode === 'Loop' ? 'Planowanie pętli' : 'Planowanie trasy z A do B'}
-            className="pointer-events-auto flex max-h-[80dvh] flex-col rounded-t-[30px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)]"
+            className="pointer-events-auto flex max-h-[66dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-10px_30px_rgba(42,26,18,0.14)]"
           >
-            <div className="shrink-0 px-4 pt-2.5">
-              <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-sand" />
+            <div className="shrink-0 px-4 pt-2">
+              <span className="mx-auto mb-2 block h-1 w-9 rounded-full bg-sand" />
               <ModeTabs routeMode={p.routeMode} onChange={(mode) => p.handleRouteModeChange(mode)} />
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-2 pt-4">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-1 pt-3">
               {p.routeMode === 'Loop' ? <PlanLoop p={p} /> : <PlanAtoB p={p} />}
               <div>
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#6B4E3D]">
-                  <IconAdjustmentsHorizontal size={14} /> Preferencje
-                </p>
-                <Preferences p={p} />
+                <button
+                  type="button"
+                  aria-expanded={prefsOpen}
+                  aria-controls="m-preferences"
+                  onClick={() => setPrefsOpen((open) => !open)}
+                  className="flex h-10 w-full items-center gap-2 rounded-[14px] border border-[#EFE0BC] bg-white px-3 text-left"
+                >
+                  <IconAdjustmentsHorizontal size={16} className="shrink-0 text-burnt-orange-dark" />
+                  <strong className="text-[13px]">Preferencje</strong>
+                  <span className="min-w-0 flex-1 truncate text-xs text-[#6B4E3D]">{preferencesSummary(p)}</span>
+                  <IconChevronDown size={16} stroke={2.4} className={`shrink-0 transition ${prefsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {prefsOpen && (
+                  <div id="m-preferences" className="pt-2">
+                    <Preferences p={p} />
+                  </div>
+                )}
               </div>
               <SheetMessages p={p} />
             </div>
-            <div className={`shrink-0 px-4 pt-3 ${bottomPad}`}>
+            <div className={`shrink-0 px-4 pt-2 ${bottomPad}`}>
               <PrimaryAction
                 onClick={p.routeMode === 'Loop' ? p.handleLoopSubmit : p.handleRouteSubmit}
                 disabled={p.isLoadingRoute}
@@ -703,11 +724,11 @@ function MobilePlanner({ p, sheet, setSheet }) {
         {sheet === 'saved' && (
           <section
             aria-label="Zapisane trasy"
-            className={`pointer-events-auto flex max-h-[82dvh] flex-col rounded-t-[30px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)] ${bottomPad}`}
+            className={`pointer-events-auto flex max-h-[82dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)] ${bottomPad}`}
           >
             <div className="shrink-0 px-[18px] pt-2.5">
               <span className="mx-auto mb-2 block h-1 w-10 rounded-full bg-sand" />
-              <h1 className="font-serif text-[30px] font-medium text-ink">Zapisane</h1>
+              <h1 className="font-serif text-[22px] font-medium text-ink">Zapisane</h1>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-[18px] py-3">
               <SheetMessages p={p} />
