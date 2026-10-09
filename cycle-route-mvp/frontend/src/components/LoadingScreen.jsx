@@ -1,183 +1,250 @@
 import { useEffect, useRef, useState } from 'react'
-import LoadingCyclist from './LoadingCyclist'
-import LoadingHandwritingTitle from './LoadingHandwritingTitle'
-import SplitText from './SplitText'
+import { BikeShapes, BrandMark } from './brand/BikeGlyph'
+import { prefersReducedMotion } from '../lib/intro'
+import { BIKE_SIZE, easeInOutCubic, placeOnPath } from '../lib/routeMotion'
 
-const PROGRESS_MS = 2500
-const TITLE_MS = 2000
-const FADE_MS = 700
-const BRAND_TITLE = 'Cycle Your Way'
-/** 'filled' = solid letters while drawing; 'outline' = previous contour-first version */
-const TITLE_DRAW_VARIANT = 'filled'
-const TITLE_ANIMATION_MODE = 'split' // 'handwriting' to revert to SVG "pen" version
+// First-run intro ("atlas trasy"). The route line is the progress bar: it draws
+// as the app loads and the bike rides on its tip. Shown once per device (Root).
+const MIN_MS = 2600
+const FINISH_MS = 450
+const EXIT_MS = 450
+const WAITING_CAP = 0.92
+const PATH_START = 0.06
+const PATH_PARKED = 0.8
+
+const ROUTES = {
+  wide: {
+    viewBox: '0 0 1440 300',
+    d: 'M -110 196 C 60 196 220 96 380 112 S 600 236 760 196 S 980 70 1120 100 S 1340 220 1550 150',
+    waypoints: [[380, 112], [760, 196], [1120, 100]],
+    bikeScale: 0.95,
+  },
+  narrow: {
+    viewBox: '0 0 390 220',
+    d: 'M -70 160 C 70 160 100 60 180 70 S 290 200 460 110',
+    waypoints: [[180, 70]],
+    bikeScale: 0.72,
+  },
+}
+
+function pageReady() {
+  const loaded =
+    document.readyState === 'complete'
+      ? Promise.resolve()
+      : new Promise((resolve) => window.addEventListener('load', resolve, { once: true }))
+  const fonts = document.fonts?.ready ?? Promise.resolve()
+  return Promise.all([loaded, fonts.catch(() => undefined)])
+}
 
 function LoadingScreen({ onComplete }) {
-  const [progress, setProgress] = useState(0)
-  const [titleProgress, setTitleProgress] = useState(0)
-  const [isExiting, setIsExiting] = useState(false)
-  const completedRef = useRef(false)
+  const [percent, setPercent] = useState(0)
+  const [exiting, setExiting] = useState(false)
+  const [narrow] = useState(() => window.matchMedia?.('(max-width: 640px)').matches ?? false)
+  const pathRef = useRef(null)
+  const trailRef = useRef(null)
+  const riderRef = useRef(null)
   const onCompleteRef = useRef(onComplete)
+  const route = narrow ? ROUTES.narrow : ROUTES.wide
 
   useEffect(() => {
     onCompleteRef.current = onComplete
   }, [onComplete])
 
   useEffect(() => {
-    const start = performance.now()
-    let pageReady = document.readyState === 'complete'
-    let readyElapsed = pageReady ? 0 : null
-    let rafId = 0
-    let fadeTimer = 0
+    const reduced = prefersReducedMotion()
+    const minMs = reduced ? 500 : MIN_MS
+    const started = performance.now()
+    let ready = false
+    let finishFrom = null
+    let finishStart = 0
+    let frame = 0
+    let exitTimer = 0
+    let lastPercent = -1
 
-    const markReady = () => {
-      if (readyElapsed === null) {
-        readyElapsed = performance.now() - start
-        pageReady = true
+    pageReady().then(() => {
+      ready = true
+    })
+
+    // The route starts and ends off-screen: while loading, the bike rides the
+    // visible stretch (START..PARKED); finishing carries it out of the frame.
+    const toPath = (p) =>
+      p <= WAITING_CAP
+        ? PATH_START + (PATH_PARKED - PATH_START) * (p / WAITING_CAP)
+        : PATH_PARKED + (1 - PATH_PARKED) * ((p - WAITING_CAP) / (1 - WAITING_CAP))
+
+    const draw = (p) => {
+      if (pathRef.current) {
+        placeOnPath(pathRef.current, toPath(p), {
+          rider: riderRef.current,
+          trail: trailRef.current,
+          scale: route.bikeScale,
+          anchor: [BIKE_SIZE.width / 2, BIKE_SIZE.groundY],
+        })
+      }
+      const next = Math.round(p * 100)
+      if (next !== lastPercent) {
+        lastPercent = next
+        setPercent(next)
       }
     }
 
-    window.addEventListener('load', markReady)
-    if (pageReady) markReady()
-
-    const finish = () => {
-      if (completedRef.current) return
-      completedRef.current = true
-      setProgress(100)
-      setTitleProgress(100)
-      setIsExiting(true)
-      fadeTimer = window.setTimeout(() => {
-        onCompleteRef.current?.()
-      }, FADE_MS)
-    }
-
-    const frame = (now) => {
-      const elapsed = now - start
-
-      if (pageReady && readyElapsed === null) {
-        readyElapsed = elapsed
+    const tick = (now) => {
+      const elapsed = now - started
+      const waiting = easeInOutCubic(Math.min(1, elapsed / minMs)) * WAITING_CAP
+      if (ready && elapsed >= minMs && finishFrom === null) {
+        finishFrom = waiting
+        finishStart = now
       }
-
-      const duration =
-        readyElapsed === null
-          ? Math.max(PROGRESS_MS, elapsed / 0.9)
-          : Math.max(PROGRESS_MS, readyElapsed)
-
-      const next = Math.min(100, (elapsed / duration) * 100)
-      const nextTitle = Math.min(100, (elapsed / TITLE_MS) * 100)
-      setProgress(next)
-      setTitleProgress(nextTitle)
-
-      if (readyElapsed !== null && elapsed >= duration) {
-        finish()
-        return
+      if (finishFrom !== null) {
+        const t = Math.min(1, (now - finishStart) / FINISH_MS)
+        draw(finishFrom + (1 - finishFrom) * easeInOutCubic(t))
+        if (t >= 1) {
+          setExiting(true)
+          exitTimer = window.setTimeout(() => onCompleteRef.current?.(), EXIT_MS)
+          return
+        }
+      } else {
+        draw(waiting)
       }
-
-      rafId = requestAnimationFrame(frame)
+      frame = requestAnimationFrame(tick)
     }
-
-    rafId = requestAnimationFrame(frame)
+    frame = requestAnimationFrame(tick)
 
     return () => {
-      window.removeEventListener('load', markReady)
-      cancelAnimationFrame(rafId)
-      window.clearTimeout(fadeTimer)
+      cancelAnimationFrame(frame)
+      window.clearTimeout(exitTimer)
     }
-  }, [])
+  }, [route])
 
-  const percent = Math.round(progress)
+  const skip = () => {
+    setExiting(true)
+    window.setTimeout(() => onCompleteRef.current?.(), EXIT_MS)
+  }
 
   return (
     <div
-      className={`loading-screen fixed inset-0 z-[5000] flex flex-col overflow-hidden ${
-        isExiting ? 'loading-screen--exit' : ''
+      className={`intro-screen fixed inset-0 z-[10000] flex flex-col overflow-hidden bg-ink text-vanilla ${
+        exiting ? 'intro-screen--exit cyw-paused' : ''
       }`}
-      style={{
-        backgroundColor: 'var(--color-vanilla)',
-        color: 'var(--color-burnt-orange)',
-        '--loading-progress': String(progress / 100),
-      }}
-      role="status"
-      aria-live="polite"
-      aria-busy={!isExiting}
-      aria-label={`Ładowanie ${BRAND_TITLE}, ${percent}%`}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+      aria-label="Ładowanie Cycle Your Way"
     >
-      <div className="pointer-events-none absolute inset-0 opacity-40">
-        <div
-          className="absolute -left-1/4 top-[-20%] h-[55%] w-[70%] rounded-full blur-3xl"
-          style={{ background: 'rgba(252, 108, 38, 0.12)' }}
-        />
-        <div
-          className="absolute -right-1/4 bottom-[-10%] h-[50%] w-[60%] rounded-full blur-3xl"
-          style={{ background: 'rgba(252, 108, 38, 0.1)' }}
-        />
-      </div>
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <g fill="none" stroke="rgba(252,108,38,0.14)" strokeWidth="1">
+          <path d="M-40 140 C 220 60 420 220 700 150 S 1180 40 1500 130" />
+          <path d="M-40 180 C 230 100 430 260 700 190 S 1190 80 1500 170" />
+          <path d="M-40 222 C 240 142 440 300 700 232 S 1200 122 1500 212" />
+          <path d="M-40 690 C 260 610 520 780 820 700 S 1240 600 1500 680" />
+          <path d="M-40 732 C 270 652 530 822 830 742 S 1250 642 1500 722" />
+          <path d="M-40 776 C 280 696 540 866 840 786 S 1260 686 1500 766" />
+        </g>
+        <g fill="none" stroke="rgba(143,198,168,0.16)" strokeWidth="1">
+          <ellipse cx="1180" cy="330" rx="150" ry="70" />
+          <ellipse cx="1180" cy="330" rx="96" ry="42" />
+          <ellipse cx="1180" cy="330" rx="44" ry="18" />
+        </g>
+      </svg>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--color-burnt-orange)]/70">
-          Witaj
-        </p>
-        {TITLE_ANIMATION_MODE === 'handwriting' ? (
-          <LoadingHandwritingTitle
-            progress={titleProgress}
-            variant={TITLE_DRAW_VARIANT}
-            className="loading-screen__title mt-3 h-[clamp(4.5rem,15vw,7.75rem)] w-full max-w-[min(96vw,44rem)] text-[color:var(--color-burnt-orange)]"
-          />
-        ) : (
-          <SplitText
-            tag="h1"
-            text={BRAND_TITLE}
-            className="loading-screen__title mt-3 w-full max-w-[min(96vw,56rem)] px-2 text-[color:var(--color-burnt-orange)] text-center text-[clamp(3.5rem,11vw,6.5rem)]"
-            splitType="chars"
-            delay={130}
-            duration={1.2}
-            ease="elastic.out"
-            from={{ opacity: 0, y: 36 }}
-            to={{ opacity: 1, y: 0 }}
-            threshold={1}
-            rootMargin="0px"
-            textAlign="center"
-            useScrollTrigger={false}
-          />
-        )}
-        <p className="mt-4 max-w-sm text-center text-base leading-6 text-[color:var(--color-burnt-orange)]/75 md:text-lg">
-          Planer i nawigacja rowerowa
-        </p>
-
-        <div className="loading-screen__track relative mt-14 h-24 w-full max-w-xl md:mt-16 md:h-28">
-          <div
-            className="absolute bottom-2 left-0 right-0 h-px"
-            style={{ background: 'rgba(252, 108, 38, 0.25)' }}
-          />
-          <div className="loading-screen__cyclist-rail">
-            <div className="loading-screen__cyclist">
-              <LoadingCyclist
-                progress={progress}
-                className="h-24 w-auto text-[color:var(--color-burnt-orange)] md:h-28"
-              />
-            </div>
-          </div>
+      <header
+        className="relative flex items-center justify-between px-6 pb-4 sm:px-16"
+        style={{ paddingTop: 'max(2rem, calc(env(safe-area-inset-top) + 1rem))' }}
+      >
+        <div className="flex items-center gap-3 text-[13px] font-semibold uppercase tracking-[0.22em] text-white">
+          <BrandMark color="#FC6C26" />
+          <span className="hidden sm:inline">Cycle Your Way</span>
         </div>
+        <div className="flex items-center gap-2.5 text-sm text-vanilla/80">
+          <span className="cyw-breathe h-2 w-2 rounded-full bg-sage-light" />
+          Przygotowujemy mapę
+        </div>
+      </header>
+
+      <main className="relative flex flex-1 flex-col justify-center gap-4 px-7 sm:items-center sm:text-center">
+        <p className="cyw-rise text-xs font-semibold uppercase tracking-[0.32em] text-burnt-orange sm:text-sm">
+          Witaj w drodze
+        </p>
+        <h1 className="cyw-rise cyw-rise--2 font-serif text-[clamp(4rem,10vw,8rem)] font-medium leading-[0.95] tracking-[-0.02em] text-white">
+          Cycle <br className="sm:hidden" />
+          Your <span className="italic text-burnt-orange">Way</span>
+        </h1>
+        <p className="cyw-rise cyw-rise--3 max-w-[32rem] text-[17px] leading-relaxed text-vanilla/80 sm:text-xl">
+          Planer i nawigacja rowerowa — trasa skrojona pod Twoje tempo.
+        </p>
+      </main>
+
+      <div className={`relative w-full ${narrow ? 'h-[200px]' : 'h-[clamp(180px,24vw,300px)]'}`}>
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full"
+          viewBox={route.viewBox}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <path
+            d={route.d}
+            fill="none"
+            stroke="rgba(255,244,214,0.18)"
+            strokeWidth="3"
+            strokeDasharray="2 12"
+            strokeLinecap="round"
+          />
+          <path
+            ref={pathRef}
+            d={route.d}
+            fill="none"
+            stroke="none"
+          />
+          <path
+            ref={trailRef}
+            d={route.d}
+            pathLength="1000"
+            fill="none"
+            stroke="#FC6C26"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray="1000"
+            strokeDashoffset="1000"
+          />
+          {route.waypoints.map(([x, y]) => (
+            <circle key={`${x}-${y}`} cx={x} cy={y} r="7" fill="#FFFFFF" stroke="#FC6C26" strokeWidth="3" />
+          ))}
+          <g ref={riderRef}>
+            <BikeShapes
+              tire="#FFFFFF"
+              spoke="rgba(255,244,214,0.55)"
+              frame="#FC6C26"
+              hub="#2A1A12"
+              spinning
+            />
+          </g>
+        </svg>
       </div>
 
-      <div className="relative z-10 w-full px-6 pb-10 md:px-10 md:pb-12">
-        <div className="mx-auto flex w-full max-w-xl items-end justify-between gap-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-burnt-orange)]/70">
-            Ładowanie
-          </span>
-          <span className="font-serif text-2xl font-semibold tabular-nums text-[color:var(--color-burnt-orange)]">
+      <footer
+        className="relative flex items-end justify-between gap-4 px-7 sm:px-16"
+        style={{ paddingBottom: 'max(2.25rem, calc(env(safe-area-inset-bottom) + 1.25rem))' }}
+      >
+        <button
+          type="button"
+          onClick={skip}
+          className="min-h-11 rounded-full px-1 text-xs font-semibold uppercase tracking-[0.18em] text-vanilla/70 transition hover:text-white"
+        >
+          Pomiń
+        </button>
+        <div className="flex items-baseline gap-2.5">
+          <span className="text-xs uppercase tracking-[0.18em] text-vanilla/80">Ładowanie</span>
+          <span className="font-serif text-4xl font-semibold tabular-nums text-white sm:text-[44px]">
             {percent}%
           </span>
         </div>
-        <div
-          className="mx-auto mt-3 h-2 w-full max-w-xl overflow-hidden rounded-full"
-          style={{ background: 'rgba(252, 108, 38, 0.18)' }}
-        >
-          <div
-            className="loading-screen__bar h-full rounded-full will-change-transform"
-            style={{ backgroundColor: 'var(--color-burnt-orange)' }}
-          />
-        </div>
-      </div>
+      </footer>
     </div>
   )
 }

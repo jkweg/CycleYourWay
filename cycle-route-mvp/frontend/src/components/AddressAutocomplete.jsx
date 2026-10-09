@@ -146,7 +146,7 @@ function AddressAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full rounded-xl border-2 border-[#C4A574] bg-white px-3.5 py-3 text-[15px] font-medium text-[#4a3226] outline-none transition placeholder:font-normal placeholder:text-stone-400 hover:border-[#E08A50] focus:border-[#FC6C26] focus:ring-2 focus:ring-[#FC6C26]/25 disabled:bg-[#F5E6C0]"
+        className="w-full rounded-xl border-2 border-sand bg-cream px-3.5 py-3 text-[15px] font-medium text-[#4a3226] outline-none transition placeholder:font-normal placeholder:text-stone-400 hover:border-[#E08A50] focus:border-[#FC6C26] focus:ring-2 focus:ring-[#FC6C26]/25 disabled:bg-[#F5E6C0]"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
         aria-controls={showDropdown ? `${id}-suggestions` : undefined}
@@ -162,7 +162,7 @@ function AddressAutocomplete({
         <ul
           id={`${id}-suggestions`}
           role="listbox"
-          className="absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-[#C4A574]/80 bg-[#FFF8E8]/98 py-1.5 shadow-[0_18px_45px_-18px_rgba(74,43,32,0.45)] backdrop-blur"
+          className="absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-sand bg-cream py-1.5 shadow-[0_18px_45px_-18px_rgba(74,43,32,0.45)] backdrop-blur"
         >
           {showHistoryDropdown && (
             <li className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">

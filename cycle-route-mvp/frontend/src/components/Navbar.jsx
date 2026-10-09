@@ -1,4 +1,10 @@
-import CircularText from './CircularText'
+import { BrandMark } from './brand/BikeGlyph'
+
+const LINKS = [
+  { id: 'journey', label: 'Jak to działa' },
+  { id: 'features', label: 'Funkcje' },
+  { id: 'about', label: 'O aplikacji' },
+]
 
 function Navbar({
   view,
@@ -23,55 +29,42 @@ function Navbar({
 
   return (
     <header
-      className="absolute inset-x-0 top-0 z-50 border-b border-[#4a3226]/15 bg-vanilla/90 text-[#4a3226] backdrop-blur-md md:bg-transparent md:backdrop-blur-none"
+      className="absolute inset-x-0 top-0 z-50 text-ink"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-5 md:px-10">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-4 md:px-10 md:py-6">
         <button
           type="button"
           onClick={onGoHome}
-          className="min-w-0 truncate text-left text-sm font-bold uppercase tracking-[0.12em] text-[#4a3226] transition hover:text-burnt-orange sm:tracking-[0.18em]"
+          className="flex min-h-11 min-w-0 items-center gap-2.5 text-left text-xs font-bold uppercase tracking-[0.16em] text-ink transition hover:text-rust sm:text-[13px]"
         >
-          Cycle Your Way
+          <BrandMark />
+          <span className="truncate">Cycle Your Way</span>
         </button>
 
-        <nav className="hidden items-center gap-8 text-[15px] font-medium text-[#4a3226]/90 md:flex">
-          <button
-            type="button"
-            onClick={() => scrollToSection('about')}
-            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
-          >
-            O aplikacji
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection('features')}
-            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
-          >
-            Funkcje
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection('journey')}
-            className="rounded-md px-1 py-1 transition hover:text-burnt-orange"
-          >
-            Jak to działa
-          </button>
+        <nav className="hidden items-center gap-7 text-[15px] font-medium lg:flex" aria-label="Sekcje strony">
+          {LINKS.map((link) => (
+            <button
+              key={link.id}
+              type="button"
+              onClick={() => scrollToSection(link.id)}
+              className="rounded-md px-1 py-1 text-ink transition hover:text-rust"
+            >
+              {link.label}
+            </button>
+          ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           {isAuthenticated ? (
             <>
-              <span
-                className="hidden max-w-[8rem] truncate text-sm text-[#4a3226]/70 lg:inline"
-                title={userEmail}
-              >
+              <span className="hidden max-w-[10rem] truncate text-sm text-ink-muted xl:inline" title={userEmail}>
                 {userEmail}
               </span>
               <button
                 type="button"
                 onClick={onOpenProfile}
-                className="rounded-lg border border-[#4a3226] bg-[#4a3226] px-3 py-2 text-xs font-semibold text-vanilla transition hover:bg-[#352219] sm:px-3.5 sm:py-2.5 sm:text-sm"
+                className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-sm font-semibold text-ink transition hover:bg-white"
               >
                 <span className="md:hidden">Konto</span>
                 <span className="hidden md:inline">Moje konto</span>
@@ -79,7 +72,7 @@ function Navbar({
               <button
                 type="button"
                 onClick={onLogout}
-                className="hidden rounded-lg border border-[#4a3226]/40 bg-vanilla px-3.5 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange sm:inline-flex"
+                className="hidden min-h-11 rounded-full px-3 text-sm font-semibold text-ink-muted transition hover:text-rust sm:inline-flex sm:items-center"
               >
                 Wyloguj
               </button>
@@ -88,7 +81,7 @@ function Navbar({
             <button
               type="button"
               onClick={onOpenAuth}
-              className="rounded-lg border border-[#4a3226]/40 bg-vanilla px-3 py-2 text-xs font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange sm:px-3.5 sm:py-2.5 sm:text-sm"
+              className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-sm font-semibold text-ink transition hover:bg-white"
             >
               Konto
             </button>
@@ -98,33 +91,19 @@ function Navbar({
             <button
               type="button"
               onClick={onStartPlanning}
-              className="soft-button rounded-lg bg-burnt-orange px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark sm:px-4 sm:py-2.5 sm:text-sm"
+              className="min-h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-ink-muted"
             >
-              Planer
+              Planuj
             </button>
           ) : (
             <button
               type="button"
               onClick={onGoHome}
-              className="soft-button rounded-lg border border-[#4a3226] bg-[#4a3226] px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-vanilla transition hover:bg-[#352219] sm:px-4 sm:py-2.5 sm:text-sm"
+              className="min-h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-ink-muted"
             >
               Strona główna
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={onGoHome}
-            aria-label="Przejdź do strony głównej"
-            className="hidden shrink-0 items-center pl-1 md:flex"
-          >
-            <CircularText
-              text="CYCLE*YOUR*WAY*"
-              onHover="speedUp"
-              spinDuration={18}
-              className="navbar-circular-text"
-            />
-          </button>
         </div>
       </div>
     </header>

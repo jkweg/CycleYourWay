@@ -303,3 +303,21 @@ Decyzja użytkownika (07.10.2026): niewysłane jazdy są przechowywane na urząd
 - B06: regulamin HeiGIT odczytany 08.10.2026 — zakaz „Transmit personal data (apart from the data required by the HeiGIT account management)” nadal obowiązuje. Przygotowane zapytanie do HeiGIT: `docs/legal/HEIGIT_ZAPYTANIE_B06.md`. Na stronie HeiGIT zapowiedziano prace serwisowe 09.10.2026 08:30–12:30 CEST (możliwa niedostępność routingu).
 - Weryfikacja: lint, typecheck, **35/35**, build; `/privacy` sprawdzone w przeglądarce (treść renderuje się poprawnie).
 - Otwarte: przegląd prawny tekstu; własny SMTP (Supabase ostrzega, że wbudowany nie jest do produkcji); po włączeniu Sentry — dopisać do polityki; ograniczyć klucz MapTiler do domen aplikacji w panelu MapTiler.
+
+## Pakiet 13 — redesign „atlas trasy”: ekran ładowania, hero, lekkie odświeżenie planera (09.10.2026)
+
+Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki bez zmian (wanilia, atrament, pomarańcz) + rdza `#B8410F` (pomarańczowy tekst na wanilii), szałwia `#2F6F57` / `#E1EFE6`, krem `#FFFBF0`, woda `#BFD9E3` (`tailwind.config.js`).
+
+| Obszar | Zmiana |
+| --- | --- |
+| Ekran ładowania | `LoadingScreen.jsx` od nowa: ciemne tło z warstwicami, linia trasy jest paskiem postępu, rower (`brand/BikeGlyph.jsx`, kręcące się koła i korba) jedzie po jej czubku (`lib/routeMotion.js`, `getPointAtLength`, dokładne w każdej skali). Postęp czeka na `load` + fonty (min. 2,6 s), potem rower wyjeżdża z kadru i ekran gaśnie; przycisk „Pomiń”; `prefers-reduced-motion` skraca do 0,5 s. |
+| Tylko pierwsze uruchomienie | `lib/intro.ts`: `localStorage['cyw:intro-seen']`; kolejne wejścia — tylko cienki pasek trasy u góry (`TopRouteBar.jsx`). `index.html` dobiera tło splasha przed JS (ciemne / wanilia). Inne animacje czekają na zdarzenie końca intro. |
+| Hero | `landing/HeroAtlas.jsx`: hasło „Nie wybieraj drogi. Wybierz przejazd.”, ciemna mapa z parkiem i rzeką, pętla rysuje się, a rower w białym znaczniku przejeżdża ją raz (start po intro i gdy mapa jest widoczna), meta pulsuje; białe karty „Przykładowa trasa” i „Za 250 m w prawo”. |
+| Strona główna | `LandingPage.jsx`: pasek stylów jazdy, „Trzy kroki”, funkcje, „O aplikacji”, pomarańczowe CTA; `Navbar.jsx` z logo i przyciskami w nowym stylu. Usunięte nieużywane `LampHero`, `ScrollJourney`, `PhoneShowcase`, `SplitText`, `BlurText`, `CircularText`, `LoadingCyclist`, `LoadingHandwritingTitle`, `RouteConstellationBackdrop`, `Grainient` oraz zależności `gsap`, `@gsap/react`, `animejs`. |
+| Planer (lekko) | Główne przyciski w atramencie (pełne zaokrąglenie), „Nawiguj” pomarańczowy z ciemnym tekstem, pola i przyciski drugorzędne kremowe, łagodniejsze obramowania, logo w panelu bocznym. Logika bez zmian. |
+
+### Weryfikacja pakietu 13
+
+- Frontend: lint, typecheck, **35/35**, build. Główny plik JS **733 KB / 218 KB gzip** (było ~843 / 262 KB).
+- Podgląd w przeglądarce: intro (desktop 1280 px i telefon 375 px) — postęp, rower na trasie, wygaszenie; ponowne wejście bez intro; hero (animacja przejazdu), sekcje strony, planer.
+- Nie testowano na prawdziwym telefonie ani w aplikacji Android (natywny splash Capacitor nadal stary — etap Androida).

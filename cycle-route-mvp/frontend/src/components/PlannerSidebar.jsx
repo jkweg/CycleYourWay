@@ -8,13 +8,14 @@ import {
 } from '@tabler/icons-react'
 import { Sidebar, SidebarBody, SidebarLink } from './ui/sidebar'
 import { isNativePlatform } from '../lib/platform'
+import { BrandMark } from './brand/BikeGlyph'
 
 function SidebarLogo({ open }) {
   return (
     <div className="flex items-center gap-2 overflow-hidden px-2 py-1">
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-[#FC6C26]" />
+      <BrandMark size={24} className="shrink-0" />
       <span
-        className={`whitespace-nowrap text-sm font-semibold tracking-wide text-[#FC6C26] transition-[opacity,max-width] duration-150 ${
+        className={`whitespace-nowrap text-sm font-semibold tracking-wide text-ink transition-[opacity,max-width] duration-150 ${
           open ? 'max-w-[10rem] opacity-100' : 'max-w-0 opacity-0'
         }`}
       >

@@ -1,11 +1,28 @@
-import { motion } from 'motion/react'
-import LampHero from './LampHero'
-import ScrollJourney from './ScrollJourney'
+import { IconArrowRight } from '@tabler/icons-react'
+import HeroAtlas from './landing/HeroAtlas'
 
 const STEPS = [
-  { n: '01', title: 'Wybierz punkty', text: 'A → B albo pętla' },
-  { n: '02', title: 'Wyznacz trasę', text: 'Porównaj warianty' },
-  { n: '03', title: 'Jedź', text: 'Nawigacja w telefonie' },
+  {
+    n: '01',
+    title: 'Zaplanuj',
+    text: 'Wpisz start i cel albo wybierz długość pętli. Ustaw styl jazdy, nawierzchnię i to, czy omijać główne drogi.',
+    tone: 'light',
+    number: 'text-burnt-orange-dark',
+  },
+  {
+    n: '02',
+    title: 'Jedź',
+    text: 'Nawigacja głosowa prowadzi Cię po trasie, a gdy z niej zjedziesz, wyznacza drogę powrotu.',
+    tone: 'light',
+    number: 'text-sage',
+  },
+  {
+    n: '03',
+    title: 'Zapisz',
+    text: 'Ślad, dystans i czas trafiają do historii jazd. Ulubione trasy udostępnisz jednym linkiem.',
+    tone: 'dark',
+    number: 'text-burnt-orange',
+  },
 ]
 
 const FEATURES = [
@@ -14,48 +31,44 @@ const FEATURES = [
     title: 'Trasy, które mają sens',
     description:
       'Wyznaczaj przejazdy A → B albo generuj pętle o konkretnym dystansie. Dodawaj punkty pośrednie i porównuj warianty.',
-    accent: '↝',
   },
   {
     eyebrow: 'Świadomy wybór',
     title: 'Wiesz, co czeka po drodze',
     description:
       'Profil wysokości, przewyższenia, stromizny i nawierzchnia pokazują charakter trasy, zanim ruszysz z domu.',
-    accent: '⌁',
   },
   {
     eyebrow: 'W terenie',
     title: 'Nawigacja, która jedzie z Tobą',
     description:
       'Głosowe wskazówki, podążająca mapa i automatyczne przeliczenie pomagają wrócić na właściwy kierunek.',
-    accent: '◎',
   },
   {
     eyebrow: 'Twoje konto',
     title: 'Trasy i jazdy w jednym miejscu',
     description:
       'Zapisuj ulubione trasy, oznaczaj je tagami, wracaj do historii przejazdów i ustaw własne preferencje.',
-    accent: '✦',
   },
 ]
 
-const ABOUT_VALUES = [
-  {
-    number: '01',
-    title: 'Czytelnie',
-    text: 'Najważniejsze dane są zawsze na pierwszym planie.',
-  },
-  {
-    number: '02',
-    title: 'Po Twojemu',
-    text: 'Styl jazdy i preferencje naprawdę wpływają na trasę.',
-  },
-  {
-    number: '03',
-    title: 'Od planu do jazdy',
-    text: 'Jedno miejsce zamiast kilku przypadkowych narzędzi.',
-  },
-]
+const RIDE_STYLES = ['Szosa', 'Gravel', 'MTB', 'Miasto', 'Trekking']
+
+function StyleMarquee() {
+  const items = [...RIDE_STYLES, ...RIDE_STYLES]
+  return (
+    <div className="overflow-hidden bg-ink py-5 text-white" aria-label="Style jazdy: szosa, gravel, MTB, miasto, trekking">
+      <div className="cyw-marquee flex w-max gap-10 whitespace-nowrap font-serif text-2xl italic md:gap-12 md:text-[34px]" aria-hidden="true">
+        {items.map((style, index) => (
+          <span key={`${style}-${index}`} className="flex items-center gap-10 md:gap-12">
+            {style}
+            <span className={index % 2 ? 'text-sage-light' : 'text-burnt-orange'}>✦</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 /** Krótki landing tylko w aplikacji natywnej (Capacitor). */
 function CompactLanding({ onStartPlanning }) {
@@ -65,39 +78,31 @@ function CompactLanding({ onStartPlanning }) {
       aria-labelledby="mobile-landing-title"
     >
       <div className="flex flex-1 flex-col justify-center">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
-          Cycle Your Way
-        </p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-rust">Cycle Your Way</p>
         <h1
           id="mobile-landing-title"
-          className="mt-3 font-serif text-[2.65rem] font-semibold leading-[1.05] tracking-tight text-[#4a3226]"
+          className="mt-3 font-serif text-[2.65rem] font-medium leading-[1.05] tracking-tight text-ink"
         >
-          Planuj i jedź.
+          Planuj i <span className="italic text-rust">jedź.</span>
         </h1>
-        <p className="mt-4 max-w-sm text-[15px] leading-6 text-[#4a3226]/80">
+        <p className="mt-4 max-w-sm text-[15px] leading-6 text-ink-muted">
           Trasy rowerowe, pętle i nawigacja — w jednym miejscu.
         </p>
-
         <button
           type="button"
           onClick={onStartPlanning}
-          className="soft-button mt-8 w-full rounded-2xl bg-burnt-orange px-6 py-4 text-sm font-semibold uppercase tracking-wide text-vanilla"
+          className="mt-8 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-bold text-white"
         >
           Otwórz planer
+          <IconArrowRight size={20} stroke={2.4} className="text-burnt-orange" aria-hidden="true" />
         </button>
 
         <ul className="mt-10 space-y-3">
           {STEPS.map((step) => (
-            <li
-              key={step.n}
-              className="flex items-center gap-3 rounded-2xl border border-[#4a3226]/20 bg-[#FFFBF1] px-4 py-3"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#4a3226] text-xs font-bold text-vanilla">
-                {step.n}
-              </span>
+            <li key={step.n} className="flex items-center gap-3 rounded-2xl border border-[#EADBB5] bg-cream px-4 py-3">
+              <span className={`font-serif text-2xl ${step.number}`}>{step.n}</span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#4a3226]">{step.title}</p>
-                <p className="text-xs text-ink-muted">{step.text}</p>
+                <p className="text-sm font-semibold text-ink">{step.title}</p>
               </div>
             </li>
           ))}
@@ -111,138 +116,108 @@ function CompactLanding({ onStartPlanning }) {
 function FullLanding({ onStartPlanning }) {
   return (
     <div className="relative z-10">
-      <LampHero onStartPlanning={onStartPlanning} />
+      <HeroAtlas onStartPlanning={onStartPlanning} />
 
-      <ScrollJourney onStartPlanning={onStartPlanning} />
+      <StyleMarquee />
 
-      <section id="features" className="relative scroll-mt-20 py-16 md:py-28">
+      <section id="journey" className="mx-auto flex max-w-7xl scroll-mt-20 flex-col gap-11 px-5 py-20 md:px-10 md:py-24">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <h2 className="max-w-2xl font-serif text-4xl font-medium leading-[1.02] tracking-[-0.02em] text-ink md:text-[56px]">
+            Trzy kroki od mapy do <span className="italic text-rust">kilometrów</span>.
+          </h2>
+          <p className="max-w-sm text-lg leading-relaxed text-ink-muted">
+            Planujesz na komputerze, jedziesz z telefonem, a każda jazda zostaje w Twojej historii.
+          </p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-3">
+          {STEPS.map((step) => (
+            <article
+              key={step.n}
+              className={`flex flex-col gap-3.5 rounded-3xl p-7 md:p-8 ${
+                step.tone === 'dark'
+                  ? 'bg-ink text-white'
+                  : 'border border-[#EADBB5] bg-white shadow-[0_10px_30px_rgba(42,26,18,0.06)]'
+              }`}
+            >
+              <span className={`font-serif text-5xl leading-none ${step.number}`}>{step.n}</span>
+              <h3 className="text-2xl font-bold">{step.title}</h3>
+              <p className={`text-[17px] leading-relaxed ${step.tone === 'dark' ? 'text-vanilla-deep' : 'text-ink-muted'}`}>
+                {step.text}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="features" className="scroll-mt-20 pb-20 md:pb-24">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <div className="relative overflow-hidden rounded-[1.75rem] border border-[#4a3226]/28 bg-vanilla-deep/45 p-6 md:rounded-[2rem] md:p-12">
-            <div className="mb-10 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between">
+          <div className="rounded-[2rem] border border-[#EADBB5] bg-vanilla-deep/50 p-6 md:p-12">
+            <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-burnt-orange">
-                  Funkcje
-                </p>
-                <h2 className="mt-3 max-w-2xl font-serif text-3xl font-semibold tracking-tight text-[#4a3226] md:text-5xl">
-                  Wszystko, czego potrzebujesz od pierwszego punktu do ostatniego zakrętu.
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-rust">Funkcje</p>
+                <h2 className="mt-3 max-w-2xl font-serif text-3xl font-medium tracking-tight text-ink md:text-5xl">
+                  Od pierwszego punktu do ostatniego zakrętu.
                 </h2>
-                <p className="mt-4 max-w-2xl text-[15px] leading-7 text-ink-muted md:text-base">
-                  Mniej przełączania między aplikacjami. Więcej czasu na samą jazdę.
-                </p>
               </div>
               <button
                 type="button"
                 onClick={onStartPlanning}
-                className="soft-button self-start rounded-full bg-[#4a3226] px-6 py-3 text-sm font-semibold text-vanilla transition hover:bg-[#352219]"
+                className="inline-flex min-h-12 items-center gap-2 self-start rounded-full bg-ink px-6 text-sm font-semibold text-white transition hover:bg-ink-muted"
               >
                 Przejdź do planera
+                <IconArrowRight size={18} stroke={2.4} className="text-burnt-orange" aria-hidden="true" />
               </button>
             </div>
-
             <div className="grid gap-4 md:grid-cols-2">
               {FEATURES.map((feature, index) => (
-                <motion.article
+                <article
                   key={feature.title}
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-10% 0px' }}
-                  transition={{ duration: 0.55, delay: index * 0.08, ease: 'easeOut' }}
-                  whileHover={{ y: -5 }}
-                  className="group relative overflow-hidden rounded-2xl border border-[#4a3226]/25 bg-[#FFFBF1] p-6 transition-colors hover:border-burnt-orange/50 md:p-7"
+                  className="rounded-2xl border border-[#EADBB5] bg-cream p-6 transition hover:-translate-y-0.5 hover:border-burnt-orange/50 md:p-7"
                 >
-                  <span className="absolute -right-3 -top-6 font-serif text-8xl text-burnt-orange/[0.07] transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110">
-                    {feature.accent}
-                  </span>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-burnt-orange">
-                      0{index + 1} · {feature.eyebrow}
-                    </p>
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-burnt-orange/30 bg-vanilla text-lg text-burnt-orange">
-                      {feature.accent}
-                    </span>
-                  </div>
-                  <h3 className="mt-5 text-xl font-semibold text-[#4a3226]">{feature.title}</h3>
-                  <p className="mt-3 text-[15px] leading-7 text-ink-muted">{feature.description}</p>
-                </motion.article>
+                  <p className={`text-xs font-bold uppercase tracking-[0.18em] ${index % 2 ? 'text-sage' : 'text-rust'}`}>
+                    0{index + 1} · {feature.eyebrow}
+                  </p>
+                  <h3 className="mt-4 text-xl font-semibold text-ink">{feature.title}</h3>
+                  <p className="mt-2.5 text-[15px] leading-7 text-ink-muted">{feature.description}</p>
+                </article>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      <section
-        id="about"
-        className="relative scroll-mt-20 bg-[#4a3226] py-16 text-vanilla md:py-28"
-      >
-        <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-12% 0px' }}
-              transition={{ duration: 0.65 }}
-              className="max-w-3xl"
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-burnt-orange">
-                O aplikacji
-              </p>
-              <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight text-vanilla md:text-5xl">
-                Od pomysłu na wyjazd do gotowej trasy — bez przełączania narzędzi.
-              </h2>
-              <p className="mt-6 text-base leading-8 text-vanilla/85">
-                Cycle Your Way powstało dla rowerzystów, którzy chcą planować
-                świadomie, ale nie chcą walczyć z interfejsem. Trasa ma być
-                czytelna przed startem, dostępna w telefonie i łatwa do
-                odnalezienia po powrocie.
-              </p>
-              <p className="mt-4 text-[15px] leading-7 text-[#E8D5B5]">
-                Łączymy dane mapowe z prostym językiem, spokojnym designem i
-                narzędziami, które pomagają zarówno podczas krótkiej przejażdżki,
-                jak i całodniowego wypadu.
-              </p>
-            </motion.div>
-
-            <div className="grid gap-4">
-              {ABOUT_VALUES.map((value, index) => (
-                <motion.div
-                  key={value.number}
-                  initial={{ opacity: 0, x: 24 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: '-12% 0px' }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="flex gap-4 rounded-2xl border border-vanilla/25 bg-vanilla/[0.06] p-4"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-burnt-orange text-xs font-bold text-vanilla">
-                    {value.number}
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-vanilla">{value.title}</h3>
-                    <p className="mt-1 text-[15px] leading-6 text-[#E8D5B5]">{value.text}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="start-planning" className="relative py-16 md:py-28">
-        <div className="mx-auto max-w-4xl px-5 text-center md:px-10">
-          <div className="rounded-3xl border border-[#4a3226]/28 bg-[#FFFBF1] px-6 py-10 md:px-12 md:py-12">
-            <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight text-[#4a3226] md:text-5xl">
-              Gotowy na pierwszą trasę?
+      <section id="about" className="scroll-mt-20 bg-ink py-20 text-white md:py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 md:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-burnt-orange">O aplikacji</p>
+            <h2 className="mt-4 font-serif text-3xl font-medium leading-tight tracking-tight md:text-5xl">
+              Od pomysłu na wyjazd do gotowej trasy — bez przełączania narzędzi.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-ink-muted">
-              Wyznacz trasę w kilka sekund, porównaj warianty i zabierz nawigację ze sobą.
-            </p>
-            <button
-              type="button"
-              onClick={onStartPlanning}
-              className="soft-button mt-8 rounded-full bg-burnt-orange px-8 py-3.5 text-sm font-semibold uppercase tracking-wide text-vanilla transition hover:bg-burnt-orange-dark"
-            >
-              Rozpocznij planowanie
-            </button>
           </div>
+          <p className="text-base leading-8 text-vanilla-deep">
+            Cycle Your Way powstało dla rowerzystów, którzy chcą planować świadomie, ale nie chcą walczyć z
+            interfejsem. Trasa ma być czytelna przed startem, dostępna w telefonie i łatwa do odnalezienia
+            po powrocie.
+          </p>
+        </div>
+      </section>
+
+      <section id="start-planning" className="mx-auto max-w-7xl px-5 py-20 md:px-10 md:py-24">
+        <div className="relative flex flex-wrap items-center justify-between gap-7 overflow-hidden rounded-[2rem] bg-burnt-orange p-8 md:p-14">
+          <svg aria-hidden="true" className="absolute inset-0 h-full w-full opacity-35" viewBox="0 0 1200 260" preserveAspectRatio="none">
+            <path d="M-10 200 C 200 120 360 260 600 170 S 1000 60 1210 140" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeDasharray="2 12" strokeLinecap="round" />
+          </svg>
+          <h2 className="relative max-w-2xl font-serif text-3xl font-medium leading-tight text-ink md:text-5xl">
+            Gdzie jedziesz w ten weekend?
+          </h2>
+          <button
+            type="button"
+            onClick={onStartPlanning}
+            className="relative inline-flex min-h-14 items-center gap-2.5 rounded-full bg-ink px-7 text-[17px] font-bold text-white transition hover:bg-ink-muted"
+          >
+            Otwórz planer
+            <IconArrowRight size={20} stroke={2.4} className="text-burnt-orange" aria-hidden="true" />
+          </button>
         </div>
       </section>
     </div>
