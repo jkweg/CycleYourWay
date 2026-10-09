@@ -155,7 +155,7 @@ function LoadingScreen({ onComplete }) {
 
       <header
         className="relative flex items-center justify-between px-6 pb-4 sm:px-16"
-        style={{ paddingTop: 'max(2rem, calc(env(safe-area-inset-top) + 1rem))' }}
+        style={{ paddingTop: 'max(2rem, calc(var(--safe-area-inset-top,env(safe-area-inset-top)) + 1rem))' }}
       >
         <div className="flex items-center gap-3 text-[13px] font-semibold uppercase tracking-[0.22em] text-white">
           <BrandMark color="#FC6C26" />
@@ -229,7 +229,7 @@ function LoadingScreen({ onComplete }) {
 
       <footer
         className="relative flex items-end justify-between gap-4 px-7 sm:px-16"
-        style={{ paddingBottom: 'max(2.25rem, calc(env(safe-area-inset-bottom) + 1.25rem))' }}
+        style={{ paddingBottom: 'max(2.25rem, calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom)) + 1.25rem))' }}
       >
         <button
           type="button"

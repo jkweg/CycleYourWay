@@ -738,7 +738,7 @@ function RideView({
 
       <div
         className="pointer-events-none relative z-[3001] flex flex-col"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ paddingTop: 'var(--safe-area-inset-top,env(safe-area-inset-top))' }}
       >
         <div className="pointer-events-auto m-3 rounded-[1.35rem] bg-[#3d2a20]/94 p-3.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.12] backdrop-blur-xl">
           <div className="flex items-center gap-2">
@@ -949,7 +949,7 @@ function RideView({
 
       <div
         className="relative z-[3001] flex flex-col gap-3 px-3"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+        style={{ paddingBottom: 'calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom)) + 12px)' }}
       >
         {!follow && userPos && (
           <button

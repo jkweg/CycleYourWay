@@ -30,6 +30,8 @@ import { getAppOrigin } from './lib/appOrigin'
 import { isNativePlatform } from './lib/platform'
 import { getCurrentPosition } from './lib/location'
 import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
+import { registerBackButton } from './lib/backButton'
+import { setSystemBarsTone } from './lib/systemBars'
 import { captureException, trackEvent } from './lib/monitoring'
 import {
   canRestoreRideDraft,
@@ -1513,6 +1515,52 @@ function App() {
     void applyPointLabel('via', point, viaId)
   }
 
+  // The ride view is dark: light system bar icons while riding.
+  useEffect(() => {
+    if (!window.__cywIntroDone) return
+    setSystemBarsTone(rideRoute ? 'dark' : 'light')
+  }, [rideRoute])
+
+  // Android back: close the topmost overlay/panel; returns false when nothing is open.
+  const backHandlerRef = useRef(() => false)
+  useEffect(() => {
+    backHandlerRef.current = () => {
+      if (rideRoute) return false
+      const close = [
+        [legalDoc, () => setLegalDoc(null)],
+        [pendingLocationAction, () => {
+          setPendingLocationAction(null)
+          pendingRideArgsRef.current = null
+        }],
+        [showAuthModal, () => setShowAuthModal(false)],
+        [showSaveRouteModal, () => setShowSaveRouteModal(false)],
+        [showGoogleMapsExportNotice, () => setShowGoogleMapsExportNotice(false)],
+        [showOpenOnPhone, () => setShowOpenOnPhone(false)],
+        [showProfileModal, () => setShowProfileModal(false)],
+        [showOnboarding, () => setShowOnboarding(false)],
+        [sidebarOpen, () => setSidebarOpen(false)],
+        [plannerPanel === 'savedDetail', () => setPlannerPanel('saved')],
+        [plannerPanel !== 'plan', () => setPlannerPanel('plan')],
+        [view !== 'planner', () => setView('planner')],
+      ].find(([open]) => Boolean(open))
+      if (!close) return false
+      close[1]()
+      return true
+    }
+  })
+  useEffect(() => {
+    let remove = () => undefined
+    let disposed = false
+    registerBackButton(() => backHandlerRef.current()).then((cleanup) => {
+      if (disposed) cleanup()
+      else remove = cleanup
+    })
+    return () => {
+      disposed = true
+      remove()
+    }
+  }, [])
+
   const goToPlanner = () => {
     setView('planner')
     if (shouldShowPlannerOnboarding()) {
@@ -1638,7 +1686,7 @@ function App() {
       ) : (
         <section
           ref={plannerSectionRef}
-          className="relative z-10 px-0 pb-[env(safe-area-inset-bottom)] pt-0 md:px-5 md:pb-5 md:pt-4"
+          className="relative z-10 px-0 pb-[var(--safe-area-inset-bottom,env(safe-area-inset-bottom))] pt-0 md:px-5 md:pb-5 md:pt-4"
         >
           <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden border-0 bg-[#FFF4D6] text-stone-800 md:h-[calc(100dvh-2.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden md:rounded-[1.5rem] md:border md:border-sand/90 md:shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)]">
             <PlannerSidebar

@@ -321,3 +321,19 @@ Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki b
 - Frontend: lint, typecheck, **35/35**, build. Główny plik JS **733 KB / 218 KB gzip** (było ~843 / 262 KB).
 - Podgląd w przeglądarce: intro (desktop 1280 px i telefon 375 px) — postęp, rower na trasie, wygaszenie; ponowne wejście bez intro; hero (animacja przejazdu), sekcje strony, planer.
 - Nie testowano na prawdziwym telefonie ani w aplikacji Android (natywny splash Capacitor nadal stary — etap Androida).
+
+## Pakiet 14 — Android: logowanie Google, przycisk wstecz, paski systemowe, ikona i splash (09.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Logowanie Google | Systemowa przeglądarka + powrót przez `com.cycleyourway.app://auth-callback` (`lib/nativeAuth.ts`, `AuthContext.tsx`); obsługa `?code=` i `#access_token=`; także zimny start (`getLaunchUrl`). Domeny Google usunięte z `allowNavigation`. |
+| Przycisk wstecz | `lib/backButton.js` + kolejka zamykania w `App.jsx`; poza oknami aplikacja idzie w tło zamiast się zamykać. |
+| Paski systemowe | `SystemBars` (Capacitor 8) z `insetsHandling: css`; wszystkie `env(safe-area-inset-*)` z fallbackiem na zmienne Capacitora; ton ikon zależny od ekranu. |
+| Ikona i splash | Logo marki (pierścień + trasa) na atramencie: `scripts/generate-app-assets.mjs` → `@capacitor/assets` (74 pliki), splash Android 12+ przez `windowSplashScreenBackground`. |
+| Build | Tryb Vite `android` (`.env.android`): produkcyjne API i origin; MapTiler w `.env.android.local`; `npm run cap:sync`. |
+
+### Weryfikacja pakietu 14
+
+- Frontend: lint, typecheck, **35/35**, `vite build --mode android` (bundel z produkcyjnym API i MapTiler, bez `localhost`), `npx cap sync android`.
+- **Nie zbudowano APK:** Gradle 8.14 nie działa na Javie 25 z Android Studio (potrzebny JDK 17/21). Logowanie Google, przycisk wstecz i paski nie były testowane na urządzeniu.
+- Obserwacja: wdrożony bundel webowy nie zawiera adresu MapTiler — produkcja www najpewniej używa publicznych kafelków OSM (sprawdzić `VITE_MAP_TILES_URL` w Vercel i redeploy).

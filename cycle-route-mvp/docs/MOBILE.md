@@ -42,16 +42,13 @@ capacitor://localhost,https://localhost,https://cycleyourway.pl,https://www.cycl
 ```bash
 cd cycle-route-mvp/frontend
 npm install
-npm run icons
-npm run build
-npx cap add android   # tylko raz (już w repo)
-npx cap sync android
-npx cap open android
+npm run cap:sync      # vite build --mode android + npx cap sync android
+npx cap open android  # albo: cd android && ./gradlew assembleDebug
 ```
 
-W Android Studio: Run na emulatorze / urządzeniu.
-
-Skrypt pomocniczy: `npm run cap:sync`.
+- Tryb `android` (`.env.android`, w repo): produkcyjne `VITE_API_URL` i `VITE_APP_ORIGIN`. Supabase z `.env.local`, klucz MapTiler w `.env.android.local` (git-ignored). Zwykłe `npm run build` z `.env.local` wskazuje `localhost` — nie nadaje się do APK.
+- Gradle 8.14 wymaga **JDK 17 lub 21**. JBR z najnowszego Android Studio to Java 25 („Unsupported class file major version 69”). W Android Studio: Settings → Build Tools → Gradle → Gradle JDK → JDK 21; z wiersza poleceń ustaw `JAVA_HOME` na JDK 21.
+- Ikona i splash: `node scripts/generate-app-assets.mjs` (logo marki na atramencie, źródła w `assets/`), potem `npx capacitor-assets generate --android --iconBackgroundColor "#2A1A12" --splashBackgroundColor "#2A1A12"` (cofnij kosmetyczne zmiany generatora w `AndroidManifest.xml`).
 
 ### Wersjonowanie
 
@@ -82,8 +79,14 @@ Aplikacja nasłuchuje `appUrlOpen` i ustawia `pendingRideId` / `pendingShareId`.
 ## Auth
 
 - Email/hasło: bez zmian.
-- Google: włącz provider w Supabase Auth → Google, dodaj redirect URI Capacitor / Vercel.
-- Przycisk „Kontynuuj z Google” wywołuje `signInWithOAuth({ provider: 'google' })`.
+- Google (web): `signInWithOAuth` z powrotem na `https://cycleyourway.pl/`.
+- Google (aplikacja): Google blokuje OAuth we wbudowanym WebView, więc `lib/nativeAuth.ts` otwiera logowanie w systemowej przeglądarce (`@capacitor/browser`, Custom Tabs) z `redirectTo = com.cycleyourway.app://auth-callback`; powrót obsługuje listener `appUrlOpen` w `AuthContext` (`exchangeCodeForSession` albo `setSession`). **Wymagane:** Supabase → Authentication → URL Configuration → Redirect URLs: `com.cycleyourway.app://auth-callback`. WebView nie nawiguje już do domen Google (`allowNavigation`).
+
+## Powłoka Androida
+
+- Przycisk/gest wstecz (`lib/backButton.js`): zamyka najwyższe okno lub panel (dokumenty, uprawnienia, logowanie, zapis, profil, samouczek, menu, zapisane trasy); gdy nic nie jest otwarte — aplikacja idzie w tło (jazda się nie przerywa).
+- Paski systemowe: Capacitor 8 `SystemBars` (`insetsHandling: css`) wstrzykuje `--safe-area-inset-*`; CSS używa `var(--safe-area-inset-*, env(...))`. Ikony pasków jasne na ciemnym intro i w nawigacji, ciemne na waniliowej aplikacji (`lib/systemBars.ts`).
+- Splash: atramentowe tło `#2A1A12` z logo (Android 12+: `windowSplashScreenBackground`), potem pierwsze uruchomienie pokazuje intro z rowerem, kolejne — od razu planer.
 
 ## Mapa
 

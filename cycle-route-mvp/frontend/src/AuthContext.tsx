@@ -3,6 +3,13 @@ import type { User } from '@supabase/supabase-js'
 import { AuthContext } from './auth-context'
 import { getAppOrigin } from './lib/appOrigin'
 import { supabase } from './supabaseClient'
+import { isNativePlatform } from './lib/platform'
+import { captureException } from './lib/monitoring'
+import {
+  completeNativeAuth,
+  isNativeAuthCallback,
+  signInWithGoogleInSystemBrowser,
+} from './lib/nativeAuth'
 import type { AuthUser } from './types/geo'
 
 function mapUser(authUser: User | null | undefined): AuthUser | null {
@@ -65,6 +72,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
+  // Android app: Google sign-in returns from the system browser via the app scheme.
+  useEffect(() => {
+    if (!isNativePlatform()) return undefined
+    let removeListener = () => undefined
+    let disposed = false
+    const finish = (url: string | undefined) => {
+      if (!url || !isNativeAuthCallback(url)) return
+      completeNativeAuth(url).catch((error) => captureException(error, { where: 'completeNativeAuth' }))
+    }
+    void import('@capacitor/app').then(async ({ App }) => {
+      const handle = await App.addListener('appUrlOpen', (event) => finish(event?.url))
+      if (disposed) {
+        void handle.remove()
+        return
+      }
+      removeListener = () => void handle.remove()
+      finish((await App.getLaunchUrl())?.url)
+    })
+    return () => {
+      disposed = true
+      removeListener()
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw new Error(polishAuthError(error.message))
@@ -118,6 +149,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
+    if (isNativePlatform()) {
+      try {
+        await signInWithGoogleInSystemBrowser()
+      } catch (error) {
+        throw new Error(polishAuthError((error as Error)?.message), { cause: error })
+      }
+      return
+    }
     const redirectTo = `${getAppOrigin()}/`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

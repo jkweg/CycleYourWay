@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import LoadingScreen from './components/LoadingScreen.jsx'
 import TopRouteBar from './components/TopRouteBar.jsx'
 import { hasSeenIntro, markIntroSeen, signalIntroDone } from './lib/intro'
+import { setSystemBarsTone } from './lib/systemBars'
 import { LegalStandalone, type LegalDocType } from './components/LegalPage'
 
 function legalTypeFromPath(pathname: string): LegalDocType | null {
@@ -22,11 +23,13 @@ export default function Root() {
 
   useEffect(() => {
     document.getElementById('boot-splash')?.remove()
+    setSystemBarsTone(firstRun ? 'dark' : 'light')
     if (!firstRun) signalIntroDone()
   }, [firstRun])
 
   const finishIntro = () => {
     markIntroSeen()
+    setSystemBarsTone('light')
     setShowIntro(false)
     signalIntroDone()
   }
