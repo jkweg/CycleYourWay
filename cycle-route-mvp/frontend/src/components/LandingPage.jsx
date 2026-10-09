@@ -54,19 +54,26 @@ const FEATURES = [
 
 const RIDE_STYLES = ['Szosa', 'Gravel', 'MTB', 'Miasto', 'Trekking']
 
-function StyleMarquee() {
-  const items = [...RIDE_STYLES, ...RIDE_STYLES]
+function RideStyles() {
   return (
-    <div className="overflow-hidden bg-ink py-5 text-white" aria-label="Style jazdy: szosa, gravel, MTB, miasto, trekking">
-      <div className="cyw-marquee flex w-max gap-10 whitespace-nowrap font-serif text-2xl italic md:gap-12 md:text-[34px]" aria-hidden="true">
-        {items.map((style, index) => (
-          <span key={`${style}-${index}`} className="flex items-center gap-10 md:gap-12">
-            {style}
-            <span className={index % 2 ? 'text-sage-light' : 'text-burnt-orange'}>✦</span>
-          </span>
-        ))}
+    <section aria-labelledby="ride-styles-title" className="mx-auto max-w-7xl px-5 md:px-10">
+      <div className="flex flex-col items-center gap-4 border-y border-[#EADBB5] py-8 text-center md:flex-row md:justify-between md:text-left">
+        <p id="ride-styles-title" className="text-sm font-semibold text-ink-muted">
+          Trasy dopasowane do Twojego stylu jazdy
+        </p>
+        <ul className="flex flex-wrap justify-center gap-2.5">
+          {RIDE_STYLES.map((style, index) => (
+            <li
+              key={style}
+              className="flex items-center gap-2 rounded-full border border-[#EADBB5] bg-cream px-4 py-2 text-[15px] font-semibold text-ink"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${index % 2 ? 'bg-sage' : 'bg-burnt-orange'}`} aria-hidden="true" />
+              {style}
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -118,7 +125,7 @@ function FullLanding({ onStartPlanning }) {
     <div className="relative z-10">
       <HeroAtlas onStartPlanning={onStartPlanning} />
 
-      <StyleMarquee />
+      <RideStyles />
 
       <section id="journey" className="mx-auto flex max-w-7xl scroll-mt-20 flex-col gap-11 px-5 py-20 md:px-10 md:py-24">
         <div className="flex flex-wrap items-end justify-between gap-5">
