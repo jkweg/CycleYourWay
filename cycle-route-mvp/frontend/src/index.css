@@ -252,3 +252,20 @@ h2 {
   background: #f5d0b8;
 }
 
+/* Horizontally scrolling chip rows (mobile planner): swipe without a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile full-screen map: map credit sits just under the floating top bar. */
+.cyw-fullscreen-map .leaflet-top.leaflet-right {
+  top: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 64px);
+}
+.cyw-fullscreen-map .leaflet-control-attribution {
+  border-radius: 999px 0 0 999px;
+  background: rgba(255, 244, 214, 0.85);
+  font-size: 10px;
+}

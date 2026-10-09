@@ -70,6 +70,11 @@ import {
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
+const MobilePlanner = lazy(() => import('./mobile/MobilePlanner'))
+// Android app (and `?mobile=1` on the web for testing): full-screen map + bottom sheets.
+const USE_MOBILE_SHELL =
+  isNativePlatform() ||
+  (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile'))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 
 let viaStopSequentialId = 0
@@ -190,7 +195,19 @@ function App() {
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
-  const [view, setView] = useState(() => (isNativePlatform() ? 'planner' : 'landing'))
+  const [view, setView] = useState(() => (USE_MOBILE_SHELL ? 'planner' : 'landing'))
+  // Mobile shell bottom sheet: home → plan → result → details, or saved.
+  const [mobileSheet, setMobileSheet] = useState('home')
+  const [mobileRouteKey, setMobileRouteKey] = useState(0)
+  // A new or loaded route opens its summary; a cleared one returns to planning.
+  if (USE_MOBILE_SHELL && routeDisplayKey !== mobileRouteKey) {
+    setMobileRouteKey(routeDisplayKey)
+    if (routeGeoJson) {
+      if (mobileSheet !== 'details') setMobileSheet('result')
+    } else if (mobileSheet === 'result' || mobileSheet === 'details') {
+      setMobileSheet('plan')
+    }
+  }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -1554,8 +1571,11 @@ function App() {
         [showProfileModal, () => setShowProfileModal(false)],
         [showOnboarding, () => setShowOnboarding(false)],
         [sidebarOpen, () => setSidebarOpen(false)],
-        [plannerPanel === 'savedDetail', () => setPlannerPanel('saved')],
-        [plannerPanel !== 'plan', () => setPlannerPanel('plan')],
+        [USE_MOBILE_SHELL && mobileSheet === 'details', () => setMobileSheet('result')],
+        [USE_MOBILE_SHELL && mobileSheet === 'result', () => setMobileSheet('plan')],
+        [USE_MOBILE_SHELL && mobileSheet !== 'home', () => setMobileSheet('home')],
+        [!USE_MOBILE_SHELL && plannerPanel === 'savedDetail', () => setPlannerPanel('saved')],
+        [!USE_MOBILE_SHELL && plannerPanel !== 'plan', () => setPlannerPanel('plan')],
         [view !== 'planner', () => setView('planner')],
       ].find(([open]) => Boolean(open))
       if (!close) return false
@@ -1683,7 +1703,78 @@ function App() {
         />
       )}
 
-      {view === 'landing' ? (
+      {view !== 'landing' && USE_MOBILE_SHELL ? (
+        <Suspense fallback={<ChunkFallback label="Ładowanie planera..." className="fixed inset-0 bg-vanilla" />}>
+          <MobilePlanner
+            sheet={mobileSheet}
+            setSheet={setMobileSheet}
+            p={{
+              isAuthenticated,
+              userEmail: user?.email,
+              openAuth: () => setShowAuthModal(true),
+              openProfile: () => setShowProfileModal(true),
+              error,
+              saveSuccessMessage,
+              routeMode,
+              handleRouteModeChange,
+              startPoint,
+              endPoint,
+              startInput,
+              endInput,
+              viaStops,
+              handlePointInputChange,
+              handleViaInputChange,
+              applyGeocodeResult,
+              geocodeAddress,
+              handleUseMyLocation,
+              isLocating,
+              handleAddViaStop,
+              handleRemoveViaStop,
+              handleReverseRoute,
+              clearCurrentPlan,
+              loopDistanceKm,
+              setLoopDistanceKm,
+              rideStyle,
+              setRideStyle,
+              climbPreference,
+              setClimbPreference,
+              preferAsphalt,
+              setPreferAsphalt,
+              avoidMainRoads,
+              setAvoidMainRoads,
+              handleRouteSubmit,
+              handleLoopSubmit,
+              isLoadingRoute,
+              routeGeoJson,
+              selectedRouteGeoJson,
+              selectedFeature,
+              selectedRouteIndex,
+              setSelectedRouteIndex,
+              routeAlternatives,
+              routeStats,
+              selectedRouteSurfaces,
+              routeDisplayKey,
+              lockedPoint,
+              handleMapClick,
+              handleStartDrag,
+              handleEndDrag,
+              handleViaDrag,
+              handleStartRide,
+              isPreparingRide,
+              handleSaveRouteClick,
+              isSavingRoute,
+              handleExportToGpx,
+              handleExportToGoogleMaps,
+              loadedSavedRouteId,
+              loadedSavedRouteName,
+              handleLoadSavedRoute,
+              handleRideSavedRoute,
+              handleOpenSavedRouteOnPhone,
+              savedRoutesRefreshKey,
+            }}
+          />
+        </Suspense>
+      ) : view === 'landing' ? (
         <>
           <Suspense fallback={<ChunkFallback label="Ładowanie strony..." className="min-h-[50vh]" />}>
             <LandingPage

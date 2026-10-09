@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { AttributionControl, GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { createViaMarkerIcon, plannerMarkerIcon } from './lib/leafletIcons'
 import { getMapTileLayer } from './lib/mapTiles'
 
@@ -39,8 +39,10 @@ function MapInteractionController({ interactive }) {
   return null
 }
 
-function RouteFitBounds({ routeGeoJson }) {
+function RouteFitBounds({ routeGeoJson, fitPadding }) {
   const map = useMap()
+  const top = fitPadding?.top ?? 36
+  const bottom = fitPadding?.bottom ?? 36
 
   useEffect(() => {
     if (!routeGeoJson) return
@@ -48,23 +50,24 @@ function RouteFitBounds({ routeGeoJson }) {
     const routeLayer = L.geoJSON(routeGeoJson)
     const bounds = routeLayer.getBounds()
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [36, 36] })
+      // Keep the route clear of floating UI (mobile: top bar and bottom sheet).
+      map.fitBounds(bounds, { paddingTopLeft: [36, top], paddingBottomRight: [36, bottom] })
     }
-  }, [map, routeGeoJson])
+  }, [map, routeGeoJson, top, bottom])
 
   return null
 }
 
-function FocusOnLockedPoint({ lockedPoint, disabled }) {
+function FocusOnLockedPoint({ lockedPoint, disabled, zoom = 9 }) {
   const map = useMap()
 
   useEffect(() => {
     if (disabled || !lockedPoint) return
-    map.flyTo([lockedPoint.lat, lockedPoint.lng], 9, {
+    map.flyTo([lockedPoint.lat, lockedPoint.lng], zoom, {
       animate: true,
       duration: 0.8,
     })
-  }, [disabled, lockedPoint, map])
+  }, [disabled, lockedPoint, map, zoom])
 
   return null
 }
@@ -135,29 +138,38 @@ function PlannerMap({
   onEndDrag,
   onViaDrag,
   allowPointSelection = true,
+  // Mobile app: the map is the full-screen background, always interactive,
+  // pinch-zoom only, and routes are framed between the floating UI.
+  fullscreen = false,
+  fitPadding = null,
 }) {
-  const preferLock = usePreferMapLock()
+  const preferLock = usePreferMapLock() && !fullscreen
   const [unlocked, setUnlocked] = useState(false)
   const markersLocked = Boolean(selectedRouteGeoJson || routeGeoJson)
   const interactive = preferLock ? unlocked : true
   const pointSelectionEnabled = interactive && allowPointSelection && !markersLocked
 
   return (
-    <div className="relative h-full w-full min-h-[320px]">
+    <div className={`relative h-full w-full ${fullscreen ? 'cyw-fullscreen-map' : 'min-h-[320px]'}`}>
       <MapContainer
         center={[52.0, 19.2]}
         zoom={6}
         scrollWheelZoom={false}
+        zoomControl={!fullscreen}
+        attributionControl={!fullscreen}
         className="h-full w-full"
       >
+        {/* Bottom sheets cover the default corner; OSM/ORS credit must stay visible. */}
+        {fullscreen && <AttributionControl position="topright" prefix={false} />}
         <MapResizeFix bump={interactive} />
         <MapInteractionController interactive={interactive} />
         <MapClickHandler onMapClick={onMapClick} enabled={pointSelectionEnabled} />
         <FocusOnLockedPoint
           lockedPoint={lockedPoint}
           disabled={Boolean(selectedRouteGeoJson || routeGeoJson)}
+          zoom={fullscreen ? 13 : 9}
         />
-        <RouteFitBounds routeGeoJson={selectedRouteGeoJson} />
+        <RouteFitBounds routeGeoJson={selectedRouteGeoJson} fitPadding={fitPadding} />
         <TileLayer
           attribution={getMapTileLayer().attribution}
           url={getMapTileLayer().url}
@@ -198,7 +210,7 @@ function PlannerMap({
             style={{
               color:
                 selectedRouteIndex === index
-                  ? routeMode === 'Loop'
+                  ? routeMode === 'Loop' && !fullscreen
                     ? '#7a6248'
                     : '#FC6C26'
                   : '#94a3b8',
