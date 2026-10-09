@@ -82,18 +82,6 @@ body {
   animation-delay: 1.2s;
 }
 
-@keyframes cyw-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-.cyw-marquee {
-  animation: cyw-marquee 40s linear infinite;
-}
-
 @keyframes cyw-ping {
   0% {
     transform: scale(0.6);
@@ -158,7 +146,6 @@ body {
   .cyw-spin,
   .cyw-rise,
   .cyw-float,
-  .cyw-marquee,
   .cyw-ping,
   .cyw-breathe {
     animation: none;
