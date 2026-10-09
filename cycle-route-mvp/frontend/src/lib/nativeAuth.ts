@@ -21,8 +21,27 @@ export async function signInWithGoogleInSystemBrowser(): Promise<void> {
   await Browser.open({ url: data.url })
 }
 
+const AUTH_PARAM = /[?#&](code|access_token|error|error_description)=/
+
+/**
+ * True for the app-scheme callback and for any opened URL that carries an OAuth
+ * result — e.g. when Supabase falls back to the Site URL (https://cycleyourway.pl/#access_token=…)
+ * because the app scheme is missing from its Redirect URLs.
+ */
 export function isNativeAuthCallback(url: string): boolean {
-  return typeof url === 'string' && url.startsWith(NATIVE_AUTH_CALLBACK)
+  if (typeof url !== 'string') return false
+  return url.startsWith(NATIVE_AUTH_CALLBACK) || AUTH_PARAM.test(url)
+}
+
+/** What came back, without tokens — for logs. */
+export function describeAuthCallback(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const keys = [...parsed.searchParams.keys(), ...new URLSearchParams(parsed.hash.replace(/^#/, '')).keys()]
+    return `${parsed.protocol}//${parsed.host} params=[${keys.join(',')}]`
+  } catch {
+    return 'unparseable url'
+  }
 }
 
 /**

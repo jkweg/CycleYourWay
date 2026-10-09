@@ -117,6 +117,7 @@ function App() {
     isLoading: isAuthLoading,
     logout,
     passwordRecovery,
+    oauthError,
   } = useAuth()
   const plannerSectionRef = useRef(null)
   const routeAbortRef = useRef(null)
@@ -153,7 +154,21 @@ function App() {
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const [isPreparingRide, setIsPreparingRide] = useState(false)
   const [error, setError] = useState('')
+  // Android: a failed Google sign-in comes back asynchronously from the system browser;
+  // surface each new failure in the planner's error banner.
+  const [shownOauthError, setShownOauthError] = useState('')
+  if (oauthError && oauthError !== shownOauthError) {
+    setShownOauthError(oauthError)
+    setError(oauthError)
+  }
   const [showAuthModal, setShowAuthModal] = useState(false)
+  // Sign-ins that finish outside the modal (Android: Google in the system browser)
+  // must still close it once the session appears.
+  const [wasAuthenticated, setWasAuthenticated] = useState(isAuthenticated)
+  if (isAuthenticated !== wasAuthenticated) {
+    setWasAuthenticated(isAuthenticated)
+    if (isAuthenticated && showAuthModal) setShowAuthModal(false)
+  }
   const [showSaveRouteModal, setShowSaveRouteModal] = useState(false)
   const [showGoogleMapsExportNotice, setShowGoogleMapsExportNotice] = useState(false)
   const [savedRoutesRefreshKey, setSavedRoutesRefreshKey] = useState(0)

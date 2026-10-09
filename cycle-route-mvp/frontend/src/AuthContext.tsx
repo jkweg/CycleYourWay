@@ -7,6 +7,7 @@ import { isNativePlatform } from './lib/platform'
 import { captureException } from './lib/monitoring'
 import {
   completeNativeAuth,
+  describeAuthCallback,
   isNativeAuthCallback,
   signInWithGoogleInSystemBrowser,
 } from './lib/nativeAuth'
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [oauthError, setOauthError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -79,7 +81,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let disposed = false
     const finish = (url: string | undefined) => {
       if (!url || !isNativeAuthCallback(url)) return
-      completeNativeAuth(url).catch((error) => captureException(error, { where: 'completeNativeAuth' }))
+      console.info('[auth] callback received:', describeAuthCallback(url))
+      completeNativeAuth(url)
+        .then(() => setOauthError(''))
+        .catch((error) => {
+          captureException(error, { where: 'completeNativeAuth' })
+          setOauthError(`Logowanie przez Google nie powiodło się: ${polishAuthError((error as Error)?.message)}`)
+        })
     }
     void import('@capacitor/app').then(async ({ App }) => {
       const handle = await App.addListener('appUrlOpen', (event) => finish(event?.url))
@@ -149,6 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
+    setOauthError('')
     if (isNativePlatform()) {
       try {
         await signInWithGoogleInSystemBrowser()
@@ -178,6 +187,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated: Boolean(user),
       passwordRecovery,
+      oauthError,
       login,
       loginWithGoogle,
       register,
@@ -190,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       isLoading,
       passwordRecovery,
+      oauthError,
       login,
       loginWithGoogle,
       register,
