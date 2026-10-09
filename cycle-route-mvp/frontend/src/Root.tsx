@@ -3,6 +3,8 @@ import App from './App.jsx'
 import { AuthProvider } from './AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoadingScreen from './components/LoadingScreen.jsx'
+import TopRouteBar from './components/TopRouteBar.jsx'
+import { hasSeenIntro, markIntroSeen, signalIntroDone } from './lib/intro'
 import { LegalStandalone, type LegalDocType } from './components/LegalPage'
 
 function legalTypeFromPath(pathname: string): LegalDocType | null {
@@ -14,11 +16,20 @@ function legalTypeFromPath(pathname: string): LegalDocType | null {
 
 export default function Root() {
   const legalType = legalTypeFromPath(window.location.pathname)
-  const [showSplash, setShowSplash] = useState(!legalType)
+  // The full intro plays only on the first visit on this device.
+  const [firstRun] = useState(() => !legalType && !hasSeenIntro())
+  const [showIntro, setShowIntro] = useState(firstRun)
 
   useEffect(() => {
     document.getElementById('boot-splash')?.remove()
-  }, [])
+    if (!firstRun) signalIntroDone()
+  }, [firstRun])
+
+  const finishIntro = () => {
+    markIntroSeen()
+    setShowIntro(false)
+    signalIntroDone()
+  }
 
   if (legalType) {
     return <LegalStandalone type={legalType} />
@@ -26,7 +37,8 @@ export default function Root() {
 
   return (
     <>
-      {showSplash ? <LoadingScreen onComplete={() => setShowSplash(false)} /> : null}
+      {showIntro ? <LoadingScreen onComplete={finishIntro} /> : null}
+      {!firstRun ? <TopRouteBar /> : null}
       <ErrorBoundary where="root">
         <AuthProvider>
           <App />
