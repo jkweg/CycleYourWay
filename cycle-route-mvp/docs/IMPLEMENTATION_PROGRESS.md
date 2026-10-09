@@ -335,5 +335,12 @@ Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki b
 ### Weryfikacja pakietu 14
 
 - Frontend: lint, typecheck, **35/35**, `vite build --mode android` (bundel z produkcyjnym API i MapTiler, bez `localhost`), `npx cap sync android`.
-- **Nie zbudowano APK:** Gradle 8.14 nie działa na Javie 25 z Android Studio (potrzebny JDK 17/21). Logowanie Google, przycisk wstecz i paski nie były testowane na urządzeniu.
+- APK debug zbudowany z JDK 21 (Temurin 21.0.12, `~/.jdks`): `./gradlew assembleDebug` — sukces, 7,6 MB.
+- Emulator Pixel 10a (Android 17, bez okna, `adb` + Chrome DevTools Protocol do WebView):
+  - splash: logo marki na atramencie; pierwsze uruchomienie → intro z rowerem (zrzut przy 90%), potem planer w nowym stylu, kafelki MapTiler i oznaczenie HeiGIT;
+  - `--safe-area-inset-top/bottom` = 54/24 px, treść pod paskami nie jest zasłonięta, ciemne ikony paska na wanilii;
+  - wstecz: zamyka okno logowania, kolejne wstecz → ekran główny telefonu, proces aplikacji żyje (jazda nie przerwana);
+  - „Kontynuuj z Google” otwiera systemowy Chrome (nie WebView);
+  - symulowany powrót `com.cycleyourway.app://auth-callback?error=…`: aplikacja wraca na wierzch, przeglądarka zamknięta, błąd odczytany.
+- Nie testowano: pełnego logowania Google (brak konta na emulatorze; wymaga też redirect URL w Supabase), GPS i jazdy w terenie, prawdziwego telefonu. Błąd z powrotu logowania trafia tylko do logów, bez komunikatu w UI.
 - Obserwacja: wdrożony bundel webowy nie zawiera adresu MapTiler — produkcja www najpewniej używa publicznych kafelków OSM (sprawdzić `VITE_MAP_TILES_URL` w Vercel i redeploy).
