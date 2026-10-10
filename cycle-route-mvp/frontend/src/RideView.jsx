@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconAlertTriangle,
+  IconArrowBackUp,
+  IconArrowBearLeft,
+  IconArrowBearRight,
+  IconArrowRoundaboutRight,
+  IconArrowSharpTurnLeft,
+  IconArrowSharpTurnRight,
+  IconArrowUp,
+  IconCircleDot,
+  IconCornerUpLeft,
+  IconCornerUpRight,
   IconCurrentLocation,
+  IconFlag,
   IconList,
+  IconMapPinOff,
   IconPlayerPause,
   IconPlayerPlay,
   IconVolume,
@@ -45,6 +57,8 @@ const OFF_ROUTE_TRIGGER_MS = 15_000
 const OFF_ROUTE_MIN_DISTANCE_M = 90
 const RECALC_COOLDOWN_MS = 60_000
 const MAX_ACCURACY_M = 45
+// Before the first good fix, still show a rough position (indoors, cold GPS).
+const MAX_FIRST_FIX_ACCURACY_M = 150
 const MIN_MOVE_M = 4
 
 // Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
@@ -81,9 +95,66 @@ const geoErrorMessage = (error) => {
       ? 'Brak zgody na lokalizację. Włącz GPS w ustawieniach aplikacji.'
       : 'Brak zgody na lokalizację. Włącz dostęp do GPS w przeglądarce.'
   }
-  if (error.code === 2) return 'Sygnał GPS niedostępny. Wyjdź na otwartą przestrzeń.'
-  if (error.code === 3) return 'Przekroczono czas oczekiwania na GPS. Sprawdź sygnał i spróbuj ponownie.'
-  return error.message || 'Problem z lokalizacją.'
+  if (error.disabled) return 'Lokalizacja w telefonie jest wyłączona. Włącz ją w szybkich ustawieniach.'
+  if (error.code === 3) return ''
+  return 'Sygnał GPS niedostępny. Wyjdź na otwartą przestrzeń.'
+}
+
+// ORS maneuver types (lib/navigation.ts) drawn with the app's icon set.
+const MANEUVER_ICONS = {
+  0: IconCornerUpLeft,
+  1: IconCornerUpRight,
+  2: IconArrowSharpTurnLeft,
+  3: IconArrowSharpTurnRight,
+  4: IconArrowBearLeft,
+  5: IconArrowBearRight,
+  6: IconArrowUp,
+  7: IconArrowRoundaboutRight,
+  8: IconArrowRoundaboutRight,
+  9: IconArrowBackUp,
+  10: IconFlag,
+  11: IconCircleDot,
+  12: IconArrowBearLeft,
+  13: IconArrowBearRight,
+}
+
+function ManeuverIcon({ type, size = 24, className }) {
+  const Icon = MANEUVER_ICONS[type] || IconArrowUp
+  return <Icon size={size} stroke={2.4} className={className} aria-hidden="true" />
+}
+
+const CARD_TONES = {
+  orange: 'bg-burnt-orange text-ink',
+  sand: 'bg-vanilla text-ink',
+  alert: 'bg-[#FDE7DF] text-[#6E1C12]',
+}
+
+function CardRow({ icon, tone, title, children }) {
+  return (
+    <div className="flex items-center gap-3.5">
+      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-[18px] ${CARD_TONES[tone]}`}>{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="font-serif text-[22px] font-medium leading-tight">{title}</p>
+        <p className="mt-0.5 text-sm text-vanilla-deep">{children}</p>
+      </div>
+    </div>
+  )
+}
+
+function RideButton({ label, onClick, pressed, children }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`grid h-11 w-11 shrink-0 place-items-center rounded-full shadow-[0_8px_22px_rgba(42,26,18,0.16)] transition active:scale-95 ${
+        pressed ? 'bg-ink text-burnt-orange' : 'bg-white text-ink'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
 function InitialFit({ coordinates }) {
@@ -102,17 +173,30 @@ function InitialFit({ coordinates }) {
   return null
 }
 
+// Street-level zoom for riding; the route overview is only shown until the first fix.
+const FOLLOW_ZOOM = 16
+
 function FollowController({ center, follow, onUserDrag }) {
   const map = useMap()
+  // Zoom in on the first fix and on "Wyśrodkuj"; otherwise keep the rider's own zoom.
+  const needsZoomRef = useRef(true)
 
   useEffect(() => {
-    if (follow && center) {
-      map.panTo([center.lat, center.lng], {
-        animate: true,
-        duration: 0.5,
-        easeLinearity: 0.5,
-      })
+    if (!follow) needsZoomRef.current = true
+  }, [follow])
+
+  useEffect(() => {
+    if (!follow || !center) return
+    if (needsZoomRef.current) {
+      needsZoomRef.current = false
+      map.flyTo([center.lat, center.lng], Math.max(map.getZoom(), FOLLOW_ZOOM), { animate: true, duration: 0.8 })
+      return
     }
+    map.panTo([center.lat, center.lng], {
+      animate: true,
+      duration: 0.5,
+      easeLinearity: 0.5,
+    })
   }, [center, follow, map])
 
   useMapEvents({
@@ -172,6 +256,9 @@ function RideView({
   const [saveRideError, setSaveRideError] = useState('')
   const [draftStorageError, setDraftStorageError] = useState('')
   const [showManeuverList, setShowManeuverList] = useState(false)
+  const [showCredits, setShowCredits] = useState(false)
+  // No fix arrived within the plugin timeout: keep searching, but say so.
+  const [gpsSearching, setGpsSearching] = useState(false)
 
   const hintRef = useRef(0)
   const spokenRef = useRef(null)
@@ -343,9 +430,15 @@ function RideView({
           position.coords
         const point = { lat: latitude, lng: longitude }
 
-        // Drop very inaccurate fixes (common indoors / cold start).
+        setGpsSearching(false)
+        // Drop very inaccurate fixes (common indoors / cold start); until a good
+        // one arrives, a rough fix still puts the rider on the map.
         if (Number.isFinite(acc) && acc > MAX_ACCURACY_M) {
           setAccuracy(acc)
+          if (!lastAccepted && acc <= MAX_FIRST_FIX_ACCURACY_M) {
+            setUserPos(point)
+            setGeoError('')
+          }
           return
         }
 
@@ -393,7 +486,9 @@ function RideView({
         }
       },
       (error) => {
-        if (!cancelled) setGeoError(geoErrorMessage(error))
+        if (cancelled) return
+        if (error?.code === 3) setGpsSearching(true)
+        setGeoError(geoErrorMessage(error))
       },
       { preferBackground: true },
     ).then((stop) => {
@@ -606,45 +701,37 @@ function RideView({
 
   const nextManeuver = navState?.nextManeuver || null
   const followingManeuver = navState?.followingManeuver || null
-  const maneuverVisual = nextManeuver ? getManeuverVisual(nextManeuver.type) : null
-
-  const lineColor = mode === 'Loop' ? '#7a6248' : '#FC6C26'
+  // react-leaflet's GeoJSON ignores new data; a new key redraws a recalculated route.
+  const routeLineKey = `${coordinates.length}:${coordinates[0]}:${coordinates[coordinates.length - 1]}`
 
   if (rideSummary) {
     return (
-      <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[#2c1e16]/80 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-[#3d2a20] p-6 text-orange-50 shadow-2xl ring-1 ring-white/10">
-          <h2 className="text-xl font-semibold text-white">Podsumowanie jazdy</h2>
-          <p className="mt-1 text-sm text-orange-100/70">{routeName || 'Trasa'}</p>
-          <dl className="mt-5 grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Dystans</dt>
-              <dd className="mt-1 text-lg font-bold text-white">
-                {formatDistance(rideSummary.distanceMeters)}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Czas</dt>
-              <dd className="mt-1 text-lg font-bold text-white">
-                {formatDuration(rideSummary.durationSeconds)}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-white/5 p-3">
-              <dt className="text-[11px] uppercase tracking-wide text-orange-100/60">Średnia</dt>
-              <dd className="mt-1 text-lg font-bold text-white">
-                {rideSummary.avgSpeedKmh > 0
-                  ? `${rideSummary.avgSpeedKmh.toFixed(1)} km/h`
-                  : '—'}
-              </dd>
-            </div>
+      <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-ink/60 p-3 sm:items-center">
+        <div
+          className="w-full max-w-md rounded-[28px] bg-vanilla p-5 text-ink shadow-[0_24px_60px_rgba(42,26,18,0.35)]"
+          style={{ marginBottom: 'var(--safe-area-inset-bottom,env(safe-area-inset-bottom))' }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B4E3D]">Koniec jazdy</p>
+          <h2 className="mt-1 font-serif text-[28px] font-medium leading-tight">{routeName || 'Trasa'}</h2>
+          <dl className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              ['Dystans', formatDistance(rideSummary.distanceMeters)],
+              ['Czas', formatDuration(rideSummary.durationSeconds)],
+              ['Średnia', rideSummary.avgSpeedKmh > 0 ? `${rideSummary.avgSpeedKmh.toFixed(1)} km/h` : '—'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-white p-3">
+                <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#6B4E3D]">{label}</dt>
+                <dd className="mt-0.5 text-base font-bold tabular-nums">{value}</dd>
+              </div>
+            ))}
           </dl>
           {resumeDraft?.status === 'completed' && !saveRideError && (
-            <p className="mt-4 rounded-xl bg-blue-500/15 px-3 py-2 text-sm text-blue-100">
+            <p className="mt-3 rounded-2xl bg-sage-soft px-3.5 py-2.5 text-sm text-[#1F4D3B]">
               Odzyskano niezapisaną jazdę z tego urządzenia.
             </p>
           )}
           {saveRideError && (
-            <p role="alert" className="mt-4 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-100">
+            <p role="alert" className="mt-3 rounded-2xl border border-[#E9A08A] bg-[#FDE7DF] px-3.5 py-2.5 text-sm text-[#6E1C12]">
               {saveRideError}
             </p>
           )}
@@ -652,7 +739,7 @@ function RideView({
             type="button"
             onClick={handleCloseSummary}
             disabled={isSavingRide}
-            className="mt-6 w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-[#10231a] transition hover:bg-orange-400"
+            className="mt-4 flex h-12 w-full items-center justify-center rounded-full bg-burnt-orange text-base font-bold text-ink disabled:opacity-60"
           >
             {isSavingRide ? 'Zapisywanie…' : saveRideError ? 'Spróbuj zapisać ponownie' : 'Zapisz i zamknij'}
           </button>
@@ -660,7 +747,7 @@ function RideView({
             <button
               type="button"
               onClick={() => onExit(sessionId)}
-              className="mt-2 w-full rounded-xl border border-white/20 px-4 py-3 text-sm font-semibold text-orange-50"
+              className="mt-2 flex h-12 w-full items-center justify-center rounded-full border-[1.5px] border-ink text-sm font-bold"
             >
               Wróć do planera — zachowaj lokalnie
             </button>
@@ -670,13 +757,93 @@ function RideView({
     )
   }
 
+  const remaining = formatDistance(navState ? navState.remainingDistance : totalDistance)
+  const progress = Math.round((navState?.progress || 0) * 100)
+
+  // Top card: what to do next, or why we can't tell yet.
+  let status
+  if (isPaused) {
+    status = (
+      <CardRow icon={<IconPlayerPause size={26} />} tone="sand" title="Jazda wstrzymana">
+        Nawigacja i zapis śladu czekają. Wznów, gdy ruszasz.
+      </CardRow>
+    )
+  } else if (geoError) {
+    status = (
+      <CardRow icon={<IconMapPinOff size={26} />} tone="alert" title="Brak lokalizacji">
+        {geoError}
+      </CardRow>
+    )
+  } else if (!userPos) {
+    status = (
+      <CardRow icon={<span className="h-3 w-3 animate-ping rounded-full bg-ink" />} tone="orange" title="Szukam sygnału GPS…">
+        {gpsSearching
+          ? 'To trwa dłużej niż zwykle. W budynku GPS często nie działa — wyjdź na zewnątrz.'
+          : 'Za chwilę pokażemy Twoją pozycję na trasie.'}
+      </CardRow>
+    )
+  } else if (navState?.isOffRoute) {
+    status = (
+      <div className="space-y-2.5">
+        <CardRow
+          icon={isRecalculating ? <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-ink/25 border-t-ink" /> : <IconAlertTriangle size={26} />}
+          tone="sand"
+          title={isRecalculating ? 'Przeliczam trasę…' : 'Poza trasą'}
+        >
+          {isRecalculating
+            ? 'Szukam nowej drogi z Twojej pozycji.'
+            : `Jesteś ${formatDistance(navState.offRouteDistance)} od trasy.`}
+        </CardRow>
+        {!isRecalculating && (
+          <button
+            type="button"
+            onClick={handleRecalculateRoute}
+            className="flex h-11 w-full items-center justify-center rounded-full bg-burnt-orange text-[15px] font-bold text-ink"
+          >
+            Przelicz trasę do celu
+          </button>
+        )}
+        {recalcError && <p className="rounded-2xl bg-[#FDE7DF] px-3.5 py-2 text-sm text-[#6E1C12]">{recalcError}</p>}
+      </div>
+    )
+  } else if (navState?.isArriving) {
+    status = (
+      <CardRow icon={<IconFlag size={26} />} tone="orange" title="Dojeżdżasz do celu">
+        Jeszcze {remaining}.
+      </CardRow>
+    )
+  } else if (nextManeuver) {
+    status = (
+      <div className="flex items-center gap-3.5">
+        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-[20px] bg-burnt-orange text-ink">
+          <ManeuverIcon type={nextManeuver.type} size={38} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-serif text-[34px] font-semibold leading-none tabular-nums">
+            {formatDistance(navState.distanceToManeuver)}
+          </p>
+          <p className="mt-1 truncate text-[15px] text-vanilla-deep">
+            {nextManeuver.instruction || getManeuverVisual(nextManeuver.type).label}
+          </p>
+        </div>
+      </div>
+    )
+  } else {
+    status = (
+      <CardRow icon={<IconArrowUp size={26} />} tone="orange" title="Jedź wzdłuż trasy">
+        Podpowiemy przed kolejnym skrętem.
+      </CardRow>
+    )
+  }
+
   return (
-    <div className="fixed inset-0 z-[3000] flex flex-col bg-[#2c1e16] text-white">
-      <div className="absolute inset-0">
+    <div className="fixed inset-0 z-[3000] overflow-hidden bg-[#EFE3C4] font-sans text-ink">
+      <div className={`absolute inset-0 transition ${isPaused ? 'saturate-50' : ''}`}>
         <MapContainer
           center={[52.0, 19.2]}
           zoom={15}
           zoomControl={false}
+          attributionControl={false}
           scrollWheelZoom
           className="h-full w-full"
         >
@@ -686,16 +853,16 @@ function RideView({
             maxZoom={getMapTileLayer().maxZoom}
           />
           {routeLine && (
-            <GeoJSON
-              data={routeLine}
-              style={{ color: lineColor, weight: 7, opacity: 0.9 }}
-            />
+            <>
+              <GeoJSON key={`casing-${routeLineKey}`} data={routeLine} style={{ color: '#FFFFFF', weight: 11, opacity: 0.9 }} />
+              <GeoJSON key={`line-${routeLineKey}`} data={routeLine} style={{ color: '#FC6C26', weight: 6, opacity: 1 }} />
+            </>
           )}
           {destination && (
             <CircleMarker
               center={[destination.lat, destination.lng]}
               radius={9}
-              pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#b91c1c', fillOpacity: 1 }}
+              pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#2A1A12', fillOpacity: 1 }}
             />
           )}
           {userPos && (
@@ -704,141 +871,105 @@ function RideView({
                 <CircleMarker
                   center={[userPos.lat, userPos.lng]}
                   radius={Math.min(40, Math.max(8, accuracy / 3))}
-                  pathOptions={{
-                    color: '#2563eb',
-                    weight: 1,
-                    fillColor: '#3b82f6',
-                    fillOpacity: 0.15,
-                  }}
+                  pathOptions={{ color: '#2563eb', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.15 }}
                 />
               )}
-              <Marker
-                ref={markerRef}
-                position={[userPos.lat, userPos.lng]}
-                icon={userIcon}
-                zIndexOffset={1000}
-                keyboard={false}
-              />
+              <Marker ref={markerRef} position={[userPos.lat, userPos.lng]} icon={userIcon} zIndexOffset={1000} keyboard={false} />
             </>
           )}
           <InitialFit coordinates={coordinates} />
-          <FollowController
-            center={userPos}
-            follow={follow}
-            onUserDrag={() => setFollow(false)}
-          />
+          <FollowController center={userPos} follow={follow} onUserDrag={() => setFollow(false)} />
         </MapContainer>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[3000] h-52 bg-gradient-to-b from-[#2c1e16]/55 via-[#2c1e16]/15 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[3000] h-48 bg-gradient-to-t from-[#2c1e16]/45 to-transparent" />
-      {isPaused && (
-        <div className="pointer-events-none absolute inset-0 z-[3000] bg-[#2c1e16]/25 backdrop-saturate-50" />
-      )}
+      <div
+        className="pointer-events-none absolute inset-x-3 top-0 z-[3001] space-y-2"
+        style={{ paddingTop: 'calc(var(--safe-area-inset-top,env(safe-area-inset-top)) + 10px)' }}
+      >
+        <section aria-label="Następny manewr" aria-live="polite" className="pointer-events-auto rounded-[26px] bg-ink p-4 text-white shadow-[0_18px_40px_rgba(42,26,18,0.35)]">
+          {status}
+          {!isPaused && userPos && nextManeuver && followingManeuver && !navState?.isOffRoute && (
+            <p className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5 text-[13px] text-vanilla-deep">
+              <span className="font-semibold text-white">Potem</span>
+              <ManeuverIcon type={followingManeuver.type} size={16} className="shrink-0 text-burnt-orange" />
+              <span className="truncate">{followingManeuver.instruction || getManeuverVisual(followingManeuver.type).label}</span>
+            </p>
+          )}
+          {draftStorageError && (
+            <p role="alert" className="mt-3 rounded-2xl bg-[#FDE7DF] px-3.5 py-2 text-sm text-[#6E1C12]">
+              {draftStorageError}
+            </p>
+          )}
+        </section>
+
+        <div className="pointer-events-auto flex items-center gap-2">
+          <RideButton label="Zakończ nawigację" onClick={handleExitRequest}>
+            <IconX size={20} stroke={2.2} />
+          </RideButton>
+          <span className="flex-1" />
+          {userPos && !isPaused && (
+            <span className="flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3 text-xs font-semibold text-ink shadow-[0_6px_16px_rgba(42,26,18,0.14)]">
+              <span className={`h-2 w-2 rounded-full ${gpsSearching ? 'bg-burnt-orange' : 'bg-sage'}`} />
+              {gpsSearching ? 'Słaby GPS' : `GPS${accuracy ? ` ±${Math.round(accuracy)} m` : ''}`}
+            </span>
+          )}
+          <RideButton
+            label={voiceOn ? 'Wyłącz komunikaty głosowe' : 'Włącz komunikaty głosowe'}
+            pressed={voiceOn}
+            onClick={() => setVoiceOn((value) => !value)}
+          >
+            {voiceOn ? <IconVolume size={20} stroke={2.2} /> : <IconVolumeOff size={20} stroke={2.2} />}
+          </RideButton>
+          <RideButton label="Lista manewrów" pressed={showManeuverList} onClick={() => setShowManeuverList((value) => !value)}>
+            <IconList size={20} stroke={2.2} />
+          </RideButton>
+        </div>
+      </div>
 
       <div
-        className="pointer-events-none relative z-[3001] flex flex-col"
-        style={{ paddingTop: 'var(--safe-area-inset-top,env(safe-area-inset-top))' }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[3001] flex flex-col gap-2.5"
       >
-        <div className="pointer-events-auto m-3 rounded-[1.35rem] bg-[#3d2a20]/94 p-3.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.12] backdrop-blur-xl">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleExitRequest}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60"
-              aria-label="Zakończ nawigację"
-              title="Zakończ nawigację"
-            >
-              <IconX className="h-5 w-5" stroke={2} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-orange-50">
-                {routeName || 'Trasa'}
-              </p>
-              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-orange-100/55">
-                {isPaused ? 'Nawigacja wstrzymana' : mode === 'Loop' ? 'Pętla' : 'Trasa A → B'}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setShowManeuverList((value) => !value)}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
-                  showManeuverList
-                    ? 'bg-orange-500 text-[#2c1e16]'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                aria-pressed={showManeuverList}
-                aria-label="Lista manewrów"
-                title="Lista manewrów"
-              >
-                <IconList className="h-5 w-5" stroke={2} />
-              </button>
-              <button
-                type="button"
-                onClick={togglePause}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
-                  isPaused
-                    ? 'bg-amber-400 text-[#2a1f05]'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                aria-pressed={isPaused}
-                aria-label={isPaused ? 'Wznów jazdę' : 'Wstrzymaj jazdę'}
-                title={isPaused ? 'Wznów jazdę' : 'Wstrzymaj jazdę'}
-              >
-                {isPaused ? (
-                  <IconPlayerPlay className="h-5 w-5" fill="currentColor" stroke={1.8} />
-                ) : (
-                  <IconPlayerPause className="h-5 w-5" fill="currentColor" stroke={1.8} />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setVoiceOn((value) => !value)}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/60 ${
-                  voiceOn
-                    ? 'bg-orange-500 text-[#2c1e16]'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                aria-pressed={voiceOn}
-                aria-label={voiceOn ? 'Wyłącz komunikaty głosowe' : 'Włącz komunikaty głosowe'}
-                title={voiceOn ? 'Wyłącz komunikaty głosowe' : 'Włącz komunikaty głosowe'}
-              >
-                {voiceOn ? (
-                  <IconVolume className="h-5 w-5" stroke={2} />
-                ) : (
-                  <IconVolumeOff className="h-5 w-5" stroke={2} />
-                )}
-              </button>
-            </div>
-          </div>
+        {!follow && userPos && (
+          <button
+            type="button"
+            onClick={() => setFollow(true)}
+            className="pointer-events-auto mr-3 flex h-11 items-center gap-2 self-end rounded-full bg-ink px-4 text-sm font-bold text-white shadow-[0_8px_22px_rgba(42,26,18,0.25)]"
+          >
+            <IconCurrentLocation size={18} stroke={2.2} className="text-burnt-orange" />
+            Wyśrodkuj
+          </button>
+        )}
 
+        <section
+          aria-label="Postęp jazdy"
+          className="pointer-events-auto rounded-t-[24px] bg-vanilla px-4 pt-3 shadow-[0_-10px_30px_rgba(42,26,18,0.16)]"
+          style={{ paddingBottom: 'calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom)) + 14px)' }}
+        >
           {showManeuverList && (
-            <div className="mt-3 max-h-48 overflow-y-auto rounded-xl bg-black/25 p-2">
-              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-orange-100/70">
+            <div className="mb-3 max-h-[40dvh] overflow-y-auto rounded-[20px] bg-white p-2">
+              <p className="px-2 pb-1 pt-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6B4E3D]">
                 Manewry ({maneuvers.length})
               </p>
               {maneuvers.length === 0 ? (
-                <p className="px-1 text-sm text-orange-100/70">Brak instrukcji dla tej trasy.</p>
+                <p className="px-2 pb-2 text-sm text-ink-muted">Brak instrukcji dla tej trasy.</p>
               ) : (
-                <ol className="space-y-1">
+                <ol>
                   {maneuvers.map((maneuver, index) => {
-                    const visual = getManeuverVisual(maneuver.type)
-                    const isCurrent =
-                      navState?.nextManeuver?.coordIndex === maneuver.coordIndex
+                    const isCurrent = navState?.nextManeuver?.coordIndex === maneuver.coordIndex
                     return (
                       <li
                         key={`${maneuver.coordIndex}-${index}`}
-                        className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${
-                          isCurrent ? 'bg-orange-500/25 text-white' : 'text-orange-50/90'
-                        }`}
+                        aria-current={isCurrent ? 'step' : undefined}
+                        className={`flex items-center gap-3 rounded-2xl px-2 py-2 text-sm ${isCurrent ? 'bg-vanilla' : ''}`}
                       >
-                        <span className="w-6 shrink-0 text-center text-base">{visual.icon}</span>
+                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isCurrent ? 'bg-burnt-orange text-ink' : 'bg-vanilla text-burnt-orange-dark'}`}>
+                          <ManeuverIcon type={maneuver.type} size={20} />
+                        </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate">
-                            {maneuver.instruction || visual.label}
+                          <span className="block truncate font-semibold">
+                            {maneuver.instruction || getManeuverVisual(maneuver.type).label}
                           </span>
-                          <span className="text-[11px] text-orange-100/55">
+                          <span className="text-xs text-[#6B4E3D]">
                             {formatDistance(maneuver.distance)}
                             {maneuver.name ? ` · ${maneuver.name}` : ''}
                           </span>
@@ -851,145 +982,65 @@ function RideView({
             </div>
           )}
 
-          {draftStorageError && (
-            <p role="alert" className="mt-3 rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
-              {draftStorageError}
-            </p>
-          )}
-
-          {isPaused ? (
-            <p className="mt-3 rounded-lg bg-amber-400/20 px-3 py-2 text-sm text-amber-100">
-              Jazda wstrzymana — nawigacja i zapis śladu są zapauzowane.
-            </p>
-          ) : geoError ? (
-            <p className="mt-3 rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
-              {geoError}
-            </p>
-          ) : !userPos ? (
-            <div className="mt-3 flex items-center gap-2 text-sm text-orange-100/80">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
-              Ustalanie pozycji GPS…
-            </div>
-          ) : navState?.isOffRoute ? (
-            <div className="mt-3 space-y-3">
-              <div className="flex items-center gap-3 rounded-xl border-l-4 border-amber-400 bg-amber-400/10 px-3 py-2.5">
-                {isRecalculating ? (
-                  <span className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-amber-200/35 border-t-amber-300" />
-                ) : (
-                  <IconAlertTriangle className="h-7 w-7 shrink-0 text-amber-300" stroke={1.8} />
-                )}
-                <div>
-                  <p className="text-base font-semibold text-amber-200">
-                    {isRecalculating ? 'Przeliczanie trasy…' : 'Poza trasą'}
-                  </p>
-                  <p className="text-sm text-orange-100/80">
-                    {isRecalculating
-                      ? 'Szukamy nowej drogi do celu z Twojej pozycji.'
-                      : `Jesteś ${formatDistance(navState.offRouteDistance)} od trasy. Możesz wrócić lub przeliczyć trasę.`}
-                  </p>
-                </div>
-              </div>
-              {!isRecalculating && (
-                <button
-                  type="button"
-                  onClick={handleRecalculateRoute}
-                  className="w-full rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-[#2a1f05] transition hover:bg-amber-300"
-                >
-                  Przelicz trasę do celu
-                </button>
-              )}
-              {recalcError && (
-                <p className="rounded-lg bg-rose-500/20 px-3 py-2 text-sm text-rose-100">
-                  {recalcError}
-                </p>
-              )}
-            </div>
-          ) : navState?.isArriving ? (
-            <div className="mt-3 flex items-center gap-3">
-              <span className="text-3xl">🏁</span>
-              <p className="text-lg font-semibold text-orange-100">Dojeżdżasz do celu</p>
-            </div>
-          ) : nextManeuver ? (
-            <div className="mt-3 flex items-center gap-3.5">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-500/[0.18] text-4xl leading-none text-orange-300 ring-1 ring-orange-300/10">
-                {maneuverVisual?.icon}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="mb-0.5 flex items-center justify-between gap-2">
-                  <p className="text-3xl font-bold leading-none tabular-nums text-white">
-                  {formatDistance(navState.distanceToManeuver)}
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-orange-100/65">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                    GPS{accuracy ? ` ±${Math.round(accuracy)} m` : ''}
-                  </span>
-                </div>
-                <p className="truncate text-sm text-orange-100/90">
-                  {nextManeuver.instruction || maneuverVisual?.label}
-                </p>
-                {followingManeuver && (
-                  <p className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/[0.08] px-2 py-0.5 text-xs text-orange-100/65">
-                    <span className="truncate">
-                    potem {getManeuverVisual(followingManeuver.type).icon}{' '}
-                    {followingManeuver.instruction}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-orange-100/80">
-              Jedź wzdłuż wyznaczonej trasy.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1" />
-
-      <div
-        className="relative z-[3001] flex flex-col gap-3 px-3"
-        style={{ paddingBottom: 'calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom)) + 12px)' }}
-      >
-        {!follow && userPos && (
-          <button
-            type="button"
-            onClick={() => setFollow(true)}
-            className="pointer-events-auto flex items-center gap-2 self-end rounded-full bg-[#FFF8E8] px-4 py-2 text-sm font-semibold text-[#2c1e16] shadow-lg ring-2 ring-white/35 transition hover:bg-white"
+          <div
+            role="progressbar"
+            aria-label="Przejechana część trasy"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            className="h-1.5 w-full overflow-hidden rounded-full bg-vanilla-deep"
           >
-            <IconCurrentLocation className="h-4 w-4 text-[#E05518]" stroke={2} />
-            Wyśrodkuj
-          </button>
-        )}
-
-        <div className="pointer-events-auto rounded-[1.35rem] bg-[#3d2a20]/94 px-4 py-3 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.12] backdrop-blur-xl">
-          <div className="mb-2.5 h-2 w-full overflow-hidden rounded-full bg-white/[0.12]">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#FC6C26] via-orange-400 to-[#ffc08b] transition-[width] duration-500 ease-out"
-              style={{ width: `${Math.round((navState?.progress || 0) * 100)}%` }}
-            />
+            <div className="h-full rounded-full bg-burnt-orange transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
           </div>
-          <div className="flex items-center justify-between text-center">
-            <div className="flex-1">
-              <p className="text-xl font-bold tabular-nums text-white">
-                {formatDistance(navState ? navState.remainingDistance : totalDistance)}
-              </p>
-              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">Pozostało</p>
-            </div>
-            <div className="flex-1 border-x border-white/10">
-              <p className="text-lg font-bold tabular-nums text-white">
+          <div className="mt-3 flex items-end gap-3">
+            <p className="whitespace-nowrap font-serif text-[32px] font-semibold leading-none tabular-nums">
+              {remaining}
+              <span className="ml-1 font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-[#6B4E3D]">do celu</span>
+            </p>
+            <span className="flex-1" />
+            <p className="whitespace-nowrap text-right">
+              <strong className="block text-[15px] leading-tight tabular-nums">
                 {navState ? formatDuration(navState.remainingSeconds) : '—'}
-              </p>
-              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">Czas (szac.)</p>
-            </div>
-            <div className="flex-1">
-              <p className="text-lg font-bold tabular-nums text-white">
-                {gpsSpeed != null ? `${Math.round(gpsSpeed * 3.6)}` : '—'}
-              </p>
-              <p className="text-[11px] uppercase tracking-wide text-orange-100/60">km/h</p>
-            </div>
+              </strong>
+              <span className="text-[11px] text-[#6B4E3D]">czas</span>
+            </p>
+            <p className="whitespace-nowrap text-right">
+              <strong className="block text-[15px] leading-tight tabular-nums">
+                {gpsSpeed != null ? Math.round(gpsSpeed * 3.6) : '—'}
+              </strong>
+              <span className="text-[11px] text-[#6B4E3D]">km/h</span>
+            </p>
           </div>
-        </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePause}
+              aria-pressed={isPaused}
+              className={`flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-base font-bold ${
+                isPaused ? 'bg-burnt-orange text-ink shadow-[0_10px_22px_rgba(224,85,24,0.26)]' : 'bg-ink text-white'
+              }`}
+            >
+              {isPaused ? <IconPlayerPlay size={18} fill="currentColor" /> : <IconPlayerPause size={18} fill="currentColor" />}
+              {isPaused ? 'Wznów jazdę' : 'Wstrzymaj'}
+            </button>
+            <button
+              type="button"
+              aria-label={showCredits ? 'Ukryj źródła mapy' : 'Źródła mapy i tras'}
+              aria-expanded={showCredits}
+              onClick={() => setShowCredits((value) => !value)}
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white font-serif text-base font-semibold italic text-ink-muted"
+            >
+              i
+            </button>
+          </div>
+          {showCredits && (
+            <p
+              className="mt-2 text-[11px] leading-snug text-[#6B4E3D] [&_a]:underline"
+              // Our own constant credits string (mapTiles.ts), not user content.
+              dangerouslySetInnerHTML={{ __html: getMapTileLayer().attribution }}
+            />
+          )}
+        </section>
       </div>
     </div>
   )

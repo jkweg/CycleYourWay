@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { getCurrentPosition } from '../lib/location'
+import { useEffect, useRef, useState } from 'react'
+import { getCurrentPosition, hasLocationPermission } from '../lib/location'
 import { isNativePlatform } from '../lib/platform'
 
 type LocationPermissionGateProps = {
@@ -9,14 +9,35 @@ type LocationPermissionGateProps = {
 }
 
 /**
- * One-shot permission primer before starting ride / locating.
+ * Permission primer before starting a ride / locating. Shown only while access
+ * is not granted yet; with access granted it hands straight over to `onReady`.
  */
 function LocationPermissionGate({ open, onReady, onCancel }: LocationPermissionGateProps) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [gateSession, setGateSession] = useState(0)
+  const [needsAsk, setNeedsAsk] = useState(false)
+  const onReadyRef = useRef(onReady)
 
-  if (!open) return null
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
+
+  useEffect(() => {
+    if (!open) return undefined
+    let cancelled = false
+    hasLocationPermission().then((granted) => {
+      if (cancelled) return
+      if (granted) onReadyRef.current?.()
+      else setNeedsAsk(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  if (!open && needsAsk) setNeedsAsk(false)
+  if (!open || !needsAsk) return null
 
   const request = async () => {
     setBusy(true)
@@ -47,13 +68,13 @@ function LocationPermissionGate({ open, onReady, onCancel }: LocationPermissionG
   return (
     <div
       key={gateSession}
-      className="fixed inset-0 z-[4000] flex items-end justify-center bg-stone-900/45 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-[4000] flex items-end justify-center bg-ink/50 p-3 sm:items-center"
     >
-      <div className="w-full max-w-md rounded-2xl border border-[#C4A574] bg-[#FFF4D6] p-5 shadow-xl">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-burnt-orange">
+      <div className="w-full max-w-md rounded-[28px] bg-vanilla p-5 shadow-[0_24px_60px_rgba(42,26,18,0.35)]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rust">
           Lokalizacja
         </p>
-        <h2 className="mt-2 font-serif text-2xl font-semibold text-[#4a3226]">
+        <h2 className="mt-1 font-serif text-[26px] font-medium leading-tight text-ink">
           Potrzebujemy GPS do nawigacji
         </h2>
         <p className="mt-3 text-sm leading-6 text-ink-muted">
@@ -73,7 +94,7 @@ function LocationPermissionGate({ open, onReady, onCancel }: LocationPermissionG
           <button
             type="button"
             onClick={handleCancel}
-            className="flex-1 rounded-xl border border-[#4a3226]/30 px-4 py-2.5 text-sm font-semibold text-[#4a3226]"
+            className="h-12 flex-1 rounded-full border-[1.5px] border-ink px-4 text-sm font-bold text-ink"
           >
             Anuluj
           </button>
@@ -81,7 +102,7 @@ function LocationPermissionGate({ open, onReady, onCancel }: LocationPermissionG
             type="button"
             disabled={busy}
             onClick={() => void request()}
-            className="soft-button flex-1 rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla disabled:opacity-60"
+            className="h-12 flex-1 rounded-full bg-burnt-orange px-4 text-sm font-bold text-ink disabled:opacity-60"
           >
             {busy ? 'Sprawdzam…' : 'Zezwól na lokalizację'}
           </button>
