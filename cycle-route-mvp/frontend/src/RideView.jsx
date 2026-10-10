@@ -25,9 +25,9 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
-  GeoJSON,
   MapContainer,
   Marker,
+  Polyline,
   TileLayer,
   useMap,
   useMapEvents,
@@ -60,22 +60,38 @@ const MAX_ACCURACY_M = 45
 // Before the first good fix, still show a rough position (indoors, cold GPS).
 const MAX_FIRST_FIX_ACCURACY_M = 150
 const MIN_MOVE_M = 4
+// The bright "now" stretch of the route: at least this far ahead of the rider,
+// and always past the next turn.
+const ACTIVE_AHEAD_M = 1500
+const ACTIVE_PAST_MANEUVER_M = 150
+const CHEVRON_SPACING_M = 70
+const CHEVRON_MAX = 22
+// After a movement-based heading, ignore the compass for this long.
+const MOVEMENT_HEADING_HOLD_MS = 5000
 
 // Marker pozycji użytkownika. Ikonę tworzymy RAZ (zależnie tylko od tego,
 // czy znamy kierunek). Obrót strzałki ustawiamy potem bezpośrednio na
 // wewnętrznym elemencie (.cyw-arrow-inner), żeby nie odtwarzać DOM-u i mieć
 // płynną animację CSS.
 const buildUserIcon = (hasHeading) => {
+  // With a heading: an arrow plus a soft beam showing where the rider faces.
   const html = hasHeading
-    ? `<div style="width:32px;height:32px;">
-         <div class="cyw-arrow-inner" style="width:32px;height:32px;transition:transform 0.25s linear;will-change:transform;">
-           <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-             <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
-             <path d="M16 6 L22 22 L16 18 L10 22 Z" fill="#ffffff"/>
+    ? `<div style="width:88px;height:88px;">
+         <div class="cyw-arrow-inner" style="width:88px;height:88px;transition:transform 0.25s linear;will-change:transform;">
+           <svg width="88" height="88" viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg">
+             <defs>
+               <radialGradient id="cyw-beam" cx="44" cy="44" r="44" gradientUnits="userSpaceOnUse">
+                 <stop offset="0.25" stop-color="#2563eb" stop-opacity="0.35"/>
+                 <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+               </radialGradient>
+             </defs>
+             <path d="M44 44 L24 4 A44 44 0 0 1 64 4 Z" fill="url(#cyw-beam)"/>
+             <circle cx="44" cy="44" r="15" fill="#2563eb" stroke="#ffffff" stroke-width="3.5"/>
+             <path d="M44 33 L51.5 51 L44 46.5 L36.5 51 Z" fill="#ffffff" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
            </svg>
          </div>
        </div>`
-    : `<div style="width:32px;height:32px;">
+    : `<div style="width:88px;height:88px;display:grid;place-items:center;">
          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
            <circle cx="16" cy="16" r="9" fill="#2563eb" stroke="#ffffff" stroke-width="3"/>
          </svg>
@@ -83,9 +99,87 @@ const buildUserIcon = (hasHeading) => {
   return L.divIcon({
     className: 'cyw-user-marker',
     html,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [88, 88],
+    iconAnchor: [44, 44],
   })
+}
+
+const chevronIcons = new Map()
+// One cached icon per 5° step, so markers only swap icons when the bearing changes.
+function chevronIcon(bearing) {
+  const step = (Math.round(bearing / 5) * 5) % 360
+  if (!chevronIcons.has(step)) {
+    chevronIcons.set(
+      step,
+      L.divIcon({
+        className: 'cyw-route-chevron',
+        html: `<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${step}deg)" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 10.5 L8 5.5 L12.5 10.5" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    )
+  }
+  return chevronIcons.get(step)
+}
+
+/**
+ * The route drawn by progress: ridden part faded, the stretch ahead bright with
+ * direction chevrons, the rest of the route behind a haze. On a loop this tells
+ * the outbound line from the way back where they overlap.
+ */
+function RouteProgress({ latLngs, cumulative, fromIndex, nextManeuverIndex }) {
+  const parts = useMemo(() => {
+    const last = latLngs.length - 1
+    if (last < 1) return null
+    const from = Math.min(Math.max(0, fromIndex), last - 1)
+    const startAt = cumulative[from] || 0
+    const maneuverAt = nextManeuverIndex != null ? (cumulative[nextManeuverIndex] ?? startAt) : startAt
+    const activeUntil = Math.max(startAt + ACTIVE_AHEAD_M, maneuverAt + ACTIVE_PAST_MANEUVER_M)
+    let to = from + 1
+    while (to < last && (cumulative[to] || 0) < activeUntil) to += 1
+
+    const chevrons = []
+    let target = startAt + CHEVRON_SPACING_M / 2
+    for (let i = from; i < to && chevrons.length < CHEVRON_MAX; i += 1) {
+      const segStart = cumulative[i] || 0
+      const segEnd = cumulative[i + 1] || 0
+      while (target <= segEnd && chevrons.length < CHEVRON_MAX) {
+        const length = segEnd - segStart
+        const t = length > 0 ? (target - segStart) / length : 0
+        const [lat1, lng1] = latLngs[i]
+        const [lat2, lng2] = latLngs[i + 1]
+        chevrons.push({
+          position: [lat1 + (lat2 - lat1) * t, lng1 + (lng2 - lng1) * t],
+          bearing: bearingDegrees({ lat: lat1, lng: lng1 }, { lat: lat2, lng: lng2 }),
+        })
+        target += CHEVRON_SPACING_M
+      }
+    }
+
+    return {
+      passed: latLngs.slice(0, from + 1),
+      active: latLngs.slice(from, to + 1),
+      rest: latLngs.slice(to),
+      chevrons,
+    }
+  }, [latLngs, cumulative, fromIndex, nextManeuverIndex])
+
+  if (!parts) return null
+  return (
+    <>
+      {parts.passed.length > 1 && (
+        <Polyline positions={parts.passed} interactive={false} pathOptions={{ color: '#8C6B52', weight: 5, opacity: 0.3 }} />
+      )}
+      {parts.rest.length > 1 && (
+        <Polyline positions={parts.rest} interactive={false} pathOptions={{ color: '#FC6C26', weight: 5, opacity: 0.35 }} />
+      )}
+      <Polyline positions={parts.active} interactive={false} pathOptions={{ color: '#FFFFFF', weight: 12, opacity: 0.95 }} />
+      <Polyline positions={parts.active} interactive={false} pathOptions={{ color: '#FC6C26', weight: 7, opacity: 1 }} />
+      {parts.chevrons.map((chevron, index) => (
+        <Marker key={index} position={chevron.position} icon={chevronIcon(chevron.bearing)} interactive={false} keyboard={false} />
+      ))}
+    </>
+  )
 }
 
 const geoErrorMessage = (error) => {
@@ -271,6 +365,7 @@ function RideView({
   // Kotwica do liczenia kierunku z przesunięcia (nie z klatki na klatkę,
   // bo to daje znikome, jitterujące delty i strzałka stoi w miejscu).
   const headingAnchorRef = useRef(null)
+  const movementHeadingAtRef = useRef(0)
   const originalFeatureRef = useRef(feature)
   const trackRef = useRef(resumeDraft?.runtime?.track || [])
   const startedAtRef = useRef(resumeDraft?.runtime?.startedAt || 0)
@@ -417,6 +512,25 @@ function RideView({
     }
   }, [navState, userPos, isRecalculating, isPaused, handleRecalculateRoute])
 
+  // Compass: while standing (no recent movement bearing) the arrow shows where
+  // the phone points, so the rider can see which way to set off.
+  useEffect(() => {
+    if (rideSummary) return undefined
+    let last = null
+    const onOrientation = (event) => {
+      if (event.alpha == null || (event.type === 'deviceorientation' && !event.absolute)) return
+      if (Date.now() - movementHeadingAtRef.current < MOVEMENT_HEADING_HOLD_MS) return
+      const screenAngle = window.screen?.orientation?.angle || 0
+      const next = (360 - event.alpha + screenAngle) % 360
+      if (last != null && Math.abs(((next - last + 540) % 360) - 180) < 4) return
+      last = next
+      setHeading(next)
+    }
+    const eventName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'
+    window.addEventListener(eventName, onOrientation)
+    return () => window.removeEventListener(eventName, onOrientation)
+  }, [rideSummary])
+
   useEffect(() => {
     if (rideSummary) return undefined
     let cancelled = false
@@ -453,9 +567,18 @@ function RideView({
         }
         lastAccepted = point
 
+        // Direction of travel: the GPS course (web `heading`; on Android the
+        // plugin's `heading` is the compass, so only `course` counts there), else
+        // the bearing of the last few metres. Standing still, the compass effect
+        // below turns the arrow instead.
+        const course = Number.isFinite(position.coords.course)
+          ? position.coords.course
+          : isNativePlatform()
+            ? null
+            : gpsHeading
         let nextHeading = null
-        if (Number.isFinite(gpsHeading) && Number.isFinite(speed) && speed > 1) {
-          nextHeading = gpsHeading
+        if (Number.isFinite(course) && Number.isFinite(speed) && speed > 1) {
+          nextHeading = course
           headingAnchorRef.current = point
         } else {
           const anchor = headingAnchorRef.current
@@ -466,7 +589,10 @@ function RideView({
             headingAnchorRef.current = point
           }
         }
-        if (nextHeading != null) setHeading(nextHeading)
+        if (nextHeading != null) {
+          movementHeadingAtRef.current = Date.now()
+          setHeading(nextHeading)
+        }
 
         setUserPos(point)
         setGpsSpeed(Number.isFinite(speed) ? speed : null)
@@ -675,10 +801,10 @@ function RideView({
     }
   }
 
-  const routeLine = useMemo(() => {
-    if (!routeFeature) return null
-    return { type: 'FeatureCollection', features: [routeFeature] }
-  }, [routeFeature])
+  const routeLatLngs = useMemo(
+    () => coordinates.map(toLatLng).filter(Boolean).map((point) => [point.lat, point.lng]),
+    [coordinates],
+  )
 
   const hasHeading = heading != null
   const userIcon = useMemo(() => buildUserIcon(hasHeading), [hasHeading])
@@ -701,8 +827,6 @@ function RideView({
 
   const nextManeuver = navState?.nextManeuver || null
   const followingManeuver = navState?.followingManeuver || null
-  // react-leaflet's GeoJSON ignores new data; a new key redraws a recalculated route.
-  const routeLineKey = `${coordinates.length}:${coordinates[0]}:${coordinates[coordinates.length - 1]}`
 
   if (rideSummary) {
     return (
@@ -852,12 +976,12 @@ function RideView({
             url={getMapTileLayer().url}
             maxZoom={getMapTileLayer().maxZoom}
           />
-          {routeLine && (
-            <>
-              <GeoJSON key={`casing-${routeLineKey}`} data={routeLine} style={{ color: '#FFFFFF', weight: 11, opacity: 0.9 }} />
-              <GeoJSON key={`line-${routeLineKey}`} data={routeLine} style={{ color: '#FC6C26', weight: 6, opacity: 1 }} />
-            </>
-          )}
+          <RouteProgress
+            latLngs={routeLatLngs}
+            cumulative={cumulative}
+            fromIndex={navState?.nearestIndex ?? 0}
+            nextManeuverIndex={navState?.nextManeuver?.coordIndex ?? null}
+          />
           {destination && (
             <CircleMarker
               center={[destination.lat, destination.lng]}
