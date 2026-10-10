@@ -40,7 +40,7 @@ function NativeIntro({ onComplete }) {
       role="status"
       aria-label="Ładowanie Cycle Your Way"
       onClick={finish}
-      className={`native-intro fixed inset-0 z-[3000] overflow-hidden bg-ink text-white ${exiting ? 'native-intro--exit' : ''} ${
+      className={`native-intro fixed inset-0 z-[4000] overflow-hidden bg-ink text-white ${exiting ? 'native-intro--exit' : ''} ${
         reduced ? 'native-intro--static' : ''
       }`}
     >
