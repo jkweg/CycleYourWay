@@ -142,48 +142,31 @@ body {
   visibility: hidden;
 }
 
-/* Android launch animation (NativeIntro): ride in, pause, ride out, draw the mark.
-   The 250ms delay lets the system splash fade out first. */
+/* Android launch animation (NativeIntro): the mark fades out, then the bike rides
+   in, pauses in the middle and rides off; no trail. */
+@keyframes ni-logo {
+  0%, 27% { opacity: 1; transform: scale(1); }
+  38%, 100% { opacity: 0; transform: scale(0.9); }
+}
 @keyframes ni-ride {
-  0% { transform: translateX(-280px); animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1); }
-  30% { transform: translateX(0); }
-  42% { transform: translateX(0); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
-  60%, 100% { transform: translateX(330px); }
+  0%, 38% { transform: translateX(-280px); animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1); }
+  65% { transform: translateX(0); }
+  81% { transform: translateX(0); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+  100% { transform: translateX(330px); }
 }
 @keyframes ni-squat {
-  0%, 30% { transform: translateY(0); }
-  34% { transform: translateY(3px); }
-  38% { transform: translateY(-2px); }
-  42%, 100% { transform: translateY(0); }
+  0%, 65% { transform: translateY(0); }
+  69% { transform: translateY(3px); }
+  74% { transform: translateY(-2px); }
+  81%, 100% { transform: translateY(0); }
 }
-@keyframes ni-trail {
-  0%, 42% { stroke-dashoffset: 1000; opacity: 1; }
-  60% { stroke-dashoffset: 0; opacity: 1; }
-  70%, 100% { stroke-dashoffset: 0; opacity: 0; }
-}
-@keyframes ni-ring { 0%, 60% { stroke-dashoffset: 1000; } 80%, 100% { stroke-dashoffset: 0; } }
-@keyframes ni-squiggle {
-  0%, 70% { stroke-dashoffset: 1000; opacity: 0; }
-  71% { opacity: 1; }
-  86%, 100% { stroke-dashoffset: 0; opacity: 1; }
-}
-@keyframes ni-word { 0%, 74% { opacity: 0; transform: translateY(10px); } 88%, 100% { opacity: 1; transform: none; } }
-@keyframes ni-road { 0%, 55% { opacity: 1; } 68%, 100% { opacity: 0; } }
-.native-intro { transition: opacity 380ms ease, transform 380ms ease; }
-.native-intro--exit { opacity: 0; transform: scale(1.04); }
-.native-intro .ni-bike { animation: ni-ride 2.9s 250ms both; }
-.native-intro .ni-squat { animation: ni-squat 2.9s 250ms both; }
-.native-intro .ni-trail { stroke-dasharray: 1000; animation: ni-trail 2.9s 250ms both; }
-.native-intro .ni-ring { stroke-dasharray: 1000; animation: ni-ring 2.9s 250ms both; }
-.native-intro .ni-squiggle { stroke-dasharray: 1000; animation: ni-squiggle 2.9s 250ms both; }
-.native-intro .ni-word { animation: ni-word 2.9s 250ms both; }
-.native-intro .ni-road { animation: ni-road 2.9s 250ms both; }
-.native-intro--static .ni-bike,
-.native-intro--static .ni-trail,
-.native-intro--static .ni-road { display: none; }
-.native-intro--static .ni-ring,
-.native-intro--static .ni-squiggle,
-.native-intro--static .ni-word { animation: none; stroke-dashoffset: 0; opacity: 1; transform: none; }
+.native-intro { transition: opacity 380ms ease; }
+.native-intro--exit { opacity: 0; }
+.native-intro .ni-logo { transform-origin: center; animation: ni-logo 2.6s both; }
+.native-intro .ni-bike { animation: ni-ride 2.6s both; }
+.native-intro .ni-squat { animation: ni-squat 2.6s both; }
+.native-intro--static .ni-bike { display: none; }
+.native-intro--static .ni-logo { animation: none; }
 
 /* Fullscreen (app) map: credits stay one tap away behind the (i) button. */
 .cyw-fullscreen-map:not(.cyw-attr-open) .leaflet-control-attribution { display: none; }

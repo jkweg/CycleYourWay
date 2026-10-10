@@ -3,12 +3,12 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { BikeShapes } from './brand/BikeGlyph'
 import { prefersReducedMotion } from '../lib/intro'
 
-// Android app launch animation: the bike rides in from the left, pauses in the
-// middle, rides off to the right leaving an orange trail that turns into the
-// brand mark and the wordmark. Plays on every cold start; a tap skips it.
-// The system splash (app icon on ink) fades out first, then the ride starts.
+// Android app launch animation: the brand mark (taking over from the system
+// splash icon) fades out, then the bike rides in from the left, pauses in the
+// middle and rides off to the right, and the app opens. Plays on every cold
+// start; a tap skips it.
 const SPLASH_FADE_MS = 250
-const TOTAL_MS = 2900 + SPLASH_FADE_MS
+const TOTAL_MS = 2600
 const REDUCED_MS = 700
 const EXIT_MS = 380
 
@@ -40,7 +40,7 @@ function NativeIntro({ onComplete }) {
       role="status"
       aria-label="Ładowanie Cycle Your Way"
       onClick={finish}
-      className={`native-intro fixed inset-0 z-[4000] overflow-hidden bg-ink text-white ${exiting ? 'native-intro--exit' : ''} ${
+      className={`native-intro fixed inset-0 z-[4000] overflow-hidden bg-ink ${exiting ? 'native-intro--exit' : ''} ${
         reduced ? 'native-intro--static' : ''
       }`}
     >
@@ -51,21 +51,16 @@ function NativeIntro({ onComplete }) {
           <path d="M-20 700 C 120 640 250 760 410 690" />
         </g>
       </svg>
-      <div className="absolute left-1/2 top-1/2 h-[200px] w-[390px] -translate-x-1/2 -translate-y-1/2">
-        <svg aria-hidden="true" className="absolute inset-0" width="390" height="200" viewBox="0 0 390 200">
-          <line className="ni-road" x1="-10" y1="142" x2="400" y2="142" stroke="rgba(255,244,214,0.18)" strokeWidth="3" strokeDasharray="2 12" strokeLinecap="round" />
-          <path className="ni-trail" pathLength="1000" d="M 195 140 L 420 140" fill="none" stroke="#FC6C26" strokeWidth="5" strokeLinecap="round" />
-          <circle className="ni-ring" pathLength="1000" cx="195" cy="62" r="50" fill="none" stroke="#FC6C26" strokeWidth="8" transform="rotate(90 195 62)" />
-          <path className="ni-squiggle" pathLength="1000" d="M 168 76 C 182 48 206 90 222 52" fill="none" stroke="#FFF4D6" strokeWidth="8" strokeLinecap="round" />
+      <div className="absolute left-1/2 top-1/2 h-[120px] w-[390px] -translate-x-1/2 -translate-y-1/2">
+        <svg aria-hidden="true" className="ni-logo absolute left-[137px] top-[2px]" width="116" height="116" viewBox="0 0 116 116">
+          <circle cx="58" cy="58" r="50" fill="none" stroke="#FC6C26" strokeWidth="8" />
+          <path d="M 31 72 C 45 44 69 86 85 48" fill="none" stroke="#FFF4D6" strokeWidth="8" strokeLinecap="round" />
         </svg>
-        <div className="ni-bike absolute left-[135px] top-[74px] h-[76px] w-[120px]">
+        <div className="ni-bike absolute left-[135px] top-[22px] h-[76px] w-[120px]">
           <svg className="ni-squat" width="120" height="76" viewBox="0 0 120 76" aria-hidden="true">
             <BikeShapes tire="#FFFFFF" spoke="rgba(255,244,214,0.55)" hub="#2A1A12" spinning />
           </svg>
         </div>
-        <p className="ni-word absolute inset-x-0 top-[132px] m-0 text-center font-serif text-[34px] font-medium">
-          Cycle Your <span className="italic text-burnt-orange">Way</span>
-        </p>
       </div>
     </div>
   )
