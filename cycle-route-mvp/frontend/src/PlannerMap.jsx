@@ -58,27 +58,49 @@ function RouteFitBounds({ routeGeoJson, fitPadding }) {
   return null
 }
 
+// Centre `point` in the part of the map left visible between the floating top
+// bar and the bottom sheet (insets in px), not behind the sheet.
+function centreAbove(map, point, zoom, insets) {
+  const shift = ((insets?.bottom ?? 0) - (insets?.top ?? 0)) / 2
+  const latLng = [point.lat, point.lng]
+  return shift ? map.unproject(map.project(latLng, zoom).add([0, shift]), zoom) : latLng
+}
+
 function FocusOnLockedPoint({ lockedPoint, disabled, zoom = 9, insets }) {
   const map = useMap()
-  // Read at fly time only: a sheet resizing later must not move the map again.
   const insetsRef = useRef(insets)
-  useEffect(() => {
-    insetsRef.current = insets
-  }, [insets])
+  const focusRef = useRef({ point: null, active: false })
+  const top = insets?.top ?? 0
+  const bottom = insets?.bottom ?? 0
+
+  // Once the user pans the map themselves, stop re-centring on sheet changes.
+  useMapEvents({
+    dragstart: () => {
+      focusRef.current.active = false
+    },
+  })
 
   useEffect(() => {
-    if (disabled || !lockedPoint) return
-    // Centre the point in the part of the map left visible between the floating
-    // top bar and the bottom sheet, not behind the sheet.
-    const shift = ((insetsRef.current?.bottom ?? 0) - (insetsRef.current?.top ?? 0)) / 2
-    const target = shift
-      ? map.unproject(map.project([lockedPoint.lat, lockedPoint.lng], zoom).add([0, shift]), zoom)
-      : [lockedPoint.lat, lockedPoint.lng]
-    map.flyTo(target, zoom, {
+    if (disabled || !lockedPoint) {
+      focusRef.current = { point: null, active: false }
+      return
+    }
+    focusRef.current = { point: lockedPoint, active: true }
+    map.flyTo(centreAbove(map, lockedPoint, zoom, insetsRef.current), zoom, {
       animate: true,
       duration: 0.8,
     })
   }, [disabled, lockedPoint, map, zoom])
+
+  // The sheet grew or shrank (preferences opened, sheet collapsed): keep the
+  // focused point in view.
+  useEffect(() => {
+    const changed = insetsRef.current?.top !== top || insetsRef.current?.bottom !== bottom
+    insetsRef.current = { top, bottom }
+    const { point, active } = focusRef.current
+    if (!changed || !point || !active) return
+    map.panTo(centreAbove(map, point, map.getZoom(), { top, bottom }), { animate: true, duration: 0.4 })
+  }, [map, top, bottom])
 
   return null
 }
