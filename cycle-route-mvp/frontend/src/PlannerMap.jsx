@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { AttributionControl, GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
@@ -58,12 +58,23 @@ function RouteFitBounds({ routeGeoJson, fitPadding }) {
   return null
 }
 
-function FocusOnLockedPoint({ lockedPoint, disabled, zoom = 9 }) {
+function FocusOnLockedPoint({ lockedPoint, disabled, zoom = 9, insets }) {
   const map = useMap()
+  // Read at fly time only: a sheet resizing later must not move the map again.
+  const insetsRef = useRef(insets)
+  useEffect(() => {
+    insetsRef.current = insets
+  }, [insets])
 
   useEffect(() => {
     if (disabled || !lockedPoint) return
-    map.flyTo([lockedPoint.lat, lockedPoint.lng], zoom, {
+    // Centre the point in the part of the map left visible between the floating
+    // top bar and the bottom sheet, not behind the sheet.
+    const shift = ((insetsRef.current?.bottom ?? 0) - (insetsRef.current?.top ?? 0)) / 2
+    const target = shift
+      ? map.unproject(map.project([lockedPoint.lat, lockedPoint.lng], zoom).add([0, shift]), zoom)
+      : [lockedPoint.lat, lockedPoint.lng]
+    map.flyTo(target, zoom, {
       animate: true,
       duration: 0.8,
     })
@@ -191,6 +202,7 @@ function PlannerMap({
           lockedPoint={lockedPoint}
           disabled={Boolean(selectedRouteGeoJson || routeGeoJson)}
           zoom={fullscreen ? 13 : 9}
+          insets={fitPadding}
         />
         <RouteFitBounds routeGeoJson={selectedRouteGeoJson} fitPadding={fitPadding} />
         <TileLayer

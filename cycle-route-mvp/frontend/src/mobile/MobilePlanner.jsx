@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconAdjustmentsHorizontal,
   IconArrowLeft,
@@ -30,8 +30,14 @@ const PlannerMap = lazy(() => import('../PlannerMap'))
 const ElevationChart = lazy(() => import('../ElevationChart'))
 
 const LOOP_PRESETS = [20, 40, 60, 100]
-// Leaves the route clear of the floating top bar and of the bottom sheet.
-const MAP_FIT_PADDING = { top: 130, bottom: 260 }
+// Map space taken by the floating top bar; the bottom inset is the sheet's live height.
+const MAP_TOP_INSET = 120
+// A collapsed sheet keeps only its handle row (plus the gesture bar inset) on screen.
+const SHEET_PEEK = 'calc(48px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)))'
+const SHEET_PEEK_PX = 72
+const DRAG_TAP_PX = 6
+const DRAG_COLLAPSE_PX = 56
+const DRAG_EXPAND_PX = 32
 
 const formatKm = (value) => String(value).replace('.', ',')
 
@@ -330,16 +336,14 @@ function PlanLoop({ p }) {
   )
 }
 
-function ResultCard({ p, onExpand }) {
+function ResultCard({ p, onExpand, handle, label }) {
   const gain = getElevationGainMeters(p.selectedFeature)
   return (
     <section
       aria-label="Podsumowanie trasy"
-      className="pointer-events-auto mx-2.5 mb-3 space-y-3 rounded-[24px] bg-vanilla px-4 pb-4 pt-1.5 shadow-[0_18px_44px_rgba(42,26,18,0.22)]"
+      className="pointer-events-auto mx-2.5 mb-3 space-y-3 rounded-[24px] bg-vanilla px-4 pb-4 shadow-[0_18px_44px_rgba(42,26,18,0.22)]"
     >
-      <button type="button" onClick={onExpand} aria-label="Rozwiń szczegóły trasy" className="mx-auto flex h-5 w-24 items-center justify-center">
-        <span className="h-1 w-9 rounded-full bg-sand" />
-      </button>
+      <SheetHandle handle={handle} label={label} />
       <SheetMessages p={p} />
       <div className="flex items-end justify-between gap-3">
         <p className="whitespace-nowrap font-serif text-[34px] font-semibold leading-none text-ink">
@@ -404,7 +408,7 @@ function ResultCard({ p, onExpand }) {
   )
 }
 
-function DetailsSheet({ p, onCollapse }) {
+function DetailsSheet({ p, onCollapse, handle, label }) {
   const gain = getElevationGainMeters(p.selectedFeature)
   const surfaces = (p.selectedRouteSurfaces?.known || []).slice(0, 4)
   const surfaceColors = ['#2A1A12', '#FC6C26', '#8FC6A8', '#D9C79C']
@@ -414,10 +418,8 @@ function DetailsSheet({ p, onCollapse }) {
       aria-label="Szczegóły trasy"
       className="pointer-events-auto flex max-h-[72dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)]"
     >
-      <div className="shrink-0 space-y-2 px-[18px] pt-2.5">
-        <button type="button" onClick={onCollapse} aria-label="Zwiń szczegóły" className="mx-auto flex h-6 w-24 items-center justify-center">
-          <span className="h-1 w-10 rounded-full bg-sand" />
-        </button>
+      <div className="shrink-0 space-y-2 px-[18px]">
+        <SheetHandle handle={handle} label={label} />
         <div className="flex items-center justify-between gap-3">
           <h2 className="truncate font-serif text-[22px] font-medium text-ink">{title}</h2>
           <RoundButton label="Zwiń" onClick={onCollapse}>
@@ -533,6 +535,60 @@ function BottomNav({ active, onMap, onSaved, onProfile }) {
 }
 
 /**
+ * Collapse/expand for the bottom sheet: tap the handle, or drag it down to hide
+ * the sheet and up to bring it back. `offset` follows the finger while dragging.
+ */
+function useSheetDrag({ collapsed, setCollapsed }) {
+  const [drag, setDrag] = useState(null)
+  const suppressClickRef = useRef(false)
+
+  const props = {
+    onPointerDown: (event) => {
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+      setDrag({ startY: event.clientY, dy: 0 })
+    },
+    onPointerMove: (event) => {
+      if (drag) setDrag({ ...drag, dy: event.clientY - drag.startY })
+    },
+    onPointerUp: () => {
+      if (!drag) return
+      const { dy } = drag
+      setDrag(null)
+      if (Math.abs(dy) < DRAG_TAP_PX) return
+      suppressClickRef.current = true
+      if (!collapsed && dy > DRAG_COLLAPSE_PX) setCollapsed(true)
+      else if (collapsed && dy < -DRAG_EXPAND_PX) setCollapsed(false)
+    },
+    onPointerCancel: () => setDrag(null),
+    // Taps (and the keyboard) toggle; a drag that just ended does not.
+    onClick: () => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false
+        return
+      }
+      setCollapsed(!collapsed)
+    },
+  }
+  const dy = drag?.dy ?? 0
+  return { collapsed, dragging: Boolean(drag), offset: collapsed ? Math.min(0, dy) : Math.max(0, dy), props }
+}
+
+function SheetHandle({ handle, label }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={!handle.collapsed}
+      aria-label={handle.collapsed ? `Pokaż panel: ${label}` : 'Zwiń panel'}
+      {...handle.props}
+      className={`flex w-full touch-none select-none flex-col items-center justify-start gap-1.5 pt-2 ${handle.collapsed ? 'h-12' : 'h-6'}`}
+    >
+      <span className="h-1 w-10 shrink-0 rounded-full bg-sand" />
+      {handle.collapsed && <span className="text-[13px] font-semibold text-ink">{label}</span>}
+    </button>
+  )
+}
+
+/**
  * Android app planner: the map is the full-screen background, controls float on
  * top and every step lives in a bottom sheet (home → plan → result → details).
  * All state and actions come from App (`p`), so behaviour matches the web planner.
@@ -547,6 +603,36 @@ function MobilePlanner({ p, sheet, setSheet }) {
   const openProfile = () => (p.isAuthenticated ? p.openProfile() : p.openAuth())
   const initials = (p.userEmail || '').slice(0, 2).toUpperCase()
   const [prefsOpen, setPrefsOpen] = useState(false)
+  // Collapsing belongs to one sheet: moving to another sheet shows it expanded.
+  const [collapsedSheet, setCollapsedSheet] = useState(null)
+  const handle = useSheetDrag({
+    collapsed: collapsedSheet === sheet,
+    setCollapsed: (value) => setCollapsedSheet(value ? sheet : null),
+  })
+  const sheetRef = useRef(null)
+  const [sheetHeight, setSheetHeight] = useState(260)
+
+  useEffect(() => {
+    const node = sheetRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(([entry]) => setSheetHeight(Math.round(entry.contentRect.height)))
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  const visibleSheet = handle.collapsed ? SHEET_PEEK_PX : sheetHeight
+  const mapPadding = useMemo(() => ({ top: MAP_TOP_INSET, bottom: visibleSheet + 20 }), [visibleSheet])
+  const routeSummary = hasRoute ? `${formatKm(p.routeStats.distanceKm)} km · ${formatDuration(p.routeStats)}` : 'Trasa'
+  const sheetLabel = {
+    home: 'Gdzie jedziemy?',
+    plan: p.routeMode === 'Loop' ? `Pętla · ${p.loopDistanceKm} km` : 'Trasa z A do B',
+    result: routeSummary,
+    details: routeSummary,
+    saved: 'Zapisane',
+  }[sheet]
+  const sheetTransform = handle.collapsed
+    ? `translateY(calc(100% - ${SHEET_PEEK} + ${handle.offset}px))`
+    : `translateY(${handle.offset}px)`
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#EFE3C4] font-sans text-ink">
@@ -554,7 +640,7 @@ function MobilePlanner({ p, sheet, setSheet }) {
         <Suspense fallback={<ChunkFallback label="Ładowanie mapy…" className="h-full bg-[#EFE3C4]" />}>
           <PlannerMap
             fullscreen
-            fitPadding={MAP_FIT_PADDING}
+            fitPadding={mapPadding}
             onMapClick={p.handleMapClick}
             lockedPoint={p.lockedPoint}
             selectedRouteGeoJson={p.selectedRouteGeoJson}
@@ -621,13 +707,20 @@ function MobilePlanner({ p, sheet, setSheet }) {
         </div>
       </header>
 
-      <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1100] ${sheet === 'result' ? bottomPad : ''}`}>
+      <div
+        ref={sheetRef}
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1100] ${sheet === 'result' ? bottomPad : ''}`}
+        style={{
+          transform: sheetTransform,
+          transition: handle.dragging ? 'none' : 'transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
         {sheet === 'home' && (
           <section
             aria-label="Nowa trasa"
-            className={`pointer-events-auto space-y-2.5 rounded-t-[24px] bg-vanilla px-3.5 pt-2 shadow-[0_-10px_30px_rgba(42,26,18,0.14)] ${bottomPad}`}
+            className={`pointer-events-auto space-y-2.5 rounded-t-[24px] bg-vanilla px-3.5 shadow-[0_-10px_30px_rgba(42,26,18,0.14)] ${bottomPad}`}
           >
-            <span className="mx-auto block h-1 w-9 rounded-full bg-sand" />
+            <SheetHandle handle={handle} label={sheetLabel} />
             <h1 className="sr-only">Gdzie jedziemy?</h1>
             <SheetMessages p={p} />
             <div className="grid grid-cols-2 gap-2">
@@ -678,8 +771,8 @@ function MobilePlanner({ p, sheet, setSheet }) {
             aria-label={p.routeMode === 'Loop' ? 'Planowanie pętli' : 'Planowanie trasy z A do B'}
             className="pointer-events-auto flex max-h-[66dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-10px_30px_rgba(42,26,18,0.14)]"
           >
-            <div className="shrink-0 px-4 pt-2">
-              <span className="mx-auto mb-2 block h-1 w-9 rounded-full bg-sand" />
+            <div className="shrink-0 space-y-2 px-4">
+              <SheetHandle handle={handle} label={sheetLabel} />
               <ModeTabs routeMode={p.routeMode} onChange={(mode) => p.handleRouteModeChange(mode)} />
             </div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-1 pt-3">
@@ -717,17 +810,21 @@ function MobilePlanner({ p, sheet, setSheet }) {
           </section>
         )}
 
-        {sheet === 'result' && hasRoute && <ResultCard p={p} onExpand={() => setSheet('details')} />}
+        {sheet === 'result' && hasRoute && (
+          <ResultCard p={p} onExpand={() => setSheet('details')} handle={handle} label={sheetLabel} />
+        )}
 
-        {sheet === 'details' && hasRoute && <DetailsSheet p={p} onCollapse={() => setSheet('result')} />}
+        {sheet === 'details' && hasRoute && (
+          <DetailsSheet p={p} onCollapse={() => setSheet('result')} handle={handle} label={sheetLabel} />
+        )}
 
         {sheet === 'saved' && (
           <section
             aria-label="Zapisane trasy"
             className={`pointer-events-auto flex max-h-[82dvh] flex-col rounded-t-[24px] bg-vanilla shadow-[0_-14px_40px_rgba(42,26,18,0.16)] ${bottomPad}`}
           >
-            <div className="shrink-0 px-[18px] pt-2.5">
-              <span className="mx-auto mb-2 block h-1 w-10 rounded-full bg-sand" />
+            <div className="shrink-0 px-[18px]">
+              <SheetHandle handle={handle} label={sheetLabel} />
               <h1 className="font-serif text-[22px] font-medium text-ink">Zapisane</h1>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-[18px] py-3">
