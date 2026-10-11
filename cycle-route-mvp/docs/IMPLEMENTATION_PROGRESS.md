@@ -361,3 +361,22 @@ Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki b
 - Frontend: lint, typecheck, **35/35**, `vite build` (web) i `vite build --mode android`.
 - Telefon Samsung SM-S926B (Android 16), APK debug przez `adb`: animacja startowa (zrzuty klatek), planer i karta wyniku, centrowanie lokalizacji nad panelem, zwijanie panelu, pętla 20 km wyznaczona i uruchomiona; GPS w jeździe: pierwsza pozycja natychmiast (±11–21 m), kolejne napływają; strzałki trasy, wyblakła reszta i obrót strzałki z kompasem na zrzutach.
 - Nie testowano: jazdy w terenie (prędkość, manewry w ruchu, zjechanie z trasy i przeliczenie), jazdy z wygaszonym ekranem, iOS.
+
+## Pakiet 16 — redesign „plakat”: hero, opowieść przewijaniem, sekcje; żywszy ekran ładowania i planer (12.10.2026)
+
+Gałąź `feature/redesign-poster` (odbita od `feature/android`). Inspiracje: eventbeds.com, royalbev.com, yucca.co.za, endspeciesism.org; zasady animacji ze skilla `emil-design-eng`.
+
+| Obszar | Zmiana |
+| --- | --- |
+| Hero | `landing/HeroPoster.jsx`: plakatowy napis „WYBIERZ / PRZEJAZD” (Anton, `@fontsource/anton`) odsłaniany litera po literze z rozmycia; telefon z aplikacją (`PhoneMock.jsx`, rower jedzie po pętli) pod większością drugiego słowa; plakietki z parallaksą za kursorem (sprężyna `motion`), obracająca się okrągła pieczęć-CTA (`SpinBadge.jsx`), faktura papieru (`.cyw-grain`). Jedna zmienna `--hero-fs` skaluje kompozycję także z wysokością ekranu; hero zawsze mieści cały telefon. |
+| Jak to działa | `landing/RideStory.jsx`: sekcja przyklejona na 320svh — warstwowy krajobraz o zachodzie w parallaksie, rowerzysta przejeżdża scenę, kroki 01–03 zmieniają się z rozmyciem; kropki nawigacji; podarta krawędź papieru. |
+| Sekcje | `landing/PosterSections.jsx`: liczby z odliczaniem (`CountUp.jsx`), redakcyjna lista funkcji, cytat „O aplikacji”, pełnokolorowy plakat „Gdzie jedziesz w ten weekend?”. Stare `HeroAtlas.jsx` usunięte. |
+| Ekran ładowania | Litery „Cycle Your Way” z rozmycia, plakatowy licznik procentów, faktura na ciemnym tle, wyjście jak kurtyna (`clip-path`). |
+| Planer | Nowa trasa rysuje się na mapie (WAAPI po skadrowaniu), dystans odlicza się do wyniku, szybki spinner przy wyznaczaniu, wciśnięcie przycisków (`scale(0.97)`), efekty hover tylko przy precyzyjnym wskaźniku. |
+| Wspólne | Krzywe `--ease-out` / `--ease-in-out` / `--ease-drawer`, klasa `.press`; wersje z ograniczonym ruchem dla wszystkich animacji. |
+
+### Weryfikacja pakietu 16
+
+- Frontend: lint, **35/35**, `vite build`; brak błędów w konsoli.
+- Podgląd w przeglądarce: hero przy 1440×900 i 1900×815 (pomiary: telefon w całości w hero, brak nachodzenia tekstu, przycisków i plakietek), scena przewijania w trzech punktach, sekcje do stopki, ekran ładowania; układ mobilny sprawdzony pomiarami (zrzuty w emulacji telefonu się przekłamywały). Akceptacja wyglądu przez użytkownika.
+- Nie testowano: rysowania trasy i odliczania dystansu w planerze (wymaga backendu z kluczem ORS), Safari/iOS.
