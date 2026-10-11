@@ -81,7 +81,7 @@ const buildUserIcon = (hasHeading) => {
            <svg width="88" height="88" viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg">
              <defs>
                <radialGradient id="cyw-beam" cx="44" cy="44" r="44" gradientUnits="userSpaceOnUse">
-                 <stop offset="0.25" stop-color="#2563eb" stop-opacity="0.35"/>
+                 <stop offset="0.25" stop-color="#2563eb" stop-opacity="0.5"/>
                  <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
                </radialGradient>
              </defs>
@@ -113,9 +113,9 @@ function chevronIcon(bearing) {
       step,
       L.divIcon({
         className: 'cyw-route-chevron',
-        html: `<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${step}deg)" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 10.5 L8 5.5 L12.5 10.5" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
+        html: `<svg width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${step}deg)" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 13 L10 7 L15.5 13" fill="none" stroke="#2A1A12" stroke-opacity="0.35" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 13 L10 7 L15.5 13" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
       }),
     )
   }
@@ -962,7 +962,7 @@ function RideView({
 
   return (
     <div className="fixed inset-0 z-[3000] overflow-hidden bg-[#EFE3C4] font-sans text-ink">
-      <div className={`absolute inset-0 transition ${isPaused ? 'saturate-50' : ''}`}>
+      <div className="absolute inset-0">
         <MapContainer
           center={[52.0, 19.2]}
           zoom={15}
