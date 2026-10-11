@@ -6,6 +6,15 @@ import { onIntroDone } from '../../lib/intro'
 import PhoneMock from './PhoneMock'
 import SpinBadge from './SpinBadge'
 
+// One size drives the whole composition: the lettering shrinks on short screens
+// too, the phone sits just under most of the second line, and the hero is
+// always tall enough to hold the whole phone (it never runs into the next section).
+const HERO_SIZES = {
+  '--hero-fs': 'clamp(4.2rem, min(16.4vw, 23svh), 16rem)',
+  '--hero-phone-top': 'calc(7rem + var(--hero-fs) * 1.52)',
+  '--hero-min-h': 'max(100svh, calc(var(--hero-phone-top) + 250px * 610 / 300 + 3rem))',
+}
+
 const LINE_ONE = 'WYBIERZ'
 const LINE_TWO = 'PRZEJAZD'
 
@@ -99,11 +108,12 @@ function HeroPoster({ onStartPlanning }) {
       ref={sectionRef}
       aria-labelledby="hero-title"
       className={`cyw-grain relative overflow-hidden bg-vanilla ${go ? 'cyw-letters-go' : ''}`}
+      style={HERO_SIZES}
     >
-      <div className="relative z-[2] mx-auto flex min-h-[100svh] max-w-[1440px] flex-col px-5 pb-8 pt-24 md:px-10 md:pt-28 lg:min-h-[900px]">
+      <div className="relative z-[2] mx-auto flex min-h-[100svh] max-w-[1440px] flex-col px-5 pb-8 pt-24 md:px-10 md:pt-28 lg:min-h-[var(--hero-min-h)]">
         <h1
           id="hero-title"
-          className="font-display relative z-0 select-none text-center text-[clamp(4.2rem,16.4vw,16rem)] leading-[0.9] text-ink"
+          className="font-display relative z-0 select-none text-center text-[length:var(--hero-fs)] leading-[0.9] text-ink"
         >
           <span className="sr-only">Wybierz przejazd.</span>
           <motion.span style={{ transform: lineOne }} className="block">
@@ -115,13 +125,13 @@ function HeroPoster({ onStartPlanning }) {
         </h1>
 
         {/* Phone + floating chips, layered over the lettering. */}
-        <div className="relative z-10 mx-auto -mt-5 w-[min(54vw,210px)] sm:-mt-[10vw] md:w-[260px] lg:absolute lg:left-1/2 lg:top-[calc(7rem_+_min(16.4vw,16rem)_*_1.52)] lg:mt-0 lg:w-[250px] lg:-translate-x-1/2">
+        <div className="relative z-10 mx-auto -mt-5 w-[min(54vw,210px)] sm:-mt-[10vw] md:w-[260px] lg:absolute lg:left-1/2 lg:top-[var(--hero-phone-top)] lg:mt-0 lg:w-[250px] lg:-translate-x-1/2">
           <motion.div style={{ transform: phoneLift }} className="relative">
             <div className="cyw-pop" style={{ '--d': '520ms' }}>
               <PhoneMock />
             </div>
 
-            <Float pointer={pointer} depth={34} delay={1020} className="-left-[84%] top-[16%] hidden md:block">
+            <Float pointer={pointer} depth={34} delay={1020} className="-left-[79%] top-[10%] hidden md:block">
               <div className="flex items-center gap-3 rounded-[20px] bg-white px-4 py-3.5 shadow-[0_24px_50px_rgba(42,26,18,0.2)]">
                 <span className="grid h-11 w-11 place-items-center rounded-[14px] bg-burnt-orange text-ink">
                   <IconArrowBearRight size={24} stroke={2.4} aria-hidden="true" />
@@ -152,7 +162,7 @@ function HeroPoster({ onStartPlanning }) {
               </div>
             </Float>
 
-            <Float pointer={pointer} depth={-30} delay={1260} className="-right-[112%] top-[36%] hidden md:block">
+            <Float pointer={pointer} depth={-30} delay={1260} className="-right-[112%] top-[62%] hidden md:block">
               <span className="flex items-center gap-2.5 rounded-full bg-burnt-orange px-5 py-3 text-ink shadow-[0_18px_36px_rgba(224,85,24,0.35)]">
                 <IconVolume size={20} stroke={2.2} aria-hidden="true" />
                 <span className="text-[15px] font-bold">„Za 250 metrów skręć w prawo”</span>
@@ -162,7 +172,7 @@ function HeroPoster({ onStartPlanning }) {
         </div>
 
         {/* Copy bottom-left, round CTA bottom-right. */}
-        <div className="relative z-20 mt-8 flex flex-col gap-8 lg:mt-auto lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-20 mt-8 flex flex-col gap-8 lg:absolute lg:inset-x-10 lg:top-[calc(var(--hero-phone-top)_+_7.5rem)] lg:mt-0 lg:flex-row lg:items-end lg:justify-between">
           <div className="cyw-pop flex max-w-[360px] flex-col gap-5" style={{ '--d': '700ms' }}>
             <p className="text-lg leading-relaxed text-ink-muted">
               Pętle od 5 do 200 km i trasy z punktu A do B — dopasowane do Twojego roweru. Potem nawigacja głosowa
