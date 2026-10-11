@@ -344,3 +344,20 @@ Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki b
   - symulowany powrót `com.cycleyourway.app://auth-callback?error=…`: aplikacja wraca na wierzch, przeglądarka zamknięta, błąd odczytany.
 - Nie testowano: pełnego logowania Google (brak konta na emulatorze; wymaga też redirect URL w Supabase), GPS i jazdy w terenie, prawdziwego telefonu. Błąd z powrotu logowania trafia tylko do logów, bez komunikatu w UI.
 - Obserwacja: wdrożony bundel webowy nie zawiera adresu MapTiler — produkcja www najpewniej używa publicznych kafelków OSM (sprawdzić `VITE_MAP_TILES_URL` w Vercel i redeploy).
+
+## Pakiet 15 — aplikacja Android: planer mobilny, animacja startowa, naprawa GPS w jeździe (10–12.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Planer mobilny | `src/mobile/MobilePlanner.jsx` (natywnie lub `?mobile`): mapa na cały ekran, panele na dole (start → planowanie → wynik → szczegóły, zapisane). Panele kompaktowe; preferencje zwinięte do jednej linii; panel zwija się dotknięciem lub przeciągnięciem uchwytu. |
+| Mapa | Źródła mapy/tras za przyciskiem ⓘ (licencja OSM/ORS zachowana, chowa się po 6 s). Lokalizacja i trasa centrowane w widocznej części mapy (między górnym paskiem a panelem), także gdy panel zmienia wysokość. |
+| Animacja startowa | `components/NativeIntro.jsx`: logo (przejęte z systemowego splasha) znika, rower wjeżdża, staje, odjeżdża — przy każdym zimnym starcie, dotknięcie pomija. Splash chowany z JS (`SplashScreen.hide`). Web bez zmian (intro tylko przy pierwszej wizycie). |
+| GPS w jeździe | `lib/location.ts`: wtyczka Androida kończy `watchPosition` po każdym błędzie (timeout w budynku / zimny GPS) — nasłuch wznawia się sam; `interval` 1 s (wcześniej domyślnie = `timeout`, czyli co 25 s); ostatnia znana pozycja od razu; kody `OS-PLUG-GLOC-*` mapowane na polskie komunikaty. Timeout = „Szukam sygnału GPS…”, nie błąd. |
+| Ekran jazdy | `RideView.jsx` w stylu aplikacji: ciemna karta manewru z ikonami Tabler, jasny panel postępu z pauzą/wznowieniem, okrągłe przyciski, ⓘ ze źródłami, odświeżone podsumowanie. Trasa wg postępu: przejechane wyblakłe, ~1,5 km przed rowerzystą (zawsze za kolejnym skrętem) jaskrawe ze strzałkami kierunku, reszta „za mgłą”. Strzałka pozycji ze stożkiem widoku: kompas na postoju, kierunek ruchu w jeździe. Zoom ulicy przy pierwszej pozycji i „Wyśrodkuj”. Przeliczona trasa przerysowuje się (wcześniej `GeoJSON` ignorował nowe dane). |
+| Zgoda na GPS | `LocationPermissionGate` pokazuje się tylko, gdy uprawnienia brak (`hasLocationPermission`). |
+
+### Weryfikacja pakietu 15
+
+- Frontend: lint, typecheck, **35/35**, `vite build` (web) i `vite build --mode android`.
+- Telefon Samsung SM-S926B (Android 16), APK debug przez `adb`: animacja startowa (zrzuty klatek), planer i karta wyniku, centrowanie lokalizacji nad panelem, zwijanie panelu, pętla 20 km wyznaczona i uruchomiona; GPS w jeździe: pierwsza pozycja natychmiast (±11–21 m), kolejne napływają; strzałki trasy, wyblakła reszta i obrót strzałki z kompasem na zrzutach.
+- Nie testowano: jazdy w terenie (prędkość, manewry w ruchu, zjechanie z trasy i przeliczenie), jazdy z wygaszonym ekranem, iOS.
