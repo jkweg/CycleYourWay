@@ -321,3 +321,43 @@ Projekt: kanwa „Cycle Your Way — redesign” (Claude Design). Kolory marki b
 - Frontend: lint, typecheck, **35/35**, build. Główny plik JS **733 KB / 218 KB gzip** (było ~843 / 262 KB).
 - Podgląd w przeglądarce: intro (desktop 1280 px i telefon 375 px) — postęp, rower na trasie, wygaszenie; ponowne wejście bez intro; hero (animacja przejazdu), sekcje strony, planer.
 - Nie testowano na prawdziwym telefonie ani w aplikacji Android (natywny splash Capacitor nadal stary — etap Androida).
+
+## Pakiet 14 — Android: logowanie Google, przycisk wstecz, paski systemowe, ikona i splash (09.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Logowanie Google | Systemowa przeglądarka + powrót przez `com.cycleyourway.app://auth-callback` (`lib/nativeAuth.ts`, `AuthContext.tsx`); obsługa `?code=` i `#access_token=`; także zimny start (`getLaunchUrl`). Domeny Google usunięte z `allowNavigation`. |
+| Przycisk wstecz | `lib/backButton.js` + kolejka zamykania w `App.jsx`; poza oknami aplikacja idzie w tło zamiast się zamykać. |
+| Paski systemowe | `SystemBars` (Capacitor 8) z `insetsHandling: css`; wszystkie `env(safe-area-inset-*)` z fallbackiem na zmienne Capacitora; ton ikon zależny od ekranu. |
+| Ikona i splash | Logo marki (pierścień + trasa) na atramencie: `scripts/generate-app-assets.mjs` → `@capacitor/assets` (74 pliki), splash Android 12+ przez `windowSplashScreenBackground`. |
+| Build | Tryb Vite `android` (`.env.android`): produkcyjne API i origin; MapTiler w `.env.android.local`; `npm run cap:sync`. |
+
+### Weryfikacja pakietu 14
+
+- Frontend: lint, typecheck, **35/35**, `vite build --mode android` (bundel z produkcyjnym API i MapTiler, bez `localhost`), `npx cap sync android`.
+- APK debug zbudowany z JDK 21 (Temurin 21.0.12, `~/.jdks`): `./gradlew assembleDebug` — sukces, 7,6 MB.
+- Emulator Pixel 10a (Android 17, bez okna, `adb` + Chrome DevTools Protocol do WebView):
+  - splash: logo marki na atramencie; pierwsze uruchomienie → intro z rowerem (zrzut przy 90%), potem planer w nowym stylu, kafelki MapTiler i oznaczenie HeiGIT;
+  - `--safe-area-inset-top/bottom` = 54/24 px, treść pod paskami nie jest zasłonięta, ciemne ikony paska na wanilii;
+  - wstecz: zamyka okno logowania, kolejne wstecz → ekran główny telefonu, proces aplikacji żyje (jazda nie przerwana);
+  - „Kontynuuj z Google” otwiera systemowy Chrome (nie WebView);
+  - symulowany powrót `com.cycleyourway.app://auth-callback?error=…`: aplikacja wraca na wierzch, przeglądarka zamknięta, błąd odczytany.
+- Nie testowano: pełnego logowania Google (brak konta na emulatorze; wymaga też redirect URL w Supabase), GPS i jazdy w terenie, prawdziwego telefonu. Błąd z powrotu logowania trafia tylko do logów, bez komunikatu w UI.
+- Obserwacja: wdrożony bundel webowy nie zawiera adresu MapTiler — produkcja www najpewniej używa publicznych kafelków OSM (sprawdzić `VITE_MAP_TILES_URL` w Vercel i redeploy).
+
+## Pakiet 15 — aplikacja Android: planer mobilny, animacja startowa, naprawa GPS w jeździe (10–12.10.2026)
+
+| Obszar | Zmiana |
+| --- | --- |
+| Planer mobilny | `src/mobile/MobilePlanner.jsx` (natywnie lub `?mobile`): mapa na cały ekran, panele na dole (start → planowanie → wynik → szczegóły, zapisane). Panele kompaktowe; preferencje zwinięte do jednej linii; panel zwija się dotknięciem lub przeciągnięciem uchwytu. |
+| Mapa | Źródła mapy/tras za przyciskiem ⓘ (licencja OSM/ORS zachowana, chowa się po 6 s). Lokalizacja i trasa centrowane w widocznej części mapy (między górnym paskiem a panelem), także gdy panel zmienia wysokość. |
+| Animacja startowa | `components/NativeIntro.jsx`: logo (przejęte z systemowego splasha) znika, rower wjeżdża, staje, odjeżdża — przy każdym zimnym starcie, dotknięcie pomija. Splash chowany z JS (`SplashScreen.hide`). Web bez zmian (intro tylko przy pierwszej wizycie). |
+| GPS w jeździe | `lib/location.ts`: wtyczka Androida kończy `watchPosition` po każdym błędzie (timeout w budynku / zimny GPS) — nasłuch wznawia się sam; `interval` 1 s (wcześniej domyślnie = `timeout`, czyli co 25 s); ostatnia znana pozycja od razu; kody `OS-PLUG-GLOC-*` mapowane na polskie komunikaty. Timeout = „Szukam sygnału GPS…”, nie błąd. |
+| Ekran jazdy | `RideView.jsx` w stylu aplikacji: ciemna karta manewru z ikonami Tabler, jasny panel postępu z pauzą/wznowieniem, okrągłe przyciski, ⓘ ze źródłami, odświeżone podsumowanie. Trasa wg postępu: przejechane wyblakłe, ~1,5 km przed rowerzystą (zawsze za kolejnym skrętem) jaskrawe ze strzałkami kierunku, reszta „za mgłą”. Strzałka pozycji ze stożkiem widoku: kompas na postoju, kierunek ruchu w jeździe. Zoom ulicy przy pierwszej pozycji i „Wyśrodkuj”. Przeliczona trasa przerysowuje się (wcześniej `GeoJSON` ignorował nowe dane). |
+| Zgoda na GPS | `LocationPermissionGate` pokazuje się tylko, gdy uprawnienia brak (`hasLocationPermission`). |
+
+### Weryfikacja pakietu 15
+
+- Frontend: lint, typecheck, **35/35**, `vite build` (web) i `vite build --mode android`.
+- Telefon Samsung SM-S926B (Android 16), APK debug przez `adb`: animacja startowa (zrzuty klatek), planer i karta wyniku, centrowanie lokalizacji nad panelem, zwijanie panelu, pętla 20 km wyznaczona i uruchomiona; GPS w jeździe: pierwsza pozycja natychmiast (±11–21 m), kolejne napływają; strzałki trasy, wyblakła reszta i obrót strzałki z kompasem na zrzutach.
+- Nie testowano: jazdy w terenie (prędkość, manewry w ruchu, zjechanie z trasy i przeliczenie), jazdy z wygaszonym ekranem, iOS.

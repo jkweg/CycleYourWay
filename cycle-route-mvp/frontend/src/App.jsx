@@ -30,6 +30,8 @@ import { getAppOrigin } from './lib/appOrigin'
 import { isNativePlatform } from './lib/platform'
 import { getCurrentPosition } from './lib/location'
 import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
+import { registerBackButton } from './lib/backButton'
+import { setSystemBarsTone } from './lib/systemBars'
 import { captureException, trackEvent } from './lib/monitoring'
 import {
   canRestoreRideDraft,
@@ -68,6 +70,11 @@ import {
 
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
+const MobilePlanner = lazy(() => import('./mobile/MobilePlanner'))
+// Android app (and `?mobile=1` on the web for testing): full-screen map + bottom sheets.
+const USE_MOBILE_SHELL =
+  isNativePlatform() ||
+  (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile'))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 
 let viaStopSequentialId = 0
@@ -115,6 +122,7 @@ function App() {
     isLoading: isAuthLoading,
     logout,
     passwordRecovery,
+    oauthError,
   } = useAuth()
   const plannerSectionRef = useRef(null)
   const routeAbortRef = useRef(null)
@@ -151,7 +159,21 @@ function App() {
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const [isPreparingRide, setIsPreparingRide] = useState(false)
   const [error, setError] = useState('')
+  // Android: a failed Google sign-in comes back asynchronously from the system browser;
+  // surface each new failure in the planner's error banner.
+  const [shownOauthError, setShownOauthError] = useState('')
+  if (oauthError && oauthError !== shownOauthError) {
+    setShownOauthError(oauthError)
+    setError(oauthError)
+  }
   const [showAuthModal, setShowAuthModal] = useState(false)
+  // Sign-ins that finish outside the modal (Android: Google in the system browser)
+  // must still close it once the session appears.
+  const [wasAuthenticated, setWasAuthenticated] = useState(isAuthenticated)
+  if (isAuthenticated !== wasAuthenticated) {
+    setWasAuthenticated(isAuthenticated)
+    if (isAuthenticated && showAuthModal) setShowAuthModal(false)
+  }
   const [showSaveRouteModal, setShowSaveRouteModal] = useState(false)
   const [showGoogleMapsExportNotice, setShowGoogleMapsExportNotice] = useState(false)
   const [savedRoutesRefreshKey, setSavedRoutesRefreshKey] = useState(0)
@@ -173,7 +195,19 @@ function App() {
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
-  const [view, setView] = useState(() => (isNativePlatform() ? 'planner' : 'landing'))
+  const [view, setView] = useState(() => (USE_MOBILE_SHELL ? 'planner' : 'landing'))
+  // Mobile shell bottom sheet: home → plan → result → details, or saved.
+  const [mobileSheet, setMobileSheet] = useState('home')
+  const [mobileRouteKey, setMobileRouteKey] = useState(0)
+  // A new or loaded route opens its summary; a cleared one returns to planning.
+  if (USE_MOBILE_SHELL && routeDisplayKey !== mobileRouteKey) {
+    setMobileRouteKey(routeDisplayKey)
+    if (routeGeoJson) {
+      if (mobileSheet !== 'details') setMobileSheet('result')
+    } else if (mobileSheet === 'result' || mobileSheet === 'details') {
+      setMobileSheet('plan')
+    }
+  }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -1513,6 +1547,55 @@ function App() {
     void applyPointLabel('via', point, viaId)
   }
 
+  // The ride view is dark: light system bar icons while riding.
+  useEffect(() => {
+    if (!window.__cywIntroDone) return
+    setSystemBarsTone(rideRoute ? 'dark' : 'light')
+  }, [rideRoute])
+
+  // Android back: close the topmost overlay/panel; returns false when nothing is open.
+  const backHandlerRef = useRef(() => false)
+  useEffect(() => {
+    backHandlerRef.current = () => {
+      if (rideRoute) return false
+      const close = [
+        [legalDoc, () => setLegalDoc(null)],
+        [pendingLocationAction, () => {
+          setPendingLocationAction(null)
+          pendingRideArgsRef.current = null
+        }],
+        [showAuthModal, () => setShowAuthModal(false)],
+        [showSaveRouteModal, () => setShowSaveRouteModal(false)],
+        [showGoogleMapsExportNotice, () => setShowGoogleMapsExportNotice(false)],
+        [showOpenOnPhone, () => setShowOpenOnPhone(false)],
+        [showProfileModal, () => setShowProfileModal(false)],
+        [showOnboarding, () => setShowOnboarding(false)],
+        [sidebarOpen, () => setSidebarOpen(false)],
+        [USE_MOBILE_SHELL && mobileSheet === 'details', () => setMobileSheet('result')],
+        [USE_MOBILE_SHELL && mobileSheet === 'result', () => setMobileSheet('plan')],
+        [USE_MOBILE_SHELL && mobileSheet !== 'home', () => setMobileSheet('home')],
+        [!USE_MOBILE_SHELL && plannerPanel === 'savedDetail', () => setPlannerPanel('saved')],
+        [!USE_MOBILE_SHELL && plannerPanel !== 'plan', () => setPlannerPanel('plan')],
+        [view !== 'planner', () => setView('planner')],
+      ].find(([open]) => Boolean(open))
+      if (!close) return false
+      close[1]()
+      return true
+    }
+  })
+  useEffect(() => {
+    let remove = () => undefined
+    let disposed = false
+    registerBackButton(() => backHandlerRef.current()).then((cleanup) => {
+      if (disposed) cleanup()
+      else remove = cleanup
+    })
+    return () => {
+      disposed = true
+      remove()
+    }
+  }, [])
+
   const goToPlanner = () => {
     setView('planner')
     if (shouldShowPlannerOnboarding()) {
@@ -1620,7 +1703,78 @@ function App() {
         />
       )}
 
-      {view === 'landing' ? (
+      {view !== 'landing' && USE_MOBILE_SHELL ? (
+        <Suspense fallback={<ChunkFallback label="Ładowanie planera..." className="fixed inset-0 bg-vanilla" />}>
+          <MobilePlanner
+            sheet={mobileSheet}
+            setSheet={setMobileSheet}
+            p={{
+              isAuthenticated,
+              userEmail: user?.email,
+              openAuth: () => setShowAuthModal(true),
+              openProfile: () => setShowProfileModal(true),
+              error,
+              saveSuccessMessage,
+              routeMode,
+              handleRouteModeChange,
+              startPoint,
+              endPoint,
+              startInput,
+              endInput,
+              viaStops,
+              handlePointInputChange,
+              handleViaInputChange,
+              applyGeocodeResult,
+              geocodeAddress,
+              handleUseMyLocation,
+              isLocating,
+              handleAddViaStop,
+              handleRemoveViaStop,
+              handleReverseRoute,
+              clearCurrentPlan,
+              loopDistanceKm,
+              setLoopDistanceKm,
+              rideStyle,
+              setRideStyle,
+              climbPreference,
+              setClimbPreference,
+              preferAsphalt,
+              setPreferAsphalt,
+              avoidMainRoads,
+              setAvoidMainRoads,
+              handleRouteSubmit,
+              handleLoopSubmit,
+              isLoadingRoute,
+              routeGeoJson,
+              selectedRouteGeoJson,
+              selectedFeature,
+              selectedRouteIndex,
+              setSelectedRouteIndex,
+              routeAlternatives,
+              routeStats,
+              selectedRouteSurfaces,
+              routeDisplayKey,
+              lockedPoint,
+              handleMapClick,
+              handleStartDrag,
+              handleEndDrag,
+              handleViaDrag,
+              handleStartRide,
+              isPreparingRide,
+              handleSaveRouteClick,
+              isSavingRoute,
+              handleExportToGpx,
+              handleExportToGoogleMaps,
+              loadedSavedRouteId,
+              loadedSavedRouteName,
+              handleLoadSavedRoute,
+              handleRideSavedRoute,
+              handleOpenSavedRouteOnPhone,
+              savedRoutesRefreshKey,
+            }}
+          />
+        </Suspense>
+      ) : view === 'landing' ? (
         <>
           <Suspense fallback={<ChunkFallback label="Ładowanie strony..." className="min-h-[50vh]" />}>
             <LandingPage
@@ -1638,7 +1792,7 @@ function App() {
       ) : (
         <section
           ref={plannerSectionRef}
-          className="relative z-10 px-0 pb-[env(safe-area-inset-bottom)] pt-0 md:px-5 md:pb-5 md:pt-4"
+          className="relative z-10 px-0 pb-[var(--safe-area-inset-bottom,env(safe-area-inset-bottom))] pt-0 md:px-5 md:pb-5 md:pt-4"
         >
           <div className="mx-auto flex max-w-[1600px] flex-col overflow-x-hidden border-0 bg-[#FFF4D6] text-stone-800 md:h-[calc(100dvh-2.25rem)] md:min-h-[640px] md:flex-row md:overflow-hidden md:rounded-[1.5rem] md:border md:border-sand/90 md:shadow-[0_20px_55px_-34px_rgba(74,43,32,0.48)]">
             <PlannerSidebar

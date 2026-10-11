@@ -10,6 +10,7 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     updatePassword,
     passwordRecovery,
     clearPasswordRecovery,
+    oauthError,
   } = useAuth()
 
   const [mode, setMode] = useState(initialMode)
@@ -198,7 +199,9 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
             </button>
           )}
 
-          {error && <p className="text-sm font-medium text-rose-700">{error}</p>}
+          {(error || oauthError) && (
+            <p className="text-sm font-medium text-rose-700">{error || oauthError}</p>
+          )}
           {info && <p className="text-sm font-medium text-burnt-orange">{info}</p>}
           {passwordRecovery && !info && (
             <p className="text-sm font-medium text-burnt-orange">
@@ -235,9 +238,12 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   setError('')
                   setIsSubmitting(true)
                   try {
+                    // Web: the page navigates to Google. Android: a system browser opens and
+                    // the result arrives later (App closes this modal once signed in).
                     await loginWithGoogle()
-                  } catch (oauthError) {
-                    setError(oauthError.message || 'Nie udało się zalogować przez Google.')
+                  } catch (googleError) {
+                    setError(googleError.message || 'Nie udało się zalogować przez Google.')
+                  } finally {
                     setIsSubmitting(false)
                   }
                 }}

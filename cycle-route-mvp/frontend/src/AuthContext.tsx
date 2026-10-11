@@ -3,6 +3,14 @@ import type { User } from '@supabase/supabase-js'
 import { AuthContext } from './auth-context'
 import { getAppOrigin } from './lib/appOrigin'
 import { supabase } from './supabaseClient'
+import { isNativePlatform } from './lib/platform'
+import { captureException } from './lib/monitoring'
+import {
+  completeNativeAuth,
+  describeAuthCallback,
+  isNativeAuthCallback,
+  signInWithGoogleInSystemBrowser,
+} from './lib/nativeAuth'
 import type { AuthUser } from './types/geo'
 
 function mapUser(authUser: User | null | undefined): AuthUser | null {
@@ -38,6 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [oauthError, setOauthError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -62,6 +71,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       cancelled = true
       subscription.unsubscribe()
+    }
+  }, [])
+
+  // Android app: Google sign-in returns from the system browser via the app scheme.
+  useEffect(() => {
+    if (!isNativePlatform()) return undefined
+    let removeListener = () => undefined
+    let disposed = false
+    const finish = (url: string | undefined) => {
+      if (!url || !isNativeAuthCallback(url)) return
+      console.info('[auth] callback received:', describeAuthCallback(url))
+      completeNativeAuth(url)
+        .then(() => setOauthError(''))
+        .catch((error) => {
+          captureException(error, { where: 'completeNativeAuth' })
+          setOauthError(`Logowanie przez Google nie powiodło się: ${polishAuthError((error as Error)?.message)}`)
+        })
+    }
+    void import('@capacitor/app').then(async ({ App }) => {
+      const handle = await App.addListener('appUrlOpen', (event) => finish(event?.url))
+      if (disposed) {
+        void handle.remove()
+        return
+      }
+      removeListener = () => void handle.remove()
+      finish((await App.getLaunchUrl())?.url)
+    })
+    return () => {
+      disposed = true
+      removeListener()
     }
   }, [])
 
@@ -118,6 +157,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
+    setOauthError('')
+    if (isNativePlatform()) {
+      try {
+        await signInWithGoogleInSystemBrowser()
+      } catch (error) {
+        throw new Error(polishAuthError((error as Error)?.message), { cause: error })
+      }
+      return
+    }
     const redirectTo = `${getAppOrigin()}/`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -139,6 +187,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated: Boolean(user),
       passwordRecovery,
+      oauthError,
       login,
       loginWithGoogle,
       register,
@@ -151,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       isLoading,
       passwordRecovery,
+      oauthError,
       login,
       loginWithGoogle,
       register,

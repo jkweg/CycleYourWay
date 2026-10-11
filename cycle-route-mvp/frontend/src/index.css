@@ -142,6 +142,35 @@ body {
   visibility: hidden;
 }
 
+/* Android launch animation (NativeIntro): the mark fades out, then the bike rides
+   in, pauses in the middle and rides off; no trail. */
+@keyframes ni-logo {
+  0%, 27% { opacity: 1; transform: scale(1); }
+  38%, 100% { opacity: 0; transform: scale(0.9); }
+}
+@keyframes ni-ride {
+  0%, 38% { transform: translateX(-280px); animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1); }
+  65% { transform: translateX(0); }
+  81% { transform: translateX(0); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+  100% { transform: translateX(330px); }
+}
+@keyframes ni-squat {
+  0%, 65% { transform: translateY(0); }
+  69% { transform: translateY(3px); }
+  74% { transform: translateY(-2px); }
+  81%, 100% { transform: translateY(0); }
+}
+.native-intro { transition: opacity 380ms ease; }
+.native-intro--exit { opacity: 0; }
+.native-intro .ni-logo { transform-origin: center; animation: ni-logo 2.6s both; }
+.native-intro .ni-bike { animation: ni-ride 2.6s both; }
+.native-intro .ni-squat { animation: ni-squat 2.6s both; }
+.native-intro--static .ni-bike { display: none; }
+.native-intro--static .ni-logo { animation: none; }
+
+/* Fullscreen (app) map: credits stay one tap away behind the (i) button. */
+.cyw-fullscreen-map:not(.cyw-attr-open) .leaflet-control-attribution { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
   .cyw-spin,
   .cyw-rise,
@@ -252,3 +281,24 @@ h2 {
   background: #f5d0b8;
 }
 
+/* Horizontally scrolling chip rows (mobile planner): swipe without a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile full-screen map: map credit sits just under the floating top bar. */
+.cyw-fullscreen-map .leaflet-top.leaflet-right {
+  top: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 64px);
+  right: 48px;
+}
+.cyw-fullscreen-map .leaflet-control-attribution {
+  max-width: calc(100vw - 80px);
+  margin: 0 !important;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 244, 214, 0.85);
+  font-size: 10px;
+}

@@ -35,7 +35,9 @@
   <body>
     <script>
       try {
-        if (localStorage.getItem('cyw:intro-seen') === '1') document.documentElement.classList.add('cyw-returning')
+        // The Android app plays its launch animation on every start: keep the dark splash.
+        var native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
+        if (!native && localStorage.getItem('cyw:intro-seen') === '1') document.documentElement.classList.add('cyw-returning')
       } catch (e) {
         document.documentElement.classList.add('cyw-returning')
       }

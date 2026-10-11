@@ -11,7 +11,7 @@ function Footer({ onStartPlanning, onGoHome, onOpenPrivacy, onOpenTerms }: Foote
   return (
     <footer
       className="relative z-10 border-t border-burnt-orange/25 bg-[#4a3226] text-vanilla/80"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'var(--safe-area-inset-bottom,env(safe-area-inset-bottom))' }}
     >
       <div className="mx-auto max-w-7xl px-5 py-8 md:px-10 md:py-14">
         <div className="flex flex-col gap-6 md:grid md:grid-cols-4 md:gap-10">

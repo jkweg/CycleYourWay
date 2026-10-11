@@ -6,6 +6,8 @@ export type AuthContextValue = {
   isLoading: boolean
   isAuthenticated: boolean
   passwordRecovery: boolean
+  /** Android: why the last Google sign-in failed ('' when it didn't). */
+  oauthError: string
   login: (email: string, password: string) => Promise<AuthUser | null>
   loginWithGoogle: () => Promise<void>
   register: (email: string, password: string) => Promise<AuthUser | null>

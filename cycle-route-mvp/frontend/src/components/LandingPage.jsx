@@ -81,7 +81,7 @@ function RideStyles() {
 function CompactLanding({ onStartPlanning }) {
   return (
     <section
-      className="flex min-h-[100dvh] flex-col px-5 pb-10 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))]"
+      className="flex min-h-[100dvh] flex-col px-5 pb-10 pt-[max(5.5rem,calc(var(--safe-area-inset-top,env(safe-area-inset-top))+4.5rem))]"
       aria-labelledby="mobile-landing-title"
     >
       <div className="flex flex-1 flex-col justify-center">

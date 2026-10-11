@@ -68,7 +68,7 @@ function MobilePlannerNav({
   return (
     <nav
       className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-burnt-orange/15 bg-[#FFF8E8]/95 px-1.5 py-2 backdrop-blur md:hidden"
-      style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+      style={{ paddingTop: 'max(0.5rem, var(--safe-area-inset-top,env(safe-area-inset-top)))' }}
       aria-label="Nawigacja planera"
     >
       {items.map((item) => {

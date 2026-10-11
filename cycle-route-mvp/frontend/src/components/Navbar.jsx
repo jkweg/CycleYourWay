@@ -30,7 +30,7 @@ function Navbar({
   return (
     <header
       className="absolute inset-x-0 top-0 z-50 text-ink"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ paddingTop: 'var(--safe-area-inset-top,env(safe-area-inset-top))' }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-4 md:px-10 md:py-6">
         <button
