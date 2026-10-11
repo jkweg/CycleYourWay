@@ -103,7 +103,7 @@ function HeroPoster({ onStartPlanning }) {
       <div className="relative z-[2] mx-auto flex min-h-[100svh] max-w-[1440px] flex-col px-5 pb-8 pt-24 md:px-10 md:pt-28 lg:min-h-[900px]">
         <h1
           id="hero-title"
-          className="font-display relative z-0 select-none text-center text-[clamp(4.2rem,16.4vw,16rem)] leading-[0.84] text-ink"
+          className="font-display relative z-0 select-none text-center text-[clamp(4.2rem,16.4vw,16rem)] leading-[0.9] text-ink"
         >
           <span className="sr-only">Wybierz przejazd.</span>
           <motion.span style={{ transform: lineOne }} className="block">
@@ -115,19 +115,13 @@ function HeroPoster({ onStartPlanning }) {
         </h1>
 
         {/* Phone + floating chips, layered over the lettering. */}
-        <div className="relative z-10 mx-auto -mt-5 w-[min(54vw,210px)] sm:-mt-[10vw] md:w-[260px] lg:absolute lg:left-1/2 lg:top-[300px] lg:mt-0 lg:w-[268px] lg:-translate-x-1/2">
+        <div className="relative z-10 mx-auto -mt-5 w-[min(54vw,210px)] sm:-mt-[10vw] md:w-[260px] lg:absolute lg:left-1/2 lg:top-[calc(7rem_+_min(16.4vw,16rem)_*_1.52)] lg:mt-0 lg:w-[250px] lg:-translate-x-1/2">
           <motion.div style={{ transform: phoneLift }} className="relative">
             <div className="cyw-pop" style={{ '--d': '520ms' }}>
               <PhoneMock />
             </div>
 
-            <Float pointer={pointer} depth={-22} delay={900} className="-left-[58%] top-[74%] hidden md:block">
-              <span className="flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(42,26,18,0.3)]">
-                <span className="h-2 w-2 rounded-full bg-burnt-orange" /> Gravel · spokojne drogi
-              </span>
-            </Float>
-
-            <Float pointer={pointer} depth={34} delay={1020} className="-left-[78%] top-[44%] hidden md:block">
+            <Float pointer={pointer} depth={34} delay={1020} className="-left-[84%] top-[16%] hidden md:block">
               <div className="flex items-center gap-3 rounded-[20px] bg-white px-4 py-3.5 shadow-[0_24px_50px_rgba(42,26,18,0.2)]">
                 <span className="grid h-11 w-11 place-items-center rounded-[14px] bg-burnt-orange text-ink">
                   <IconArrowBearRight size={24} stroke={2.4} aria-hidden="true" />
@@ -139,7 +133,7 @@ function HeroPoster({ onStartPlanning }) {
               </div>
             </Float>
 
-            <Float pointer={pointer} depth={26} delay={1140} className="-right-[74%] top-[38%] hidden md:block">
+            <Float pointer={pointer} depth={26} delay={1140} className="-right-[88%] top-[3%] hidden md:block">
               <div className="w-[190px] rounded-[20px] bg-white p-4 shadow-[0_24px_50px_rgba(42,26,18,0.18)]">
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B4E3D]">Profil trasy</p>
                 <p className="mt-1 font-serif text-[26px] font-semibold leading-none text-ink">↗ 380 m</p>
@@ -158,7 +152,7 @@ function HeroPoster({ onStartPlanning }) {
               </div>
             </Float>
 
-            <Float pointer={pointer} depth={-30} delay={1260} className="-right-[92%] top-[74%] hidden md:block">
+            <Float pointer={pointer} depth={-30} delay={1260} className="-right-[112%] top-[36%] hidden md:block">
               <span className="flex items-center gap-2.5 rounded-full bg-burnt-orange px-5 py-3 text-ink shadow-[0_18px_36px_rgba(224,85,24,0.35)]">
                 <IconVolume size={20} stroke={2.2} aria-hidden="true" />
                 <span className="text-[15px] font-bold">„Za 250 metrów skręć w prawo”</span>
