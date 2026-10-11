@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { getElevationGainMeters } from '../lib/routeStats'
 import ChunkFallback from './ChunkFallback'
+import CountUp from './CountUp'
 
 const ElevationChart = lazy(() => import('../ElevationChart'))
 
@@ -56,7 +57,12 @@ function MapRouteDetailsBar({
               Dystans
             </p>
             <p className="mt-1 text-lg font-semibold leading-none tabular-nums text-[#FC6C26] md:text-base">
-              {routeStats.distanceKm} km
+              <CountUp
+                key={routeDisplayKey}
+                to={routeStats.distanceKm}
+                decimals={Number.isInteger(Number(routeStats.distanceKm)) ? 0 : 1}
+              />{' '}
+              km
             </p>
           </div>
           <div className="min-w-0">

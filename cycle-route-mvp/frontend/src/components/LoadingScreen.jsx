@@ -7,7 +7,7 @@ import { BIKE_SIZE, easeInOutCubic, placeOnPath } from '../lib/routeMotion'
 // as the app loads and the bike rides on its tip. Shown once per device (Root).
 const MIN_MS = 2600
 const FINISH_MS = 450
-const EXIT_MS = 450
+const EXIT_MS = 720
 const WAITING_CAP = 0.92
 const PATH_START = 0.06
 const PATH_PARKED = 0.8
@@ -123,7 +123,7 @@ function LoadingScreen({ onComplete }) {
 
   return (
     <div
-      className={`intro-screen fixed inset-0 z-[10000] flex flex-col overflow-hidden bg-ink text-vanilla ${
+      className={`intro-screen cyw-grain cyw-grain--dark fixed inset-0 z-[10000] flex flex-col overflow-hidden bg-ink text-vanilla ${
         exiting ? 'intro-screen--exit cyw-paused' : ''
       }`}
       role="progressbar"
@@ -171,9 +171,28 @@ function LoadingScreen({ onComplete }) {
         <p className="cyw-rise text-xs font-semibold uppercase tracking-[0.32em] text-burnt-orange sm:text-sm">
           Witaj w drodze
         </p>
-        <h1 className="cyw-rise cyw-rise--2 font-serif text-[clamp(4rem,10vw,8rem)] font-medium leading-[0.95] tracking-[-0.02em] text-white">
-          Cycle <br className="sm:hidden" />
-          Your <span className="italic text-burnt-orange">Way</span>
+        <h1 className="cyw-letters-go font-serif text-[clamp(4rem,10vw,8rem)] font-medium leading-[0.95] tracking-[-0.02em] text-white">
+          <span className="sr-only">Cycle Your Way</span>
+          <span aria-hidden="true">
+            {[...'Cycle'].map((char, index) => (
+              <span key={`c${index}`} className="cyw-letter" style={{ '--i': index }}>
+                {char}
+              </span>
+            ))}{' '}
+            <br className="sm:hidden" />
+            {[...'Your'].map((char, index) => (
+              <span key={`y${index}`} className="cyw-letter" style={{ '--i': index + 5 }}>
+                {char}
+              </span>
+            ))}{' '}
+            <span className="italic text-burnt-orange">
+              {[...'Way'].map((char, index) => (
+                <span key={`w${index}`} className="cyw-letter" style={{ '--i': index + 9 }}>
+                  {char}
+                </span>
+              ))}
+            </span>
+          </span>
         </h1>
         <p className="cyw-rise cyw-rise--3 max-w-[32rem] text-[17px] leading-relaxed text-vanilla/80 sm:text-xl">
           Planer i nawigacja rowerowa — trasa skrojona pod Twoje tempo.
@@ -238,10 +257,11 @@ function LoadingScreen({ onComplete }) {
         >
           Pomiń
         </button>
-        <div className="flex items-baseline gap-2.5">
-          <span className="text-xs uppercase tracking-[0.18em] text-vanilla/80">Ładowanie</span>
-          <span className="font-serif text-4xl font-semibold tabular-nums text-white sm:text-[44px]">
-            {percent}%
+        <div className="flex items-end gap-3">
+          <span className="pb-2 text-xs uppercase tracking-[0.18em] text-vanilla/80">Ładowanie</span>
+          <span className="font-display text-[clamp(3.5rem,9vw,7rem)] leading-[0.8] tabular-nums text-white">
+            {percent}
+            <span className="text-burnt-orange">%</span>
           </span>
         </div>
       </footer>

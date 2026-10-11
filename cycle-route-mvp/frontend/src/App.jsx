@@ -2053,7 +2053,14 @@ function App() {
                     disabled={!startPoint || !endPoint || isLoadingRoute}
                     className="soft-button w-full rounded-full bg-ink px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_26px_-14px_rgba(42,26,18,0.7)] transition hover:bg-ink-muted disabled:cursor-not-allowed disabled:bg-sand disabled:shadow-none"
                   >
-                    {isLoadingRoute ? 'Wyznaczanie…' : 'Wyznacz trasę'}
+                    {isLoadingRoute ? (
+                      <>
+                        <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white align-[-2px] [animation-duration:0.65s]" />
+                        Wyznaczanie…
+                      </>
+                    ) : (
+                      'Wyznacz trasę'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -2126,7 +2133,14 @@ function App() {
                     disabled={!startPoint || isLoadingRoute}
                     className="soft-button w-full rounded-full bg-ink px-4 py-3.5 text-base font-bold text-white shadow-[0_12px_26px_-14px_rgba(42,26,18,0.7)] transition hover:bg-ink-muted disabled:cursor-not-allowed disabled:bg-sand disabled:shadow-none"
                   >
-                    {isLoadingRoute ? 'Generowanie…' : 'Wygeneruj pętlę'}
+                    {isLoadingRoute ? (
+                      <>
+                        <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white align-[-2px] [animation-duration:0.65s]" />
+                        Generowanie…
+                      </>
+                    ) : (
+                      'Wygeneruj pętlę'
+                    )}
                   </button>
                   <button
                     type="button"

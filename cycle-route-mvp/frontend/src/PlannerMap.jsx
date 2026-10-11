@@ -5,6 +5,29 @@ import { AttributionControl, GeoJSON, MapContainer, Marker, TileLayer, useMap, u
 import { createViaMarkerIcon, plannerMarkerIcon } from './lib/leafletIcons'
 import { getMapTileLayer } from './lib/mapTiles'
 
+// A newly computed route draws itself along its length (after the map has
+// finished framing it, so the measured length matches what is on screen).
+const ROUTE_DRAW_DELAY_MS = 380
+function drawRouteIn(event) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  event.target.eachLayer((layer) => {
+    const path = layer.getElement?.()
+    if (!path?.animate || !path.getTotalLength) return
+    path.style.opacity = '0'
+    window.setTimeout(() => {
+      path.style.opacity = ''
+      const length = path.getTotalLength()
+      path.animate(
+        [
+          { strokeDasharray: `${length} ${length}`, strokeDashoffset: length },
+          { strokeDasharray: `${length} ${length}`, strokeDashoffset: 0 },
+        ],
+        { duration: 900, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
+      )
+    }, ROUTE_DRAW_DELAY_MS)
+  })
+}
+
 function MapClickHandler({ onMapClick, enabled }) {
   useMapEvents({
     click: (event) => {
@@ -264,6 +287,7 @@ function PlannerMap({
           <GeoJSON
             key={`route-${routeDisplayKey}-${index}`}
             data={feature}
+            eventHandlers={{ add: drawRouteIn }}
             style={{
               color:
                 selectedRouteIndex === index
