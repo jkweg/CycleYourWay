@@ -51,11 +51,7 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
       .then((records) => {
         if (cancelled) return
         const now = Date.now()
-        setDrafts(
-          records.filter(
-            (draft) => canRestoreRideDraft(draft, userId) && !isRideDraftExpired(draft, now),
-          ),
-        )
+        setDrafts(records.filter((draft) => canRestoreRideDraft(draft, userId) && !isRideDraftExpired(draft, now)))
       })
       .catch((loadError) => {
         captureException(loadError, { where: 'listLocalRideDrafts' })
@@ -85,53 +81,49 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
   }
 
   return (
-    <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
-      <h3 className="font-semibold text-[#FC6C26]">Jazdy na tym urządzeniu</h3>
-      <p className="mt-1 text-sm text-stone-600">
-        Niewysłane jazdy (ślad GPS i liczniki) są przechowywane tylko lokalnie, aby nie przepadły
-        po przeładowaniu lub utracie sieci. Usuwamy je po zapisaniu na koncie albo automatycznie po{' '}
-        {RIDE_DRAFT_RETENTION_DAYS} dniach od ostatniej zmiany.
+    <div className="rounded-[22px] border border-[#EFE0BC] bg-white p-4">
+      <h3 className="font-semibold text-ink">Jazdy na tym urządzeniu</h3>
+      <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+        Niewysłane jazdy (ślad GPS i liczniki) zostają tylko w tym telefonie lub przeglądarce, żeby nie przepadły bez
+        sieci. Znikają po zapisaniu na koncie albo po {RIDE_DRAFT_RETENTION_DAYS} dniach.
       </p>
 
-      {error && <p className="mt-3 text-sm text-rose-700">{error}</p>}
+      {error && <p className="mt-3 rounded-2xl bg-[#FDE7DF] px-3 py-2 text-sm text-[#6E1C12]">{error}</p>}
 
       {isLoading ? (
-        <p className="mt-3 text-sm text-stone-500">Sprawdzanie…</p>
+        <div className="mt-3 h-14 animate-pulse rounded-2xl bg-vanilla-deep" />
       ) : drafts.length === 0 ? (
-        <p className="mt-3 text-sm text-stone-500">Brak niewysłanych jazd na tym urządzeniu.</p>
+        <p className="mt-3 text-sm text-[#6B4E3D]">Brak niewysłanych jazd.</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {drafts.map((draft) => {
             const distance = draftDistanceKm(draft)
             return (
-              <li
-                key={draft.sessionId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#f0d4b8] bg-white px-3 py-2"
-              >
-                <div className="min-w-0 text-sm">
-                  <p className="truncate font-medium text-stone-800">
-                    {draft.route?.name || 'Jazda bez nazwy'}
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    {STATUS_LABELS[draft.status] || draft.status} · {formatDateTime(draftStartedAt(draft))}
-                    {distance ? ` · ${distance}` : ''}
-                  </p>
-                  <p className="text-xs text-stone-400">
-                    Usunięcie automatyczne: {formatDateTime(rideDraftExpiresAt(draft))}
-                  </p>
-                </div>
-                <div className="flex gap-2">
+              <li key={draft.sessionId} className="rounded-2xl bg-vanilla px-3 py-3">
+                <p className="truncate text-[15px] font-semibold text-ink">{draft.route?.name || 'Jazda bez nazwy'}</p>
+                <p className="text-[13px] text-[#6B4E3D]">
+                  {STATUS_LABELS[draft.status] || draft.status} · {formatDateTime(draftStartedAt(draft))}
+                  {distance ? ` · ${distance}` : ''}
+                </p>
+                <p className="text-xs text-[#8C6B52]">
+                  Usunięcie automatyczne: {formatDateTime(rideDraftExpiresAt(draft))}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => onOpenDraft?.(draft)}
-                    className="soft-button rounded-xl border border-[#E08A50] bg-white px-3 py-1.5 text-xs font-semibold text-[#E05518]"
+                    className="press h-9 rounded-full bg-ink px-4 text-sm font-bold text-white"
                   >
                     {draft.status === 'completed' ? 'Otwórz i wyślij' : 'Wznów'}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(draft.sessionId)}
-                    className="soft-button rounded-xl border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800"
+                    className={`press h-9 rounded-full px-4 text-sm font-bold ${
+                      confirmId === draft.sessionId
+                        ? 'bg-[#B4231A] text-white'
+                        : 'border-[1.5px] border-ink/20 text-ink'
+                    }`}
                   >
                     {confirmId === draft.sessionId ? 'Potwierdź usunięcie' : 'Usuń'}
                   </button>
@@ -142,11 +134,8 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
         </ul>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#f0d4b8] pt-3 text-sm text-stone-600">
-        <span>
-          Historia wyszukiwanych adresów:{' '}
-          {historyCount > 0 ? `${historyCount} (tylko na tym urządzeniu)` : 'pusta'}
-        </span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#F1E6CC] pt-3 text-sm text-ink-muted">
+        <span>Historia wyszukiwanych adresów: {historyCount > 0 ? `${historyCount} (tylko tutaj)` : 'pusta'}</span>
         {historyCount > 0 && (
           <button
             type="button"
@@ -154,7 +143,7 @@ function LocalRideDrafts({ userId, onOpenDraft }) {
               clearAddressHistory()
               setHistoryCount(0)
             }}
-            className="soft-button rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700"
+            className="press h-9 rounded-full border-[1.5px] border-ink/20 px-4 text-sm font-bold text-ink"
           >
             Wyczyść historię
           </button>

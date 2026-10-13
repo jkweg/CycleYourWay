@@ -1,5 +1,25 @@
 import { useState } from 'react'
 import { useAuth } from './useAuth'
+import Sheet from './components/ui/Sheet'
+import { Button, Field, Notice, Segmented, Spinner } from './components/ui/controls'
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 38.2 44 33 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  )
+}
+
+const COPY = {
+  login: { eyebrow: 'Konto', title: 'Witaj z powrotem', description: 'Zaloguj się, żeby zapisywać trasy i wracać do historii jazd.', submit: 'Zaloguj się' },
+  register: { eyebrow: 'Konto', title: 'Załóż konto', description: 'Trasy i jazdy zapiszą się na koncie — na komputerze i w telefonie.', submit: 'Utwórz konto' },
+  forgot: { eyebrow: 'Hasło', title: 'Reset hasła', description: 'Wyślemy link do ustawienia nowego hasła na Twój e-mail.', submit: 'Wyślij link' },
+  newPassword: { eyebrow: 'Hasło', title: 'Nowe hasło', description: 'Ustaw nowe hasło dla swojego konta (minimum 6 znaków).', submit: 'Zapisz hasło' },
+}
 
 function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const {
@@ -19,26 +39,20 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  if (!isOpen) return null
+  const [isGoogle, setIsGoogle] = useState(false)
 
   const activeMode = passwordRecovery ? 'newPassword' : mode
+  const copy = COPY[activeMode]
+  const showsEmail = activeMode !== 'newPassword'
+  const showsPassword = activeMode !== 'forgot'
+  const accountTabs = activeMode === 'login' || activeMode === 'register'
 
-  const title =
-    activeMode === 'login'
-      ? 'Zaloguj się'
-      : activeMode === 'register'
-        ? 'Utwórz konto'
-        : activeMode === 'forgot'
-          ? 'Reset hasła'
-          : 'Nowe hasło'
-
-  const subtitle =
-    activeMode === 'forgot'
-      ? 'Wyślemy link do zresetowania hasła na Twój e-mail.'
-      : activeMode === 'newPassword'
-        ? 'Wpisz nowe hasło (minimum 6 znaków).'
-        : 'Zapisuj trasy i wracaj do nich w dowolnym momencie.'
+  const switchMode = (next) => {
+    setMode(next)
+    setError('')
+    setInfo('')
+    if (next === 'forgot') setPassword('')
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -73,203 +87,111 @@ function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     }
   }
 
-  const handleClose = () => {
-    if (activeMode === 'newPassword') {
-      clearPasswordRecovery()
+  const handleGoogle = async () => {
+    setError('')
+    setIsGoogle(true)
+    try {
+      // Web: the page navigates to Google. Android: a system browser opens and
+      // the result arrives later (App closes this modal once signed in).
+      await loginWithGoogle()
+    } catch (googleError) {
+      setError(googleError.message || 'Nie udało się zalogować przez Google.')
+    } finally {
+      setIsGoogle(false)
     }
+  }
+
+  const handleClose = () => {
+    if (activeMode === 'newPassword') clearPasswordRecovery()
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
-      <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-burnt-orange/20 bg-vanilla p-6 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-modal-title"
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 id="auth-modal-title" className="text-xl font-semibold text-burnt-orange">
-              {title}
-            </h2>
-            <p className="mt-1 text-sm text-stone-600">{subtitle}</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-lg px-2 py-1 text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
-            aria-label="Zamknij"
-          >
-            ✕
-          </button>
-        </div>
+  const busy = isSubmitting || isGoogle
 
-        {(activeMode === 'login' || activeMode === 'register') && (
-          <div className="mb-4 grid grid-cols-2 rounded-xl border border-burnt-orange/20 bg-vanilla-deep p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login')
-                setError('')
-                setInfo('')
-              }}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                activeMode === 'login'
-                  ? 'bg-vanilla text-burnt-orange shadow-sm'
-                  : 'text-ink-muted hover:text-ink'
-              }`}
-            >
-              Logowanie
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('register')
-                setError('')
-                setInfo('')
-              }}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                activeMode === 'register'
-                  ? 'bg-vanilla text-burnt-orange shadow-sm'
-                  : 'text-ink-muted hover:text-ink'
-              }`}
-            >
-              Rejestracja
-            </button>
-          </div>
+  return (
+    <Sheet open={isOpen} onClose={handleClose} eyebrow={copy.eyebrow} title={copy.title} description={copy.description} size="sm">
+      <div className="space-y-4">
+        {accountTabs && (
+          <Segmented
+            label="Logowanie lub rejestracja"
+            value={activeMode}
+            onChange={switchMode}
+            options={[
+              { value: 'login', label: 'Logowanie' },
+              { value: 'register', label: 'Rejestracja' },
+            ]}
+          />
         )}
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {activeMode !== 'newPassword' && (
-            <div>
-              <label htmlFor="auth-email" className="mb-1 block text-sm font-medium text-stone-700">
-                E-mail
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
-              />
+        {accountTabs && (
+          <>
+            <Button tone="white" className="w-full" onClick={handleGoogle} disabled={busy}>
+              {isGoogle ? <Spinner /> : <GoogleMark />}
+              Kontynuuj z Google
+            </Button>
+            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8C6B52]">
+              <span className="h-px flex-1 bg-ink/10" />
+              albo e-mailem
+              <span className="h-px flex-1 bg-ink/10" />
             </div>
-          )}
+          </>
+        )}
 
-          {(activeMode === 'login' ||
-            activeMode === 'register' ||
-            activeMode === 'newPassword') && (
-            <div>
-              <label
-                htmlFor="auth-password"
-                className="mb-1 block text-sm font-medium text-stone-700"
-              >
-                Hasło
-              </label>
-              <input
-                id="auth-password"
-                type="password"
-                autoComplete={activeMode === 'login' ? 'current-password' : 'new-password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
-              />
-              {(activeMode === 'register' || activeMode === 'newPassword') && (
-                <p className="mt-1 text-xs text-stone-500">Minimum 6 znaków.</p>
-              )}
-            </div>
+        <form className="space-y-3.5" onSubmit={handleSubmit}>
+          {showsEmail && (
+            <Field
+              id="auth-email"
+              label="E-mail"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="ty@przyklad.pl"
+            />
+          )}
+          {showsPassword && (
+            <Field
+              id="auth-password"
+              label="Hasło"
+              type="password"
+              autoComplete={activeMode === 'login' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              hint={activeMode === 'login' ? undefined : 'Minimum 6 znaków.'}
+            />
           )}
 
           {activeMode === 'login' && (
             <button
               type="button"
-              onClick={() => {
-                setMode('forgot')
-                setError('')
-                setInfo('')
-                setPassword('')
-              }}
-              className="text-xs font-medium text-burnt-orange hover:underline"
+              onClick={() => switchMode('forgot')}
+              className="text-sm font-semibold text-rust underline-offset-4 hover:underline"
             >
               Nie pamiętam hasła
             </button>
           )}
 
-          {(error || oauthError) && (
-            <p className="text-sm font-medium text-rose-700">{error || oauthError}</p>
-          )}
-          {info && <p className="text-sm font-medium text-burnt-orange">{info}</p>}
-          {passwordRecovery && !info && (
-            <p className="text-sm font-medium text-burnt-orange">
-              Ustaw nowe hasło dla swojego konta.
-            </p>
-          )}
+          {(error || oauthError) && <Notice tone="error">{error || oauthError}</Notice>}
+          {info && <Notice tone="success">{info}</Notice>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="soft-button w-full rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla transition hover:bg-burnt-orange-dark disabled:opacity-60"
-          >
-            {isSubmitting
-              ? 'Proszę czekać...'
-              : activeMode === 'login'
-                ? 'Zaloguj'
-                : activeMode === 'register'
-                  ? 'Zarejestruj się'
-                  : activeMode === 'forgot'
-                    ? 'Wyślij link resetujący'
-                    : 'Zapisz nowe hasło'}
-          </button>
-
-          {(activeMode === 'login' || activeMode === 'register') && (
-            <>
-              <div className="relative py-1 text-center text-xs font-semibold uppercase tracking-wide text-stone-500">
-                <span className="bg-vanilla px-2">lub</span>
-                <span className="absolute inset-x-0 top-1/2 -z-10 h-px bg-[#4a3226]/15" />
-              </div>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={async () => {
-                  setError('')
-                  setIsSubmitting(true)
-                  try {
-                    // Web: the page navigates to Google. Android: a system browser opens and
-                    // the result arrives later (App closes this modal once signed in).
-                    await loginWithGoogle()
-                  } catch (googleError) {
-                    setError(googleError.message || 'Nie udało się zalogować przez Google.')
-                  } finally {
-                    setIsSubmitting(false)
-                  }
-                }}
-                className="soft-button w-full rounded-xl border border-[#4a3226]/35 bg-vanilla px-4 py-2.5 text-sm font-semibold text-[#4a3226] transition hover:border-burnt-orange hover:text-burnt-orange disabled:opacity-60"
-              >
-                Kontynuuj z Google
-              </button>
-            </>
-          )}
+          <Button type="submit" className="w-full" disabled={busy}>
+            {isSubmitting && <Spinner />}
+            {isSubmitting ? 'Chwileczkę…' : copy.submit}
+          </Button>
 
           {activeMode === 'forgot' && (
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login')
-                setError('')
-                setInfo('')
-              }}
-              className="w-full text-center text-xs font-medium text-stone-600 hover:underline"
-            >
+            <Button tone="ghost" className="w-full" onClick={() => switchMode('login')}>
               Wróć do logowania
-            </button>
+            </Button>
           )}
         </form>
+
       </div>
-    </div>
+    </Sheet>
   )
 }
 

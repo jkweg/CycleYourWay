@@ -1,137 +1,84 @@
 import { useState } from 'react'
+import { IconStar, IconStarFilled } from '@tabler/icons-react'
 import { ROUTE_NAME_MAX, TAG_MAX, TAGS_MAX, normalizeTags } from './lib/dataLimits'
+import Sheet from './components/ui/Sheet'
+import { Button, Field, Spinner } from './components/ui/controls'
 
-function SaveRouteModal({
-  isOpen,
-  defaultName,
-  isSaving,
-  canOverwrite = false,
-  onClose,
-  onSave,
-}) {
+function SaveRouteModal({ isOpen, defaultName, isSaving, canOverwrite = false, onClose, onSave }) {
   const [name, setName] = useState(defaultName)
   const [tagsText, setTagsText] = useState('')
   const [isFavorite, setIsFavorite] = useState(false)
 
-  if (!isOpen) return null
-
-  const handleSubmit = (event, mode = 'insert') => {
+  const submit = (event, mode = 'insert') => {
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
     onSave({ name: trimmed, tags: normalizeTags(tagsText), isFavorite }, mode)
   }
 
+  const disabled = isSaving || !name.trim()
+
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
-      <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-burnt-orange/20 bg-vanilla p-6 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="save-route-title"
-      >
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 id="save-route-title" className="text-xl font-semibold text-burnt-orange">
-              Zapisz trasę
-            </h2>
-            <p className="mt-1 text-sm text-stone-600">
-              {canOverwrite
-                ? 'Możesz nadpisać wczytaną trasę albo zapisać ją jako nową.'
-                : 'Podaj nazwę, aby łatwo ją odnaleźć później.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
-            aria-label="Zamknij"
-          >
-            ✕
-          </button>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      eyebrow="Biblioteka tras"
+      title="Zapisz trasę"
+      description={
+        canOverwrite
+          ? 'Nadpisz wczytaną trasę albo zapisz ją jako nową.'
+          : 'Nadaj nazwę, żeby łatwo ją potem odnaleźć.'
+      }
+      size="sm"
+      footer={
+        <div className="flex flex-col gap-2 sm:flex-row-reverse">
+          <Button type="submit" form="save-route-form" className="w-full sm:flex-1" disabled={disabled}>
+            {isSaving && <Spinner />}
+            {isSaving ? 'Zapisywanie…' : canOverwrite ? 'Nadpisz' : 'Zapisz'}
+          </Button>
+          {canOverwrite && (
+            <Button tone="outline" className="w-full sm:flex-1" disabled={disabled} onClick={(event) => submit(event, 'insert')}>
+              Zapisz jako nową
+            </Button>
+          )}
         </div>
-
-        <form className="space-y-4" onSubmit={(event) => handleSubmit(event, canOverwrite ? 'update' : 'insert')}>
-          <div>
-            <label htmlFor="route-name" className="mb-1 block text-sm font-medium text-stone-700">
-              Nazwa trasy
-            </label>
-            <input
-              id="route-name"
-              type="text"
-              required
-              maxLength={ROUTE_NAME_MAX}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="route-tags" className="mb-1 block text-sm font-medium text-stone-700">
-              Tagi
-            </label>
-            <input
-              id="route-tags"
-              type="text"
-              maxLength={TAGS_MAX * (TAG_MAX + 2)}
-              value={tagsText}
-              onChange={(event) => setTagsText(event.target.value)}
-              placeholder="np. gravel, trening, rodzina"
-              className="w-full rounded-lg border border-burnt-orange/25 bg-white px-3 py-2 text-sm outline-none ring-burnt-orange/30 focus:ring-2"
-            />
-            <p className="mt-1 text-xs text-stone-500">Oddziel tagi przecinkami.</p>
-          </div>
-
-          <label className="flex items-start gap-3 rounded-xl border border-burnt-orange/20 bg-vanilla-deep p-3 text-sm text-stone-700">
-            <input
-              type="checkbox"
-              checked={isFavorite}
-              onChange={(event) => setIsFavorite(event.target.checked)}
-              className="mt-0.5"
-            />
-            <span>Dodaj do ulubionych tras.</span>
-          </label>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={onClose}
-              className="soft-button flex-1 rounded-xl border border-burnt-orange/25 bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-vanilla-deep"
-            >
-              Anuluj
-            </button>
-            {canOverwrite ? (
-              <>
-                <button
-                  type="button"
-                  disabled={isSaving || !name.trim()}
-                  onClick={(event) => handleSubmit(event, 'insert')}
-                  className="soft-button flex-1 rounded-xl border border-burnt-orange/25 bg-burnt-orange/10 px-4 py-2.5 text-sm font-semibold text-burnt-orange hover:bg-burnt-orange/15 disabled:opacity-60"
-                >
-                  {isSaving ? 'Zapisywanie...' : 'Zapisz jako nową'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving || !name.trim()}
-                  className="soft-button flex-1 rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla hover:bg-burnt-orange-dark disabled:opacity-60"
-                >
-                  {isSaving ? 'Zapisywanie...' : 'Nadpisz'}
-                </button>
-              </>
-            ) : (
-              <button
-                type="submit"
-                disabled={isSaving || !name.trim()}
-                className="soft-button flex-1 rounded-xl bg-burnt-orange px-4 py-2.5 text-sm font-semibold text-vanilla hover:bg-burnt-orange-dark disabled:opacity-60"
-              >
-                {isSaving ? 'Zapisywanie...' : 'Zapisz'}
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+      }
+    >
+      <form id="save-route-form" className="space-y-4" onSubmit={(event) => submit(event, canOverwrite ? 'update' : 'insert')}>
+        <Field
+          id="route-name"
+          label="Nazwa trasy"
+          required
+          maxLength={ROUTE_NAME_MAX}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Field
+          id="route-tags"
+          label="Tagi"
+          maxLength={TAGS_MAX * (TAG_MAX + 2)}
+          value={tagsText}
+          onChange={(event) => setTagsText(event.target.value)}
+          placeholder="np. gravel, trening, rodzina"
+          hint="Oddziel tagi przecinkami."
+        />
+        <button
+          type="button"
+          aria-pressed={isFavorite}
+          onClick={() => setIsFavorite((value) => !value)}
+          className={`press flex h-12 w-full items-center gap-3 rounded-2xl border px-4 text-left text-[15px] font-semibold transition-colors duration-200 ${
+            isFavorite ? 'border-burnt-orange/50 bg-[#FFE9D8] text-ink' : 'border-[#EFE0BC] bg-white text-ink'
+          }`}
+        >
+          {isFavorite ? (
+            <IconStarFilled size={20} className="text-burnt-orange" />
+          ) : (
+            <IconStar size={20} stroke={2} className="text-[#C9B58C]" />
+          )}
+          {isFavorite ? 'W ulubionych' : 'Dodaj do ulubionych'}
+        </button>
+      </form>
+    </Sheet>
   )
 }
 

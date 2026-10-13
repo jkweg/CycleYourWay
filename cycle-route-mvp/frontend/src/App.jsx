@@ -28,7 +28,7 @@ import { ensureNavigableFeature } from './lib/routeRefresh'
 import { haversineMeters } from './lib/navigation'
 import { getAppOrigin } from './lib/appOrigin'
 import { isNativePlatform } from './lib/platform'
-import { getCurrentPosition } from './lib/location'
+import { getCurrentPosition, hasLocationPermission } from './lib/location'
 import { parseDeepLinkParams, registerAppUrlListener } from './lib/deepLinks'
 import { registerBackButton } from './lib/backButton'
 import { setSystemBarsTone } from './lib/systemBars'
@@ -71,13 +71,43 @@ import {
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
 const MobilePlanner = lazy(() => import('./mobile/MobilePlanner'))
-// Android app (and `?mobile=1` on the web for testing): full-screen map + bottom sheets.
-const USE_MOBILE_SHELL =
+// Android app (and `?mobile=1` for testing) opens straight into the planner.
+const OPENS_IN_PLANNER =
   isNativePlatform() ||
   (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile'))
+// Full-screen map + bottom sheets: the app, and phones in the browser too (the
+// desktop planner shows every route detail at once, too much for a phone).
+const USE_MOBILE_SHELL =
+  OPENS_IN_PLANNER ||
+  (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 767px)').matches))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 
 let viaStopSequentialId = 0
+
+// Middle of a route's bounding box, to re-frame the map once the route is gone.
+function routeCenter(geojson) {
+  let minLat = Infinity
+  let maxLat = -Infinity
+  let minLng = Infinity
+  let maxLng = -Infinity
+  const visit = (coords) => {
+    if (!Array.isArray(coords)) return
+    if (typeof coords[0] === 'number') {
+      const [lng, lat] = coords
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        minLat = Math.min(minLat, lat)
+        maxLat = Math.max(maxLat, lat)
+        minLng = Math.min(minLng, lng)
+        maxLng = Math.max(maxLng, lng)
+      }
+      return
+    }
+    coords.forEach(visit)
+  }
+  geojson?.features?.forEach((feature) => visit(feature?.geometry?.coordinates))
+  if (!Number.isFinite(minLat)) return null
+  return { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 }
+}
 
 function createViaStop(point = null, input = '') {
   viaStopSequentialId += 1
@@ -156,6 +186,8 @@ function App() {
   const [routeGeoJson, setRouteGeoJson] = useState(null)
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [lockedPoint, setLockedPoint] = useState(null)
+  // Last known position of the rider, drawn as a dot on the planner map.
+  const [userLocation, setUserLocation] = useState(null)
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const [isPreparingRide, setIsPreparingRide] = useState(false)
   const [error, setError] = useState('')
@@ -195,7 +227,7 @@ function App() {
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
-  const [view, setView] = useState(() => (USE_MOBILE_SHELL ? 'planner' : 'landing'))
+  const [view, setView] = useState(() => (OPENS_IN_PLANNER ? 'planner' : 'landing'))
   // Mobile shell bottom sheet: home → plan → result → details, or saved.
   const [mobileSheet, setMobileSheet] = useState('home')
   const [mobileRouteKey, setMobileRouteKey] = useState(0)
@@ -556,6 +588,36 @@ function App() {
     setPlannerPanel('plan')
   }
 
+  // Leaving a ride or a plan: the route goes away and the map frames the rider
+  // (or, without location access, the place where the route was).
+  const resetPlanAndRecenter = () => {
+    const fallback = routeCenter(routeGeoJson) || startPoint
+    clearCurrentPlan()
+    if (fallback) setLockedPoint({ lat: fallback.lat, lng: fallback.lng })
+    hasLocationPermission()
+      .then((granted) => (granted ? getCurrentPosition({ timeout: 10000, maximumAge: 60000 }) : null))
+      .then((position) => {
+        if (!position) return
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude }
+        setUserLocation(point)
+        setLockedPoint(point)
+      })
+      .catch(() => undefined)
+  }
+
+  // Mobile sheets: going back home from planning or a route also clears it.
+  const changeMobileSheet = (next) => {
+    const leavingPlan = mobileSheet === 'plan' || mobileSheet === 'result' || mobileSheet === 'details'
+    if (next === 'home' && leavingPlan && (routeGeoJson || startPoint || endPoint)) resetPlanAndRecenter()
+    setMobileSheet(next)
+  }
+
+  const exitRide = () => {
+    setRideRoute(null)
+    resetPlanAndRecenter()
+    if (USE_MOBILE_SHELL) setMobileSheet('home')
+  }
+
   const openSavedPanel = () => {
     setPlannerPanel('saved')
   }
@@ -624,6 +686,7 @@ function App() {
       setStartPoint(point)
       setStartInput('Moja lokalizacja')
       setLockedPoint(point)
+      setUserLocation(point)
       if (routeMode === 'AtoB') {
         setEndPoint(null)
         setEndInput('')
@@ -1000,7 +1063,7 @@ function App() {
       }
       if (start) {
         setStartPoint(start)
-        setStartInput(savedRoute.name || mapSelectionLabel(start))
+        setStartInput(mapSelectionLabel(start))
         setLockedPoint(start)
       } else {
         setStartPoint(null)
@@ -1573,7 +1636,7 @@ function App() {
         [sidebarOpen, () => setSidebarOpen(false)],
         [USE_MOBILE_SHELL && mobileSheet === 'details', () => setMobileSheet('result')],
         [USE_MOBILE_SHELL && mobileSheet === 'result', () => setMobileSheet('plan')],
-        [USE_MOBILE_SHELL && mobileSheet !== 'home', () => setMobileSheet('home')],
+        [USE_MOBILE_SHELL && mobileSheet !== 'home', () => changeMobileSheet('home')],
         [!USE_MOBILE_SHELL && plannerPanel === 'savedDetail', () => setPlannerPanel('saved')],
         [!USE_MOBILE_SHELL && plannerPanel !== 'plan', () => setPlannerPanel('plan')],
         [view !== 'planner', () => setView('planner')],
@@ -1660,7 +1723,7 @@ function App() {
         actionLabel="Wróć do planera"
         onAction={() => {
           if (rideRoute.sessionId) dismissedRideDraftsRef.current.add(rideRoute.sessionId)
-          setRideRoute(null)
+          exitRide()
         }}
       >
       <Suspense fallback={<ChunkFallback label="Ładowanie nawigacji..." className="fixed inset-0 z-[3000] bg-[#2c1e16] text-orange-100" />}>
@@ -1679,7 +1742,7 @@ function App() {
           resumeDraft={rideRoute.resumeDraft || null}
           onExit={(preserveSessionId) => {
             if (preserveSessionId) dismissedRideDraftsRef.current.add(preserveSessionId)
-            setRideRoute(null)
+            exitRide()
           }}
           onRideComplete={handleRideComplete}
         />
@@ -1707,12 +1770,14 @@ function App() {
         <Suspense fallback={<ChunkFallback label="Ładowanie planera..." className="fixed inset-0 bg-vanilla" />}>
           <MobilePlanner
             sheet={mobileSheet}
-            setSheet={setMobileSheet}
+            setSheet={changeMobileSheet}
             p={{
               isAuthenticated,
               userEmail: user?.email,
               openAuth: () => setShowAuthModal(true),
               openProfile: () => setShowProfileModal(true),
+              // The website has a home page to go back to; the app does not.
+              onGoHome: isNativePlatform() ? null : goToHome,
               error,
               saveSuccessMessage,
               routeMode,
@@ -1755,6 +1820,7 @@ function App() {
               selectedRouteSurfaces,
               routeDisplayKey,
               lockedPoint,
+              userLocation,
               handleMapClick,
               handleStartDrag,
               handleEndDrag,
@@ -2264,6 +2330,7 @@ function App() {
             <PlannerMap
               onMapClick={handleMapClick}
               lockedPoint={lockedPoint}
+              userLocation={userLocation}
               selectedRouteGeoJson={selectedRouteGeoJson}
               startPoint={startPoint}
               endPoint={endPoint}
@@ -2361,9 +2428,10 @@ function App() {
       />
 
       {isPreparingRide && (
-        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/25 backdrop-blur-[2px]">
-          <div className="rounded-2xl bg-[#FFF4D6] px-6 py-4 text-sm font-medium text-stone-700 shadow-xl">
-            Przygotowywanie nawigacji…
+        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-ink/35" role="status">
+          <div className="flex items-center gap-3 rounded-full bg-ink py-3 pl-4 pr-6 text-[15px] font-semibold text-white shadow-[0_20px_50px_rgba(42,26,18,0.35)]">
+            <span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/25 border-t-burnt-orange [animation-duration:0.65s]" />
+            Przygotowuję nawigację…
           </div>
         </div>
       )}

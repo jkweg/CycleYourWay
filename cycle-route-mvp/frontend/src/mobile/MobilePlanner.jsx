@@ -21,6 +21,7 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import AddressAutocomplete from '../components/AddressAutocomplete'
+import { BrandMark } from '../components/brand/BikeGlyph'
 import ChunkFallback from '../components/ChunkFallback'
 import SavedRoutes from '../SavedRoutes'
 import { CLIMB_PREFERENCES, RIDE_STYLES } from '../lib/routePreferences'
@@ -643,6 +644,7 @@ function MobilePlanner({ p, sheet, setSheet }) {
             fitPadding={mapPadding}
             onMapClick={p.handleMapClick}
             lockedPoint={p.lockedPoint}
+            userLocation={p.userLocation}
             selectedRouteGeoJson={p.selectedRouteGeoJson}
             startPoint={p.startPoint}
             endPoint={p.endPoint}
@@ -666,6 +668,16 @@ function MobilePlanner({ p, sheet, setSheet }) {
         <div className="pointer-events-auto flex w-full items-center gap-2.5">
           {sheet === 'home' || sheet === 'saved' ? (
             <>
+              {p.onGoHome && (
+                <button
+                  type="button"
+                  aria-label="Strona główna"
+                  onClick={p.onGoHome}
+                  className="press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white shadow-[0_8px_22px_rgba(42,26,18,0.14)]"
+                >
+                  <BrandMark size={24} />
+                </button>
+              )}
               <button
                 type="button"
                 aria-label={p.isAuthenticated ? 'Profil' : 'Zaloguj się'}
