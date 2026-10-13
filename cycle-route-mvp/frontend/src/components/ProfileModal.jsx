@@ -3,7 +3,10 @@ import { mapSavedRouteRow, supabase } from '../supabaseClient'
 import { useAuth } from '../useAuth'
 import { fetchAllPages } from '../lib/paginatedExport'
 import { DISPLAY_NAME_MAX, HOME_AREA_MAX, clampText } from '../lib/dataLimits'
+import { IconActivity, IconDownload, IconLogout, IconRepeat, IconRoute, IconStarFilled } from '@tabler/icons-react'
 import LocalRideDrafts from './LocalRideDrafts'
+import Sheet from './ui/Sheet'
+import { Button, Card, Field, Notice, SectionTitle, Segmented, Spinner } from './ui/controls'
 import {
   CLIMB_PREFERENCES,
   DEFAULT_CLIMB_PREFERENCE,
@@ -17,8 +20,7 @@ import {
 
 const ROUTE_SELECT =
   'id, name, mode, distance_km, duration_seconds, share_enabled, share_token, is_favorite, tags, created_at'
-const ROUTE_SELECT_LEGACY =
-  'id, name, mode, distance_km, duration_seconds, is_public, created_at'
+const ROUTE_SELECT_LEGACY = 'id, name, mode, distance_km, duration_seconds, is_public, created_at'
 
 const PROFILE_SELECT = [
   'display_name',
@@ -86,13 +88,92 @@ function defaultProfile(user) {
   }
 }
 
-function StatCard({ label, value, hint }) {
+function BigStat({ label, value, hint, small = false }) {
   return (
-    <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-xl font-bold text-[#FC6C26]">{value}</p>
-      {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[11px] font-bold uppercase tracking-[0.1em] text-vanilla-deep">{label}</dt>
+      <dd className={small ? 'text-xl font-bold' : 'font-serif text-[28px] font-semibold leading-none'}>{value}</dd>
+      {hint && <dd className="text-xs text-vanilla-deep">{hint}</dd>}
     </div>
+  )
+}
+
+function EmptyState({ children }) {
+  return (
+    <p className="rounded-[22px] border border-dashed border-sand px-4 py-5 text-center text-sm text-ink-muted">
+      {children}
+    </p>
+  )
+}
+
+function ListRow({ icon, title, meta, tags = [], favorite = false, tone = 'vanilla' }) {
+  return (
+    <li className="flex items-center gap-3 rounded-[20px] border border-[#EFE0BC] bg-white p-3">
+      <span
+        className={`grid h-11 w-11 shrink-0 place-items-center rounded-[14px] ${
+          tone === 'sage' ? 'bg-sage-soft' : 'bg-vanilla'
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <strong className="truncate text-[15px] text-ink">{title}</strong>
+          {favorite && <IconStarFilled size={14} className="shrink-0 text-burnt-orange" aria-label="Ulubiona" />}
+        </span>
+        <span className="block truncate text-[13px] text-[#6B4E3D]">{meta.filter(Boolean).join(' · ')}</span>
+        {tags.length > 0 && (
+          <span className="mt-1.5 flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span key={tag} className="rounded-full bg-sage-soft px-2 py-0.5 text-[11px] font-bold text-[#1F5A43]">
+                {tag}
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
+    </li>
+  )
+}
+
+function ChoiceGroup({ label, items, value, onChange }) {
+  return (
+    <fieldset>
+      <legend className="mb-2 text-[13px] font-bold text-ink">{label}</legend>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={value === item.id}
+            onClick={() => onChange(item.id)}
+            className={`press h-10 rounded-full px-4 text-sm font-semibold ${
+              value === item.id ? 'bg-ink text-white' : 'border-[1.5px] border-sand bg-transparent text-ink'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+function Toggle({ label, checked, onChange }) {
+  return (
+    <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 px-4 py-3 text-[15px] text-ink">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className="relative h-7 w-12 shrink-0 rounded-full bg-sand transition-colors duration-200 after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200 after:ease-[var(--ease-out)] peer-checked:bg-sage peer-checked:after:translate-x-5 peer-focus-visible:ring-4 peer-focus-visible:ring-burnt-orange/30"
+      />
+    </label>
   )
 }
 
@@ -134,9 +215,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
           .limit(8),
         supabase
           .from('rides')
-          .select(
-            'id, route_name, mode, distance_meters, duration_seconds, avg_speed_kmh, completed_at',
-          )
+          .select('id, route_name, mode, distance_meters, duration_seconds, avg_speed_kmh, completed_at')
           .eq('user_id', user.id)
           .order('completed_at', { ascending: false })
           .limit(8),
@@ -180,7 +259,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
       setError(
         isMissingSchemaError(loadError.message)
           ? 'Schemat profilu jest nieaktualny — uruchom ponownie supabase/schema.sql.'
-          : loadError.message || 'Nie udało się wczytać danych konta.',
+          : loadError.message || 'Nie udało się wczytać danych konta.'
       )
     } finally {
       setIsLoading(false)
@@ -195,14 +274,8 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
   }, [isOpen, loadAccount])
 
   const stats = useMemo(() => {
-    const rideDistance = rides.reduce(
-      (sum, ride) => sum + (Number(ride.distance_meters) || 0),
-      0,
-    )
-    const rideSeconds = rides.reduce(
-      (sum, ride) => sum + (Number(ride.duration_seconds) || 0),
-      0,
-    )
+    const rideDistance = rides.reduce((sum, ride) => sum + (Number(ride.distance_meters) || 0), 0)
+    const rideSeconds = rides.reduce((sum, ride) => sum + (Number(ride.duration_seconds) || 0), 0)
     const favoriteRoutes = routes.filter((route) => route.isFavorite).length
     return accountStats
       ? {
@@ -220,8 +293,6 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
           rideTime: `${formatDuration(rideSeconds)}${rides.length === 8 ? '+' : ''}`,
         }
   }, [accountStats, rides, routes])
-
-  if (!isOpen) return null
 
   const updateProfile = (key, value) => {
     setProfile((current) => ({ ...current, [key]: value }))
@@ -264,7 +335,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
       setError(
         isMissingSchemaError(saveError.message)
           ? 'Schemat profilu jest nieaktualny — uruchom ponownie supabase/schema.sql.'
-          : saveError.message || 'Nie udało się zapisać profilu.',
+          : saveError.message || 'Nie udało się zapisać profilu.'
       )
     } finally {
       setIsSaving(false)
@@ -326,6 +397,11 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
     }
   }
 
+  const handleLogout = async () => {
+    await logout()
+    onClose()
+  }
+
   const handleDeleteAccount = async () => {
     if (!confirmDelete) {
       setConfirmDelete(true)
@@ -344,7 +420,7 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
         throw new Error(
           rpcError.message.includes('function') || rpcError.message.includes('schema cache')
             ? 'Brak funkcji delete_own_account — uruchom zaktualizowany supabase/schema.sql.'
-            : rpcError.message,
+            : rpcError.message
         )
       }
       await logout()
@@ -357,407 +433,339 @@ function ProfileModal({ isOpen, onClose, onApplied, onOpenPrivacy, onOpenTerms, 
   }
 
   const tabs = [
-    { id: 'profile', label: 'Profil' },
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'privacy', label: 'Prywatność' },
+    { value: 'dashboard', label: 'Przegląd' },
+    { value: 'profile', label: 'Profil' },
+    { value: 'privacy', label: 'Prywatność' },
   ]
+  const displayName = profile.display_name || user?.email?.split('@')[0] || 'Rowerzysta'
+  const initials = displayName.slice(0, 2).toUpperCase()
+
+  const footer =
+    activeTab === 'profile' ? (
+      <Button type="submit" form="profile-form" className="w-full" disabled={isSaving || isDeleting || isLoading}>
+        {isSaving && <Spinner />}
+        {isSaving ? 'Zapisywanie…' : 'Zapisz profil'}
+      </Button>
+    ) : null
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm">
-      <div
-        className="soft-panel max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[#f0d4b8] bg-white shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="profile-modal-title"
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-[#f0d4b8] p-5">
-          <div>
-            <h2 id="profile-modal-title" className="text-2xl font-semibold text-[#FC6C26]">
-              Moje konto
-            </h2>
-            <p className="mt-1 text-sm text-stone-600">{user?.email}</p>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      eyebrow="Moje konto"
+      title={displayName}
+      description={user?.email}
+      size="lg"
+      footer={footer}
+    >
+      <div className="space-y-5">
+        <Segmented label="Sekcje konta" value={activeTab} onChange={setActiveTab} options={tabs} />
+
+        {error && <Notice tone="error">{error}</Notice>}
+        {info && <Notice tone="success">{info}</Notice>}
+
+        {isLoading ? (
+          <div className="space-y-3" aria-label="Ładowanie danych konta">
+            <div className="h-40 animate-pulse rounded-[24px] bg-vanilla-deep" />
+            <div className="h-24 animate-pulse rounded-[22px] bg-vanilla-deep" />
+            <div className="h-16 animate-pulse rounded-[22px] bg-vanilla-deep" />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-stone-500 hover:bg-stone-100"
-            aria-label="Zamknij"
-          >
-            x
-          </button>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto border-b border-[#f0d4b8] bg-[#FFF8E8] px-5 py-3">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeTab === tab.id
-                  ? 'bg-[#FC6C26] text-white'
-                  : 'bg-white text-stone-700 hover:bg-[#FFF4D6]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="max-h-[68vh] overflow-y-auto p-5">
-          {isLoading ? (
-            <p className="text-sm text-stone-600">Ładowanie danych konta...</p>
-          ) : (
-            <>
-              {error && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
-              {info && <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-800">{info}</p>}
-
-              {activeTab === 'profile' && (
-                <form className="space-y-5" onSubmit={handleSave}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="text-sm font-medium text-stone-700">
-                      Wyświetlana nazwa
-                      <input
-                        value={profile.display_name || ''}
-                        maxLength={DISPLAY_NAME_MAX}
-                        onChange={(event) => updateProfile('display_name', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
-                      />
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Okolica startowa
-                      <input
-                        value={profile.home_area || ''}
-                        maxLength={HOME_AREA_MAX}
-                        onChange={(event) => updateProfile('home_area', event.target.value)}
-                        placeholder="np. Krosno, okolice rynku"
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
-                      />
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Typ jazdy
-                      <select
-                        value={profile.ride_style || DEFAULT_RIDE_STYLE}
-                        onChange={(event) => updateProfile('ride_style', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      >
-                        {RIDE_STYLES.map((item) => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Poziom kondycji
-                      <select
-                        value={profile.fitness_level || DEFAULT_FITNESS_LEVEL}
-                        onChange={(event) => updateProfile('fitness_level', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      >
-                        {FITNESS_LEVELS.map((item) => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Preferowana nawierzchnia
-                      <select
-                        value={profile.surface_preference || DEFAULT_SURFACE_PREFERENCE}
-                        onChange={(event) => updateProfile('surface_preference', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      >
-                        {SURFACE_PREFERENCES.map((item) => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Podjazdy
-                      <select
-                        value={profile.climb_preference || DEFAULT_CLIMB_PREFERENCE}
-                        onChange={(event) => updateProfile('climb_preference', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      >
-                        {CLIMB_PREFERENCES.map((item) => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Domyślny dystans pętli
-                      <input
-                        type="number"
-                        min={5}
-                        max={200}
-                        value={profile.default_loop_distance_km}
-                        onChange={(event) => updateProfile('default_loop_distance_km', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Typowy dystans
-                      <input
-                        type="number"
-                        min={5}
-                        max={250}
-                        value={profile.preferred_distance_km}
-                        onChange={(event) => updateProfile('preferred_distance_km', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Maksymalny dystans
-                      <input
-                        type="number"
-                        min={5}
-                        max={300}
-                        value={profile.max_distance_km}
-                        onChange={(event) => updateProfile('max_distance_km', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-sm font-medium text-stone-700">
-                      Preferowany czas jazdy (min)
-                      <input
-                        type="number"
-                        min={15}
-                        max={1440}
-                        value={profile.preferred_duration_min}
-                        onChange={(event) => updateProfile('preferred_duration_min', event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[#e8c9a8] px-3 py-2 text-sm"
-                      />
-                    </label>
+        ) : (
+          <>
+            {activeTab === 'dashboard' && (
+              <div className="space-y-5">
+                <section
+                  aria-label="Twoje statystyki"
+                  className="relative overflow-hidden rounded-[24px] bg-ink p-5 text-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-12 w-12 place-items-center rounded-full bg-burnt-orange font-bold text-ink">
+                      {initials}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-serif text-xl font-medium">{displayName}</p>
+                      <p className="text-sm text-vanilla-deep">
+                        {findLabel(RIDE_STYLES, profile.ride_style, 'Gravel')}
+                      </p>
+                    </div>
                   </div>
+                  <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+                    <BigStat label="Przejechane" value={stats.rideDistance} />
+                    <BigStat label="W siodle" value={stats.rideTime} />
+                    <BigStat label="Jazdy" value={stats.rides} small />
+                    <BigStat
+                      label="Zapisane trasy"
+                      value={stats.routes}
+                      small
+                      hint={`${stats.favoriteRoutes} ulubionych`}
+                    />
+                  </dl>
+                </section>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {[
-                      ['prefer_avoid_main_roads', 'Domyślnie unikaj dróg głównych'],
-                      ['prefer_asphalt', 'Preferuj asfalt / utwardzone drogi'],
-                      ['avoid_unpaved', 'Unikaj nieutwardzonych odcinków'],
-                      ['avoid_dark_routes', 'Unikaj słabo oświetlonych tras'],
-                    ].map(([key, label]) => (
-                      <label key={key} className="flex items-start gap-3 rounded-xl border border-[#f0d4b8] bg-[#FFF4D6] p-3 text-sm text-stone-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(profile[key])}
-                          onChange={(event) => updateProfile(key, event.target.checked)}
-                          className="mt-0.5"
-                        />
-                        <span>{label}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSaving || isDeleting}
-                    className="soft-button w-full rounded-xl bg-[#FC6C26] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E05518] disabled:opacity-60"
-                  >
-                    {isSaving ? 'Zapisywanie...' : 'Zapisz profil'}
-                  </button>
-                </form>
-              )}
-
-              {activeTab === 'dashboard' && (
-                <div className="space-y-5">
-                  <div className="grid gap-3 md:grid-cols-5">
-                    <StatCard label="Trasy" value={stats.routes} />
-                    <StatCard label="Ulubione" value={stats.favoriteRoutes} />
-                    <StatCard label="Jazdy" value={stats.rides} />
-                    <StatCard label="Dystans" value={stats.rideDistance} />
-                    <StatCard label="Czas" value={stats.rideTime} />
-                  </div>
-
-                  <section className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FC6C26]">
-                          Twoje preferencje
-                        </h3>
-                        <p className="mt-1 text-sm text-stone-600">
-                          Te ustawienia są automatycznie używane przy planowaniu tras.
-                        </p>
-                      </div>
+                <section>
+                  <SectionTitle
+                    action={
                       <button
                         type="button"
                         onClick={() => setActiveTab('profile')}
-                        className="rounded-lg border border-[#E08A50] bg-white px-3 py-1.5 text-xs font-semibold text-[#E05518]"
+                        className="text-sm font-semibold text-rust hover:underline"
                       >
                         Edytuj
                       </button>
-                    </div>
-                    <dl className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Styl jazdy
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {findLabel(RIDE_STYLES, profile.ride_style, 'Gravel')}
-                        </dd>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Nawierzchnia
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {findLabel(SURFACE_PREFERENCES, profile.surface_preference, 'Mieszana')}
-                        </dd>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Podjazdy
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {findLabel(CLIMB_PREFERENCES, profile.climb_preference, 'Normalne')}
-                        </dd>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Dystans pętli
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {profile.default_loop_distance_km} km
-                        </dd>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Typowy dystans
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {profile.preferred_distance_km} km
-                        </dd>
-                      </div>
-                      <div className="rounded-lg bg-white px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                          Czas jazdy
-                        </dt>
-                        <dd className="mt-1 font-bold text-stone-800">
-                          {profile.preferred_duration_min} min
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
+                    }
+                  >
+                    Twoje preferencje
+                  </SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      findLabel(RIDE_STYLES, profile.ride_style, 'Gravel'),
+                      findLabel(SURFACE_PREFERENCES, profile.surface_preference, 'Mieszana'),
+                      `Podjazdy: ${findLabel(CLIMB_PREFERENCES, profile.climb_preference, 'Normalne').toLowerCase()}`,
+                      `Pętla ${profile.default_loop_distance_km} km`,
+                      `Zwykle ${profile.preferred_distance_km} km`,
+                      `${profile.preferred_duration_min} min jazdy`,
+                    ].map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-[#EFE0BC] bg-white px-3 py-1.5 text-sm font-semibold text-ink"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </section>
 
-                  <section>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FC6C26]">Ostatnie jazdy</h3>
-                    {rides.length === 0 ? (
-                      <p className="mt-2 rounded-xl bg-[#FFF8E8] p-3 text-sm text-stone-600">Brak zapisanych jazd. Po zakończeniu nawigacji pojawią się tutaj aktywności.</p>
-                    ) : (
-                      <ul className="mt-2 space-y-2">
-                        {rides.map((ride) => (
-                          <li key={ride.id} className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-3 text-sm">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-stone-800">{ride.route_name || 'Jazda'}</p>
-                              <span className="text-xs text-stone-500">{formatDate(ride.completed_at)}</span>
-                            </div>
-                            <p className="mt-1 text-xs text-stone-600">
-                              {(Number(ride.distance_meters || 0) / 1000).toFixed(1)} km · {formatDuration(Number(ride.duration_seconds || 0))}
-                              {Number.isFinite(Number(ride.avg_speed_kmh)) ? ` · ${Number(ride.avg_speed_kmh).toFixed(1)} km/h` : ''}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
+                <section>
+                  <SectionTitle>Ostatnie jazdy</SectionTitle>
+                  {rides.length === 0 ? (
+                    <EmptyState>Po zakończeniu nawigacji jazdy pojawią się tutaj.</EmptyState>
+                  ) : (
+                    <ul className="space-y-2">
+                      {rides.map((ride) => (
+                        <ListRow
+                          key={ride.id}
+                          icon={<IconActivity size={20} stroke={2} className="text-burnt-orange-dark" />}
+                          title={ride.route_name || 'Jazda'}
+                          meta={[
+                            formatDate(ride.completed_at),
+                            `${(Number(ride.distance_meters || 0) / 1000).toFixed(1).replace('.', ',')} km`,
+                            formatDuration(Number(ride.duration_seconds || 0)),
+                            Number.isFinite(Number(ride.avg_speed_kmh)) && Number(ride.avg_speed_kmh) > 0
+                              ? `${Number(ride.avg_speed_kmh).toFixed(1).replace('.', ',')} km/h`
+                              : null,
+                          ]}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </section>
 
-                  <section>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FC6C26]">Ostatnie trasy</h3>
-                    {routes.length === 0 ? (
-                      <p className="mt-2 rounded-xl bg-[#FFF8E8] p-3 text-sm text-stone-600">Brak zapisanych tras.</p>
-                    ) : (
-                      <ul className="mt-2 grid gap-2 md:grid-cols-2">
-                        {routes.slice(0, 6).map((route) => (
-                          <li key={route.id} className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-3 text-sm">
-                            <p className="font-semibold text-stone-800">{route.isFavorite ? '* ' : ''}{route.name}</p>
-                            <p className="mt-1 text-xs text-stone-600">
-                              {route.mode === 'Loop' ? 'Pętla' : 'A-B'}
-                              {route.distanceKm != null ? ` · ${route.distanceKm.toFixed(1)} km` : ''}
-                            </p>
-                            {route.tags.length > 0 && (
-                              <p className="mt-2 flex flex-wrap gap-1">
-                                {route.tags.map((tag) => (
-                                  <span key={tag} className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-900">{tag}</span>
-                                ))}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
+                <section>
+                  <SectionTitle>Ostatnie trasy</SectionTitle>
+                  {routes.length === 0 ? (
+                    <EmptyState>Zapisane trasy pojawią się tutaj.</EmptyState>
+                  ) : (
+                    <ul className="space-y-2">
+                      {routes.slice(0, 6).map((route) => (
+                        <ListRow
+                          key={route.id}
+                          tone={route.mode === 'Loop' ? 'vanilla' : 'sage'}
+                          icon={
+                            route.mode === 'Loop' ? (
+                              <IconRepeat size={20} stroke={2} className="text-burnt-orange-dark" />
+                            ) : (
+                              <IconRoute size={20} stroke={2} className="text-sage" />
+                            )
+                          }
+                          title={route.name}
+                          meta={[
+                            route.mode === 'Loop' ? 'Pętla' : 'A → B',
+                            route.distanceKm != null ? `${route.distanceKm.toFixed(1).replace('.', ',')} km` : null,
+                          ]}
+                          tags={route.tags}
+                          favorite={route.isFavorite}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                <Button tone="outline" className="w-full" onClick={handleLogout}>
+                  <IconLogout size={18} stroke={2.2} />
+                  Wyloguj się
+                </Button>
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <form id="profile-form" className="space-y-6" onSubmit={handleSave}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    id="profile-name"
+                    label="Wyświetlana nazwa"
+                    value={profile.display_name || ''}
+                    maxLength={DISPLAY_NAME_MAX}
+                    onChange={(event) => updateProfile('display_name', event.target.value)}
+                  />
+                  <Field
+                    id="profile-area"
+                    label="Okolica startowa"
+                    value={profile.home_area || ''}
+                    maxLength={HOME_AREA_MAX}
+                    onChange={(event) => updateProfile('home_area', event.target.value)}
+                    placeholder="np. Kraków, Grzegórzki"
+                  />
                 </div>
-              )}
 
-              {activeTab === 'privacy' && (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
-                    <h3 className="font-semibold text-[#FC6C26]">Dokumenty</h3>
-                    <p className="mt-1 text-sm text-stone-600">
-                      Polityka prywatności i regulamin — też pod stałymi adresami na cycleyourway.pl.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onOpenPrivacy?.()}
-                        className="soft-button rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518]"
-                      >
-                        Polityka prywatności
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onOpenTerms?.()}
-                        className="soft-button rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518]"
-                      >
-                        Regulamin
-                      </button>
-                      <a
-                        href="/privacy"
-                        className="soft-button rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600"
-                      >
-                        /privacy
-                      </a>
-                      <a
-                        href="/terms"
-                        className="soft-button rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600"
-                      >
-                        /terms
-                      </a>
-                    </div>
-                  </div>
+                <ChoiceGroup
+                  label="Styl jazdy"
+                  items={RIDE_STYLES}
+                  value={profile.ride_style || DEFAULT_RIDE_STYLE}
+                  onChange={(value) => updateProfile('ride_style', value)}
+                />
+                <ChoiceGroup
+                  label="Kondycja"
+                  items={FITNESS_LEVELS}
+                  value={profile.fitness_level || DEFAULT_FITNESS_LEVEL}
+                  onChange={(value) => updateProfile('fitness_level', value)}
+                />
+                <ChoiceGroup
+                  label="Nawierzchnia"
+                  items={SURFACE_PREFERENCES}
+                  value={profile.surface_preference || DEFAULT_SURFACE_PREFERENCE}
+                  onChange={(value) => updateProfile('surface_preference', value)}
+                />
+                <ChoiceGroup
+                  label="Podjazdy"
+                  items={CLIMB_PREFERENCES}
+                  value={profile.climb_preference || DEFAULT_CLIMB_PREFERENCE}
+                  onChange={(value) => updateProfile('climb_preference', value)}
+                />
 
-                  <LocalRideDrafts userId={user?.id || null} onOpenDraft={onOpenRideDraft} />
+                <div className="grid grid-cols-2 gap-4">
+                  <Field
+                    id="profile-loop"
+                    label="Domyślna pętla (km)"
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={200}
+                    value={profile.default_loop_distance_km}
+                    onChange={(event) => updateProfile('default_loop_distance_km', event.target.value)}
+                  />
+                  <Field
+                    id="profile-typical"
+                    label="Typowy dystans (km)"
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={250}
+                    value={profile.preferred_distance_km}
+                    onChange={(event) => updateProfile('preferred_distance_km', event.target.value)}
+                  />
+                  <Field
+                    id="profile-max"
+                    label="Maks. dystans (km)"
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={300}
+                    value={profile.max_distance_km}
+                    onChange={(event) => updateProfile('max_distance_km', event.target.value)}
+                  />
+                  <Field
+                    id="profile-duration"
+                    label="Czas jazdy (min)"
+                    type="number"
+                    inputMode="numeric"
+                    min={15}
+                    max={1440}
+                    value={profile.preferred_duration_min}
+                    onChange={(event) => updateProfile('preferred_duration_min', event.target.value)}
+                  />
+                </div>
 
-                  <div className="rounded-xl border border-[#f0d4b8] bg-[#FFF8E8] p-4">
-                    <h3 className="font-semibold text-[#FC6C26]">Eksport danych</h3>
-                    <p className="mt-1 text-sm text-stone-600">Pobierz lokalny plik JSON z profilem, trasami i historią jazd widocznymi dla konta.</p>
-                    <button
-                      type="button"
-                      disabled={isExporting}
-                      onClick={handleExportData}
-                      className="soft-button mt-3 rounded-xl border border-[#E08A50] bg-white px-4 py-2 text-sm font-semibold text-[#E05518] disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {isExporting ? 'Przygotowywanie eksportu…' : 'Eksportuj dane'}
-                    </button>
-                  </div>
-
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                    <h3 className="font-semibold text-rose-800">Usunięcie konta</h3>
-                    <p className="mt-1 text-sm text-rose-700">Usunięcie konta usuwa profil, zapisane trasy i historię jazd. Tej operacji nie da się cofnąć.</p>
-                    <button
-                      type="button"
-                      disabled={isDeleting || isSaving}
-                      onClick={handleDeleteAccount}
-                      className="soft-button mt-3 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-800 disabled:opacity-60"
-                    >
-                      {isDeleting ? 'Usuwanie...' : confirmDelete ? 'Potwierdź usunięcie konta' : 'Usuń konto'}
-                    </button>
+                <div>
+                  <SectionTitle>Przy planowaniu</SectionTitle>
+                  <div className="divide-y divide-[#F1E6CC] overflow-hidden rounded-[22px] border border-[#EFE0BC] bg-white">
+                    {[
+                      ['prefer_avoid_main_roads', 'Unikaj dróg głównych'],
+                      ['prefer_asphalt', 'Preferuj asfalt i drogi utwardzone'],
+                      ['avoid_unpaved', 'Unikaj nieutwardzonych odcinków'],
+                      ['avoid_dark_routes', 'Unikaj słabo oświetlonych tras'],
+                    ].map(([key, label]) => (
+                      <Toggle
+                        key={key}
+                        label={label}
+                        checked={Boolean(profile[key])}
+                        onChange={(checked) => updateProfile(key, checked)}
+                      />
+                    ))}
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              </form>
+            )}
+
+            {activeTab === 'privacy' && (
+              <div className="space-y-4">
+                <Card>
+                  <h3 className="font-semibold text-ink">Dokumenty</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                    Polityka prywatności i regulamin — też pod stałymi adresami na cycleyourway.pl.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button tone="outline" size="sm" onClick={() => onOpenPrivacy?.()}>
+                      Polityka prywatności
+                    </Button>
+                    <Button tone="outline" size="sm" onClick={() => onOpenTerms?.()}>
+                      Regulamin
+                    </Button>
+                  </div>
+                </Card>
+
+                <LocalRideDrafts userId={user?.id || null} onOpenDraft={onOpenRideDraft} />
+
+                <Card>
+                  <h3 className="font-semibold text-ink">Eksport danych</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                    Pobierz plik JSON z profilem, trasami i historią jazd.
+                  </p>
+                  <Button tone="outline" size="sm" className="mt-3" disabled={isExporting} onClick={handleExportData}>
+                    {isExporting ? <Spinner /> : <IconDownload size={16} stroke={2.2} />}
+                    {isExporting ? 'Przygotowywanie…' : 'Eksportuj dane'}
+                  </Button>
+                </Card>
+
+                <div className="rounded-[22px] border border-[#E9A08A] bg-[#FDE7DF] p-4">
+                  <h3 className="font-semibold text-[#6E1C12]">Usunięcie konta</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-[#6E1C12]/85">
+                    Usuwa profil, zapisane trasy i historię jazd. Tej operacji nie da się cofnąć.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button tone="danger" size="sm" disabled={isDeleting || isSaving} onClick={handleDeleteAccount}>
+                      {isDeleting && <Spinner />}
+                      {isDeleting ? 'Usuwanie…' : confirmDelete ? 'Tak, usuń konto na zawsze' : 'Usuń konto'}
+                    </Button>
+                    {confirmDelete && !isDeleting && (
+                      <Button
+                        tone="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setConfirmDelete(false)
+                          setError('')
+                        }}
+                      >
+                        Anuluj
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
-    </div>
+    </Sheet>
   )
 }
 

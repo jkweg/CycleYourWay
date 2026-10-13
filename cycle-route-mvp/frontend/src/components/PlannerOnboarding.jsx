@@ -1,28 +1,33 @@
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { IconBookmark, IconMapPin, IconRepeat } from '@tabler/icons-react'
 import { markPlannerOnboardingDone } from '../lib/plannerOnboarding'
+import Sheet from './ui/Sheet'
+import { Button } from './ui/controls'
 
 const STEPS = [
   {
+    icon: IconMapPin,
     title: 'Ustaw start',
-    body: 'Kliknij mapę, wpisz adres albo użyj swojej lokalizacji.',
+    body: 'Dotknij mapy, wpisz adres albo użyj swojej lokalizacji.',
   },
   {
-    title: 'Wybierz tryb',
-    body: 'Trasa A → B między dwoma punktami albo pętla treningowa o wybranym dystansie.',
+    icon: IconRepeat,
+    title: 'Wybierz trasę',
+    body: 'Z punktu A do B albo pętla o wybranym dystansie — pod Twój styl jazdy.',
   },
   {
+    icon: IconBookmark,
     title: 'Zapisz i jedź',
-    body: 'Porównaj warianty, zapisz trasę na koncie i otwórz nawigację na telefonie.',
+    body: 'Porównaj warianty, zapisz trasę na koncie i ruszaj z nawigacją głosową.',
   },
 ]
 
 function PlannerOnboarding({ isOpen, onClose }) {
   const [step, setStep] = useState(0)
-
-  if (!isOpen) return null
-
   const isLast = step === STEPS.length - 1
   const current = STEPS[step]
+  const Icon = current.icon
 
   const finish = () => {
     markPlannerOnboardingDone()
@@ -31,53 +36,49 @@ function PlannerOnboarding({ isOpen, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[2100] flex items-end justify-center bg-stone-900/35 p-4 backdrop-blur-sm sm:items-center">
-      <div
-        className="soft-panel w-full max-w-md rounded-2xl border border-[#f0d4b8] bg-[#FFF8E8] p-5 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="onboarding-title"
-      >
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6248]">
-          Szybki start · {step + 1}/{STEPS.length}
-        </p>
-        <h2 id="onboarding-title" className="mt-2 text-xl font-semibold text-[#FC6C26]">
-          {current.title}
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-stone-600">{current.body}</p>
-
-        <div className="mt-4 flex gap-1.5">
-          {STEPS.map((item, index) => (
-            <span
-              key={item.title}
-              className={`h-1.5 flex-1 rounded-full ${
-                index <= step ? 'bg-[#FC6C26]' : 'bg-[#f0d4b8]'
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={finish}
-            className="rounded-xl px-3 py-2 text-sm font-medium text-stone-500 hover:bg-stone-50"
-          >
+    <Sheet
+      open={isOpen}
+      onClose={finish}
+      eyebrow={`Szybki start · ${step + 1}/${STEPS.length}`}
+      size="sm"
+      footer={
+        <div className="flex items-center gap-2">
+          <Button tone="ghost" onClick={finish}>
             Pomiń
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (isLast) finish()
-              else setStep((currentStep) => currentStep + 1)
-            }}
-            className="soft-button ml-auto rounded-xl bg-[#FC6C26] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E05518]"
-          >
+          </Button>
+          <Button className="ml-auto min-w-[9rem]" onClick={() => (isLast ? finish() : setStep((value) => value + 1))}>
             {isLast ? 'Zaczynamy' : 'Dalej'}
-          </button>
+          </Button>
         </div>
+      }
+    >
+      <div className="relative h-[168px] overflow-hidden">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, filter: 'blur(6px)', transform: 'translateX(24px)' }}
+            animate={{ opacity: 1, filter: 'blur(0px)', transform: 'translateX(0px)' }}
+            exit={{ opacity: 0, filter: 'blur(6px)', transform: 'translateX(-24px)' }}
+            transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+            className="absolute inset-0"
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-[18px] bg-burnt-orange text-ink">
+              <Icon size={28} stroke={2.2} />
+            </span>
+            <h2 className="mt-4 font-serif text-[28px] font-medium leading-tight text-ink">{current.title}</h2>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-ink-muted">{current.body}</p>
+          </motion.div>
+        </AnimatePresence>
       </div>
-    </div>
+      <div className="mt-2 flex gap-1.5" aria-hidden="true">
+        {STEPS.map((item, index) => (
+          <span
+            key={item.title}
+            className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${index <= step ? 'bg-burnt-orange' : 'bg-vanilla-deep'}`}
+          />
+        ))}
+      </div>
+    </Sheet>
   )
 }
 

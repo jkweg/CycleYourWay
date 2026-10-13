@@ -1,3 +1,5 @@
+import Sheet from './ui/Sheet'
+import { BrandMark } from './brand/BikeGlyph'
 export type LegalDocType = 'privacy' | 'terms'
 
 type LegalSection = {
@@ -124,21 +126,24 @@ const TERMS: LegalDoc = {
 
 function LegalContent({ doc }: { doc: LegalDoc }) {
   return (
-    <div className="space-y-5 text-sm leading-7 text-stone-700">
+    <div className="space-y-6 text-[15px] leading-7 text-ink-muted">
       {doc.sections.map((section) => (
         <section key={section.heading}>
-          <h3 className="font-semibold text-[#FC6C26]">{section.heading}</h3>
+          <h3 className="font-serif text-xl font-medium text-ink">{section.heading}</h3>
           {section.items && (
-            <ul className="mt-1 list-disc space-y-1 pl-5">
+            <ul className="mt-2 space-y-1.5">
               {section.items.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item} className="flex gap-2.5">
+                  <span aria-hidden="true" className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-burnt-orange" />
+                  <span>{item}</span>
+                </li>
               ))}
             </ul>
           )}
-          {section.body && <p className="mt-1">{section.body}</p>}
+          {section.body && <p className="mt-2">{section.body}</p>}
         </section>
       ))}
-      {doc.updated && <p className="text-xs text-stone-500">Wersja z dnia {doc.updated}.</p>}
+      {doc.updated && <p className="text-xs text-[#8C6B52]">Wersja z dnia {doc.updated}.</p>}
     </div>
   )
 }
@@ -150,20 +155,23 @@ export function LegalStandalone({ type }: { type: LegalDocType }) {
   const otherLabel = type === 'terms' ? 'Polityka prywatności' : 'Regulamin'
 
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-[#fff8f1] to-[#f5ebe0] px-4 py-10 text-stone-800">
+    <div className="min-h-dvh bg-vanilla px-5 pb-16 pt-10 text-ink">
       <article className="mx-auto max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FC6C26]">
+        <a href="/" className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-ink">
+          <BrandMark />
           Cycle Your Way
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold text-[#FC6C26]">{doc.title}</h1>
-        <div className="mt-8">
+        </a>
+        <h1 className="mt-10 font-serif text-[clamp(2.4rem,7vw,3.6rem)] font-medium leading-[1.02] tracking-[-0.02em]">
+          {doc.title}
+        </h1>
+        <div className="mt-10 rounded-[28px] bg-white p-6 shadow-[0_20px_50px_-30px_rgba(42,26,18,0.35)] sm:p-9">
           <LegalContent doc={doc} />
         </div>
-        <nav className="mt-10 flex flex-wrap gap-4 border-t border-[#f0d4b8] pt-6 text-sm">
-          <a href="/" className="text-[#FC6C26] underline-offset-2 hover:underline">
+        <nav className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
+          <a href="/" className="press inline-flex h-11 items-center rounded-full bg-ink px-5 text-white">
             Strona główna
           </a>
-          <a href={otherHref} className="text-stone-600 underline-offset-2 hover:underline">
+          <a href={otherHref} className="press inline-flex h-11 items-center rounded-full border-[1.5px] border-ink/20 px-5 text-ink">
             {otherLabel}
           </a>
         </nav>
@@ -179,40 +187,18 @@ type LegalPageProps = {
 
 function LegalPage({ type, onClose }: LegalPageProps) {
   const doc = type === 'terms' ? TERMS : PRIVACY
+  const href = type === 'terms' ? '/terms' : '/privacy'
 
   return (
-    <div className="fixed inset-0 z-[2200] flex items-center justify-center bg-stone-900/45 p-4 backdrop-blur-sm">
-      <div
-        className="soft-panel max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#f0d4b8] bg-white p-6 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="legal-title"
-      >
-        <div className="mb-5 flex items-start justify-between gap-3">
-          <h2 id="legal-title" className="text-2xl font-semibold text-[#FC6C26]">
-            {doc.title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-stone-500 hover:bg-stone-100"
-            aria-label="Zamknij"
-          >
-            ✕
-          </button>
-        </div>
-        <LegalContent doc={doc} />
-        <p className="mt-6 text-xs text-stone-500">
-          Stały adres:{' '}
-          <a
-            href={type === 'terms' ? '/terms' : '/privacy'}
-            className="text-[#FC6C26] underline-offset-2 hover:underline"
-          >
-            {type === 'terms' ? '/terms' : '/privacy'}
-          </a>
-        </p>
-      </div>
-    </div>
+    <Sheet open onClose={onClose} eyebrow="Dokumenty" title={doc.title} size="lg">
+      <LegalContent doc={doc} />
+      <p className="mt-6 text-sm text-[#8C6B52]">
+        Stały adres:{' '}
+        <a href={href} className="font-semibold text-rust underline-offset-4 hover:underline">
+          cycleyourway.pl{href}
+        </a>
+      </p>
+    </Sheet>
   )
 }
 

@@ -71,10 +71,15 @@ import {
 const LandingPage = lazy(() => import('./components/LandingPage'))
 const RideView = lazy(() => import('./RideView'))
 const MobilePlanner = lazy(() => import('./mobile/MobilePlanner'))
-// Android app (and `?mobile=1` on the web for testing): full-screen map + bottom sheets.
-const USE_MOBILE_SHELL =
+// Android app (and `?mobile=1` for testing) opens straight into the planner.
+const OPENS_IN_PLANNER =
   isNativePlatform() ||
   (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile'))
+// Full-screen map + bottom sheets: the app, and phones in the browser too (the
+// desktop planner shows every route detail at once, too much for a phone).
+const USE_MOBILE_SHELL =
+  OPENS_IN_PLANNER ||
+  (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 767px)').matches))
 const PlannerMap = lazy(() => import('./PlannerMap'))
 
 let viaStopSequentialId = 0
@@ -195,7 +200,7 @@ function App() {
   const [routeDisplayKey, setRouteDisplayKey] = useState(0)
   const [isSavingRoute, setIsSavingRoute] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
-  const [view, setView] = useState(() => (USE_MOBILE_SHELL ? 'planner' : 'landing'))
+  const [view, setView] = useState(() => (OPENS_IN_PLANNER ? 'planner' : 'landing'))
   // Mobile shell bottom sheet: home → plan → result → details, or saved.
   const [mobileSheet, setMobileSheet] = useState('home')
   const [mobileRouteKey, setMobileRouteKey] = useState(0)
@@ -1713,6 +1718,8 @@ function App() {
               userEmail: user?.email,
               openAuth: () => setShowAuthModal(true),
               openProfile: () => setShowProfileModal(true),
+              // The website has a home page to go back to; the app does not.
+              onGoHome: isNativePlatform() ? null : goToHome,
               error,
               saveSuccessMessage,
               routeMode,
@@ -2361,9 +2368,10 @@ function App() {
       />
 
       {isPreparingRide && (
-        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/25 backdrop-blur-[2px]">
-          <div className="rounded-2xl bg-[#FFF4D6] px-6 py-4 text-sm font-medium text-stone-700 shadow-xl">
-            Przygotowywanie nawigacji…
+        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-ink/35" role="status">
+          <div className="flex items-center gap-3 rounded-full bg-ink py-3 pl-4 pr-6 text-[15px] font-semibold text-white shadow-[0_20px_50px_rgba(42,26,18,0.35)]">
+            <span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/25 border-t-burnt-orange [animation-duration:0.65s]" />
+            Przygotowuję nawigację…
           </div>
         </div>
       )}
