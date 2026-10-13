@@ -380,3 +380,23 @@ Gałąź `feature/redesign-poster` (odbita od `feature/android`). Inspiracje: ev
 - Frontend: lint, **35/35**, `vite build`; brak błędów w konsoli.
 - Podgląd w przeglądarce: hero przy 1440×900 i 1900×815 (pomiary: telefon w całości w hero, brak nachodzenia tekstu, przycisków i plakietek), scena przewijania w trzech punktach, sekcje do stopki, ekran ładowania; układ mobilny sprawdzony pomiarami (zrzuty w emulacji telefonu się przekłamywały). Akceptacja wyglądu przez użytkownika.
 - Nie testowano: rysowania trasy i odliczania dystansu w planerze (wymaga backendu z kluczem ORS), Safari/iOS.
+
+## Pakiet 17 — planer aplikacji na telefonie w przeglądarce, redesign okien, sprzątanie trasy (13.10.2026)
+
+Gałąź `feature/redesign-rest`.
+
+| Obszar | Zmiana |
+| --- | --- |
+| Telefon w przeglądarce | Ekrany < 768 px używają planera z aplikacji (`MobilePlanner`): mapa na cały ekran, zwięzła karta wyniku (dystans, czas, przewyższenie), szczegóły po rozwinięciu; przycisk z logo wraca na stronę główną. Komputer bez zmian. |
+| Wspólny arkusz | `components/ui/Sheet.jsx`: na telefonie panel od dołu (zamykanie przeciągnięciem/szybkim ruchem w dół), od `sm` karta na środku; Esc zamyka tylko górny arkusz, fokus wchodzi i wraca, blokada przewijania. `components/ui/controls.jsx`: przyciski, pola (16 px — bez zoomu iOS), komunikaty, przełącznik segmentowy. |
+| Okna | Logowanie (najpierw Google), profil (karta statystyk, preferencje w etykietach, przełączniki, wylogowanie, potwierdzane usunięcie konta), jazdy na urządzeniu, zapisane trasy (wyszukiwarka, filtry, karty z ulubioną, menu „…”), zapis trasy, ostrzeżenie Google Maps, „Na telefonie” (QR), szybki start, dokumenty prawne (arkusz i strony `/privacy`, `/terms`), nakładka przygotowania jazdy. |
+| Trasa po wyjściu | Wyjście z jazdy lub powrót z planowania/wyniku na ekran startowy czyści trasę i punkty; mapa leci do pozycji użytkownika (niebieska kropka) albo, bez zgody na lokalizację, do miejsca trasy. Wczytana zapisana pętla pokazuje w polu startu punkt, nie nazwę trasy. |
+| Kadrowanie trasy | Leaflet ignoruje `fitBounds` w trakcie animacji przybliżania, a panel zmienia wysokość zaraz po wyznaczeniu trasy — dopasowanie czeka na ustabilizowanie panelu i `zoomend`, więc trasa wypełnia widoczną część mapy nad kartą wyniku. |
+
+### Weryfikacja pakietu 17
+
+- Frontend: lint, typecheck, **35/35**, `vite build`.
+- Podgląd w przeglądarce: logowanie (komputer i telefon), dokumenty prawne, Esc, szybki start, planer na telefonie w przeglądarce.
+- Telefon Samsung SM-S926B (APK debug): pętla 20 km wyznaczona z lokalizacji — trasa wyśrodkowana nad kartą wyniku; okno zapisu z przyciskiem pełnej wysokości nad klawiaturą; niebieska kropka pozycji. Użytkownik testował profil i nowe okna na swoim koncie.
+- Nie testowano: wyjścia z jazdy w terenie, Safari/iOS.
+
