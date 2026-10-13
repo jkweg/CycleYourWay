@@ -644,6 +644,7 @@ function MobilePlanner({ p, sheet, setSheet }) {
             fitPadding={mapPadding}
             onMapClick={p.handleMapClick}
             lockedPoint={p.lockedPoint}
+            userLocation={p.userLocation}
             selectedRouteGeoJson={p.selectedRouteGeoJson}
             startPoint={p.startPoint}
             endPoint={p.endPoint}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { AttributionControl, GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { AttributionControl, CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { createViaMarkerIcon, plannerMarkerIcon } from './lib/leafletIcons'
 import { getMapTileLayer } from './lib/mapTiles'
 
@@ -182,6 +182,7 @@ function usePreferMapLock() {
 function PlannerMap({
   onMapClick,
   lockedPoint,
+  userLocation = null,
   selectedRouteGeoJson,
   startPoint,
   endPoint,
@@ -282,6 +283,22 @@ function PlannerMap({
             enabled={interactive && !markersLocked}
             onDragEnd={markersLocked ? undefined : onEndDrag}
           />
+        )}
+        {userLocation && (
+          <>
+            <CircleMarker
+              center={[userLocation.lat, userLocation.lng]}
+              radius={18}
+              interactive={false}
+              pathOptions={{ stroke: false, fillColor: '#2563eb', fillOpacity: 0.15 }}
+            />
+            <CircleMarker
+              center={[userLocation.lat, userLocation.lng]}
+              radius={7}
+              interactive={false}
+              pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
+            />
+          </>
         )}
         {routeGeoJson?.features?.map((feature, index) => (
           <GeoJSON
