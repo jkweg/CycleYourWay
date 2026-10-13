@@ -20,7 +20,7 @@ function GoogleMapsExportNoticeModal({ isOpen, onClose, onConfirm, onDownloadGpx
         <div className="flex flex-col gap-2 sm:flex-row-reverse">
           <Button
             tone="ink"
-            className="flex-1"
+            className="w-full sm:flex-1"
             onClick={() => {
               onDownloadGpx()
               onClose()
@@ -29,7 +29,7 @@ function GoogleMapsExportNoticeModal({ isOpen, onClose, onConfirm, onDownloadGpx
             <IconDownload size={18} stroke={2.2} className="text-burnt-orange" />
             Pobierz GPX
           </Button>
-          <Button tone="outline" className="flex-1" onClick={handleConfirm}>
+          <Button tone="outline" className="w-full sm:flex-1" onClick={handleConfirm}>
             <IconExternalLink size={18} stroke={2.2} />
             Otwórz mimo to
           </Button>

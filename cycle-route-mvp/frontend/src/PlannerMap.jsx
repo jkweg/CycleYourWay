@@ -62,19 +62,35 @@ function MapInteractionController({ interactive }) {
   return null
 }
 
+const ROUTE_FIT_SETTLE_MS = 90
+
 function RouteFitBounds({ routeGeoJson, fitPadding }) {
   const map = useMap()
   const top = fitPadding?.top ?? 36
   const bottom = fitPadding?.bottom ?? 36
 
   useEffect(() => {
-    if (!routeGeoJson) return
+    if (!routeGeoJson) return undefined
 
-    const routeLayer = L.geoJSON(routeGeoJson)
-    const bounds = routeLayer.getBounds()
-    if (bounds.isValid()) {
-      // Keep the route clear of floating UI (mobile: top bar and bottom sheet).
+    const bounds = L.geoJSON(routeGeoJson).getBounds()
+    if (!bounds.isValid()) return undefined
+
+    // Keep the route clear of floating UI (mobile: top bar and bottom sheet).
+    // Leaflet drops a fit requested while a zoom animation runs, and the sheet
+    // changes height right after a route arrives (planning → result card): wait
+    // for both to settle so the last, correct padding wins.
+    let timer = 0
+    const fit = () => {
+      if (map._animatingZoom) {
+        map.once('zoomend', fit)
+        return
+      }
       map.fitBounds(bounds, { paddingTopLeft: [36, top], paddingBottomRight: [36, bottom] })
+    }
+    timer = window.setTimeout(fit, ROUTE_FIT_SETTLE_MS)
+    return () => {
+      window.clearTimeout(timer)
+      map.off('zoomend', fit)
     }
   }, [map, routeGeoJson, top, bottom])
 

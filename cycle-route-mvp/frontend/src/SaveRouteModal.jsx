@@ -32,12 +32,12 @@ function SaveRouteModal({ isOpen, defaultName, isSaving, canOverwrite = false, o
       size="sm"
       footer={
         <div className="flex flex-col gap-2 sm:flex-row-reverse">
-          <Button type="submit" form="save-route-form" className="flex-1" disabled={disabled}>
+          <Button type="submit" form="save-route-form" className="w-full sm:flex-1" disabled={disabled}>
             {isSaving && <Spinner />}
             {isSaving ? 'Zapisywanie…' : canOverwrite ? 'Nadpisz' : 'Zapisz'}
           </Button>
           {canOverwrite && (
-            <Button tone="outline" className="flex-1" disabled={disabled} onClick={(event) => submit(event, 'insert')}>
+            <Button tone="outline" className="w-full sm:flex-1" disabled={disabled} onClick={(event) => submit(event, 'insert')}>
               Zapisz jako nową
             </Button>
           )}
