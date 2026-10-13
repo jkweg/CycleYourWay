@@ -35,6 +35,18 @@ function usePhoneLayout() {
  * Dialog in the app's style: a bottom sheet on phones (drag the handle down to
  * close), a centred card from `sm` up. Escape closes it, focus moves in and
  * back out, and the page behind does not scroll.
+ *
+ * @param {{
+ *   open: boolean,
+ *   onClose?: () => void,
+ *   eyebrow?: import('react').ReactNode,
+ *   title?: import('react').ReactNode,
+ *   description?: import('react').ReactNode,
+ *   children?: import('react').ReactNode,
+ *   footer?: import('react').ReactNode,
+ *   size?: 'sm' | 'md' | 'lg',
+ *   tone?: 'vanilla' | 'ink',
+ * }} props
  */
 function Sheet({ open, onClose, eyebrow, title, description, children, footer, size = 'md', tone = 'vanilla' }) {
   const titleId = useId()

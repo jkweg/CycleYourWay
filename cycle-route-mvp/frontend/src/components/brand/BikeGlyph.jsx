@@ -42,7 +42,7 @@ export function BikeShapes({
   )
 }
 
-export function BrandMark({ size = 28, color = '#E05518', className }) {
+export function BrandMark({ size = 28, color = '#E05518', className = undefined }) {
   return (
     <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true" className={className}>
       <circle cx="14" cy="14" r="13" fill="none" stroke={color} strokeWidth="2" />
