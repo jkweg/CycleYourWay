@@ -40,22 +40,16 @@ Planer tras rowerowych z nawigacją. Wybierasz start i dystans, dostajesz pętl�
 
 ```mermaid
 flowchart LR
-  subgraph Klient
-    Web["Strona www<br/>React + Vite"]
-    App["Android<br/>Capacitor"]
-  end
+  Client["Strona www i aplikacja Android<br/>React · Capacitor"]
   API["API<br/>Node + Express"]
   DB[("Supabase<br/>Auth · Postgres · RLS")]
+  Tiles["MapTiler<br/>kafelki mapy"]
   ORS["openrouteservice<br/>trasy i pętle"]
   Geo["Pelias · Nominatim<br/>adresy"]
-  Tiles["MapTiler<br/>kafelki mapy"]
 
-  Web --> API
-  App --> API
-  Web --> DB
-  App --> DB
-  Web --> Tiles
-  App --> Tiles
+  Client --> API
+  Client --> DB
+  Client --> Tiles
   API --> ORS
   API --> Geo
   API --> DB
